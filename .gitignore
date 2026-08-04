@@ -1,0 +1,14 @@
+# dependencies (restore with: bun install  OR  npm install)
+node_modules/
+
+# runtime output
+session.log
+*.log
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# os
+.DS_Store

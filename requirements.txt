@@ -1,0 +1,6 @@
+# Pin the Frida CLIENT to the exact version of frida-server running on the phone.
+# The phone's frida-server was installed from https://build.frida.re and is 17.16.4.
+# If client and server major/minor versions differ, `frida -U` will refuse to connect.
+# If you update Frida on the phone via Sileo, bump these to match.
+frida==17.16.4
+frida-tools==14.10.4
