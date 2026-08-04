@@ -1,0 +1,11 @@
+# observe.compiled.js is a Frida asset bundle: the 📦 header is a manifest of
+# exact BYTE sizes for each embedded module. Git's autocrlf on Windows rewrites
+# every LF to CRLF, which shifts every offset and makes Frida reject the script
+# with "script(line 1): SyntaxError: unexpected character". Pin it to LF.
+observe.compiled.js -text eol=lf
+
+# the shell wrapper must stay LF or it won't run under sh
+tiktok-audit.sh text eol=lf
+
+observe.js   text eol=lf
+run_observe.py text eol=lf

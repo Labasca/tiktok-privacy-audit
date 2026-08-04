@@ -3,6 +3,9 @@ node_modules/
 
 # runtime output
 session.log
+audit.json
+discovery.json
+audit.heartbeat
 *.log
 
 # python
