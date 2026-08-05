@@ -8,6 +8,10 @@ discovery.json
 audit.heartbeat
 *.log
 
+# raw third-party app-bundle files pulled from the phone (TikTok's own manifests).
+# the derived analysis in coverage/ is committed, the raw bundle files are not.
+manifests/
+
 # python
 __pycache__/
 *.pyc

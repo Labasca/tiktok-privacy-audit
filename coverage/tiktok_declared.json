@@ -1,0 +1,4241 @@
+{
+  "manifest_count": 58,
+  "required_reason_apis": {
+    "Active keyboards": {
+      "reasons": [
+        "54BD.1 (customize UI based on active keyboards)"
+      ],
+      "declared_by": [
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "Disk space": {
+      "reasons": [
+        "7D9E.1 (disk space in a user-submitted bug report)",
+        "85F4.1 (display disk space to the user)",
+        "E174.1 (check for sufficient/low disk space before file IO)"
+      ],
+      "declared_by": [
+        "BDMemoryMatrix.bundle",
+        "HMDGWPAsanPrivacyInfo.bundle",
+        "HeimdallrPrivacyInfo.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "File timestamps": {
+      "reasons": [
+        "3B52.1 (read metadata of user-granted files (document picker))",
+        "C617.1 (read metadata of files in the app's own containers)",
+        "DDA9.1 (show file timestamps to the user)"
+      ],
+      "declared_by": [
+        "AppsFlyerLib_Privacy.bundle",
+        "BDMemoryMatrix.bundle",
+        "GoogleUtilities_Privacy.bundle",
+        "HeimdallrPrivacyInfo.bundle",
+        "LottiePrivacyInfo.bundle",
+        "MemoryGraphCapture.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "System boot time": {
+      "reasons": [
+        "35F9.1 (measure elapsed time between in-app events)"
+      ],
+      "declared_by": [
+        "HeimdallrPrivacyInfo.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "User defaults": {
+      "reasons": [
+        "1C8F.1 (read/write user defaults shared in the App Group)",
+        "C56D.1 (3rd-party SDK wrapper around user-defaults APIs)",
+        "CA92.1 (read/write the app's own user defaults)"
+      ],
+      "declared_by": [
+        "AppsFlyerLib_Privacy.bundle",
+        "FirebaseCoreInternal_Privacy.bundle",
+        "FirebaseCore_Privacy.bundle",
+        "GTMSessionFetcher_Core_Privacy.bundle",
+        "GoogleSignIn.bundle",
+        "GoogleUtilities_Privacy.bundle",
+        "HeimdallrPrivacyInfo.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletAuthExtension.appex__StripeBundle.bundle",
+        "PlugIns__WalletShareExtension.appex",
+        "PlugIns__WalletShareExtension.appex__StripeBundle.bundle",
+        "PrivacyInfo.xcprivacy",
+        "StripeBundle.bundle"
+      ]
+    }
+  },
+  "tracking_enabled": true,
+  "tracking_domains": [
+    "att.attr.appsflyer-cn.com",
+    "att.attr.appsflyersdk.com",
+    "att.attr.hevents.appsflyer-cn.com",
+    "att.attr.whappsflyer.com",
+    "att.conversions.appsflyer-cn.com",
+    "att.conversions.appsflyersdk.com",
+    "att.conversions.hevents.appsflyer-cn.com",
+    "att.conversions.whappsflyer.com",
+    "att.dlsdk.appsflyer-cn.com",
+    "att.dlsdk.appsflyersdk.com",
+    "att.dlsdk.hevents.appsflyer-cn.com",
+    "att.dlsdk.whappsflyer.com",
+    "att.launches.appsflyer-cn.com",
+    "att.launches.appsflyersdk.com",
+    "att.launches.hevents.appsflyer-cn.com",
+    "att.launches.whappsflyer.com",
+    "da-an-v3-i18n.tiktokv.com",
+    "da-an-v3-ru.tiktokv.com",
+    "da-an-v3-sg.tiktokv.com",
+    "da-an-v3-ttp2.tiktokv.us",
+    "da-an-v3-va.tiktokv.com",
+    "da-an-v3.tiktokv.com",
+    "da-an-v3.tiktokv.eu",
+    "da-an-v3.tiktokv.us"
+  ],
+  "collected_data_types": {
+    "AdvertisingData": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "DeveloperAdvertising",
+        "ThirdPartyAdvertising"
+      ],
+      "declared_by": [
+        "Frameworks__OMSDK_Bytedance1.framework",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "AudioData": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "AppFunctionality"
+      ],
+      "declared_by": [
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "BrowsingHistory": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "ThirdPartyAdvertising"
+      ],
+      "declared_by": [
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "CoarseLocation": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "Analytics",
+        "AppFunctionality",
+        "ProductPersonalization",
+        "ThirdPartyAdvertising"
+      ],
+      "declared_by": [
+        "GoogleSignIn.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "Contacts": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "AppFunctionality",
+        "ProductPersonalization"
+      ],
+      "declared_by": [
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "CrashData": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "Analytics",
+        "AppFunctionality"
+      ],
+      "declared_by": [
+        "FrameRecoverPrivacyInfo.bundle",
+        "HMDGWPAsanPrivacyInfo.bundle",
+        "HeimdallrPrivacyInfo.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "CustomerSupport": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "Analytics",
+        "AppFunctionality"
+      ],
+      "declared_by": [
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "DeviceID": {
+      "linked_to_identity": true,
+      "used_for_tracking": true,
+      "purposes": [
+        "Analytics",
+        "AppFunctionality",
+        "DeveloperAdvertising",
+        "Other",
+        "ProductPersonalization",
+        "ThirdPartyAdvertising"
+      ],
+      "declared_by": [
+        "AppsFlyerLib_Privacy.bundle",
+        "BraintreeDataCollector.bundle",
+        "GoogleSignIn.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "EmailAddress": {
+      "linked_to_identity": true,
+      "used_for_tracking": true,
+      "purposes": [
+        "AppFunctionality",
+        "DeveloperAdvertising",
+        "ThirdPartyAdvertising"
+      ],
+      "declared_by": [
+        "GoogleSignIn.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "Name": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "AppFunctionality",
+        "Other"
+      ],
+      "declared_by": [
+        "BraintreeCore.bundle",
+        "BraintreePayPal.bundle",
+        "GoogleSignIn.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "OtherDataTypes": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "Analytics",
+        "AppFunctionality"
+      ],
+      "declared_by": [
+        "GoogleSignIn.bundle"
+      ]
+    },
+    "OtherDiagnosticData": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "Analytics",
+        "AppFunctionality",
+        "Other"
+      ],
+      "declared_by": [
+        "FirebaseInstallations_Privacy.bundle",
+        "FrameRecoverPrivacyInfo.bundle",
+        "HeimdallrPrivacyInfo.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "OtherFinancialInfo": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "AppFunctionality",
+        "Other"
+      ],
+      "declared_by": [
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "OtherUsageData": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "Analytics"
+      ],
+      "declared_by": [
+        "GoogleSignIn.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "OtherUserContactInfo": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "AppFunctionality"
+      ],
+      "declared_by": [
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "OtherUserContent": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "AppFunctionality"
+      ],
+      "declared_by": [
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "PaymentInfo": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "AppFunctionality",
+        "Other"
+      ],
+      "declared_by": [
+        "BraintreePayPal.bundle",
+        "BraintreeVenmo.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletAuthExtension.appex__StripeBundle.bundle",
+        "PlugIns__WalletShareExtension.appex",
+        "PlugIns__WalletShareExtension.appex__StripeBundle.bundle",
+        "PrivacyInfo.xcprivacy",
+        "StripeBundle.bundle"
+      ]
+    },
+    "PerformanceData": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "Analytics",
+        "AppFunctionality"
+      ],
+      "declared_by": [
+        "BDMemoryMatrix.bundle",
+        "HeimdallrPrivacyInfo.bundle",
+        "MemoryGraphCapture.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "PhoneNumber": {
+      "linked_to_identity": true,
+      "used_for_tracking": true,
+      "purposes": [
+        "AppFunctionality",
+        "DeveloperAdvertising",
+        "ThirdPartyAdvertising"
+      ],
+      "declared_by": [
+        "GoogleSignIn.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "PhotosorVideos": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "AppFunctionality"
+      ],
+      "declared_by": [
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "PhysicalAddress": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "AppFunctionality",
+        "Other"
+      ],
+      "declared_by": [
+        "BraintreeCore.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "ProductInteraction": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "Analytics",
+        "AppFunctionality",
+        "DeveloperAdvertising",
+        "ProductPersonalization",
+        "ThirdPartyAdvertising"
+      ],
+      "declared_by": [
+        "AppsFlyerLib_Privacy.bundle",
+        "Frameworks__OMSDK_Bytedance1.framework",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletAuthExtension.appex__StripeBundle.bundle",
+        "PlugIns__WalletShareExtension.appex",
+        "PlugIns__WalletShareExtension.appex__StripeBundle.bundle",
+        "PrivacyInfo.xcprivacy",
+        "StripeBundle.bundle"
+      ]
+    },
+    "PurchaseHistory": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "Analytics",
+        "AppFunctionality"
+      ],
+      "declared_by": [
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "SearchHistory": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "Analytics",
+        "AppFunctionality",
+        "ProductPersonalization"
+      ],
+      "declared_by": [
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    },
+    "UserID": {
+      "linked_to_identity": true,
+      "used_for_tracking": false,
+      "purposes": [
+        "Analytics",
+        "AppFunctionality",
+        "DeveloperAdvertising",
+        "ProductPersonalization",
+        "ThirdPartyAdvertising"
+      ],
+      "declared_by": [
+        "GoogleSignIn.bundle",
+        "HeimdallrPrivacyInfo.bundle",
+        "PlugIns__AWEVideoWidget.appex",
+        "PlugIns__AwemeBroadcastExtension.appex",
+        "PlugIns__AwemeNotificationService.appex",
+        "PlugIns__AwemeShareExtension.appex",
+        "PlugIns__AwemeWidgetExtension.appex",
+        "PlugIns__TikTokIntentExtension.appex",
+        "PlugIns__TikTokMessageExtension.appex",
+        "PlugIns__WalletAuthExtension.appex",
+        "PlugIns__WalletShareExtension.appex",
+        "PrivacyInfo.xcprivacy"
+      ]
+    }
+  },
+  "declared_app_query_schemes": [
+    "ShareMedia-com.upscrolled.app",
+    "affirm",
+    "amznmp3",
+    "ascendmoney",
+    "blockblastgame",
+    "brawlstars",
+    "candycrush",
+    "capcut",
+    "com.amazon.mobile.map.3pssov2",
+    "com.anghami.anghami",
+    "com.soundcloud.TouchApp",
+    "com.venmo.touch.v2",
+    "comgooglemaps",
+    "deezer",
+    "doordash",
+    "fb-messenger-share-api",
+    "fb604425153801157",
+    "fbapi",
+    "fbauth2",
+    "gojek",
+    "http",
+    "https",
+    "imo",
+    "instagram",
+    "instagram-stories",
+    "itms-beta",
+    "kakaokompassauth",
+    "kakaolink",
+    "kakaostory",
+    "klarna",
+    "lark",
+    "lemon8opensdk",
+    "lightninglink",
+    "line",
+    "lineauth",
+    "mahjonggame",
+    "mercadopago",
+    "paypal",
+    "reddit",
+    "snapchat",
+    "snssdk1233",
+    "snssdk259",
+    "snssdk567753",
+    "snssdk845221",
+    "spotify",
+    "tg",
+    "tokopedia",
+    "triumphapp",
+    "twitter",
+    "viber",
+    "whatnot",
+    "whatsapp",
+    "youtubemusic",
+    "zalo"
+  ],
+  "per_sdk": {
+    "AppAuthCore_Privacy.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "AppsFlyerLib_Privacy.bundle": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1"
+          ]
+        },
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "C617.1"
+          ]
+        }
+      ],
+      "domains": [
+        "att.attr.whappsflyer.com",
+        "att.attr.appsflyer-cn.com",
+        "att.attr.hevents.appsflyer-cn.com",
+        "att.launches.whappsflyer.com",
+        "att.launches.appsflyer-cn.com",
+        "att.launches.hevents.appsflyer-cn.com",
+        "att.conversions.hevents.appsflyer-cn.com",
+        "att.conversions.appsflyer-cn.com",
+        "att.conversions.whappsflyer.com",
+        "att.dlsdk.hevents.appsflyer-cn.com",
+        "att.dlsdk.appsflyer-cn.com",
+        "att.dlsdk.whappsflyer.com",
+        "att.dlsdk.appsflyersdk.com",
+        "att.conversions.appsflyersdk.com",
+        "att.launches.appsflyersdk.com",
+        "att.attr.appsflyersdk.com"
+      ],
+      "data": [
+        {
+          "type": "DeviceID",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "ProductInteraction",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        }
+      ],
+      "tracking": true
+    },
+    "BDALog.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "BDAlogProtocol.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "BDFishhookPrivacyInfo.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "BDMemoryMatrix.bundle": {
+      "apis": [
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "C617.1"
+          ]
+        },
+        {
+          "category": "Disk space",
+          "reasons": [
+            "E174.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [
+        {
+          "type": "PerformanceData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "BraintreeCore.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [
+        {
+          "type": "Name",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhysicalAddress",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "BraintreeDataCollector.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [
+        {
+          "type": "DeviceID",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "BraintreePayPal.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [
+        {
+          "type": "PaymentInfo",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "Name",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "BraintreeVenmo.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [
+        {
+          "type": "PaymentInfo",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "FirebaseCoreInternal_Privacy.bundle": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "1C8F.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "FirebaseCore_Privacy.bundle": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "FirebaseInstallations_Privacy.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [
+        {
+          "type": "OtherDiagnosticData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "FrameRecoverPrivacyInfo.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "OtherDiagnosticData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "Frameworks__OMSDK_Bytedance1.framework": {
+      "apis": [],
+      "domains": [],
+      "data": [
+        {
+          "type": "ProductInteraction",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising"
+          ]
+        },
+        {
+          "type": "AdvertisingData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "Frameworks__SpotifyLogin.framework": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "GTMAppAuth_Privacy.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "GTMSessionFetcher_Core_Privacy.bundle": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "GTMSessionFetcher_Full_Privacy.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "GoogleAPIClientForREST_Privacy.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "GoogleSignIn.bundle": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [
+        {
+          "type": "Name",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "EmailAddress",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhoneNumber",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherDataTypes",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Analytics"
+          ]
+        },
+        {
+          "type": "CoarseLocation",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "UserID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Analytics"
+          ]
+        },
+        {
+          "type": "DeviceID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "OtherUsageData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "GoogleUtilities_Privacy.bundle": {
+      "apis": [
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "C617.1"
+          ]
+        },
+        {
+          "category": "User defaults",
+          "reasons": [
+            "C56D.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "HMDGWPAsanPrivacyInfo.bundle": {
+      "apis": [
+        {
+          "category": "Disk space",
+          "reasons": [
+            "E174.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "HeimdallrPrivacyInfo.bundle": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1"
+          ]
+        },
+        {
+          "category": "Disk space",
+          "reasons": [
+            "E174.1"
+          ]
+        },
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "C617.1"
+          ]
+        },
+        {
+          "category": "System boot time",
+          "reasons": [
+            "35F9.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [
+        {
+          "type": "OtherDiagnosticData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "PerformanceData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "UserID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "Hermas.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "LottiePrivacyInfo.bundle": {
+      "apis": [
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "3B52.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "MemoryGraphCapture.bundle": {
+      "apis": [
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "C617.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [
+        {
+          "type": "PerformanceData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "PlugIns__AWEVideoWidget.appex__BDALog.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__AWEVideoWidget.appex__BDAlogProtocol.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__AWEVideoWidget.appex": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1",
+            "1C8F.1",
+            "C56D.1"
+          ]
+        },
+        {
+          "category": "System boot time",
+          "reasons": [
+            "35F9.1"
+          ]
+        },
+        {
+          "category": "Disk space",
+          "reasons": [
+            "7D9E.1",
+            "E174.1",
+            "85F4.1"
+          ]
+        },
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "3B52.1",
+            "C617.1",
+            "DDA9.1"
+          ]
+        },
+        {
+          "category": "Active keyboards",
+          "reasons": [
+            "54BD.1"
+          ]
+        }
+      ],
+      "domains": [
+        "da-an-v3.tiktokv.com",
+        "da-an-v3-va.tiktokv.com",
+        "da-an-v3-sg.tiktokv.com",
+        "da-an-v3-i18n.tiktokv.com",
+        "da-an-v3.tiktokv.us",
+        "da-an-v3-ttp2.tiktokv.us",
+        "da-an-v3.tiktokv.eu",
+        "da-an-v3-ru.tiktokv.com"
+      ],
+      "data": [
+        {
+          "type": "Name",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "EmailAddress",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhoneNumber",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhysicalAddress",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherUserContactInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherFinancialInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "CoarseLocation",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "Contacts",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhotosorVideos",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AudioData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "CustomerSupport",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherUserContent",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "BrowsingHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "SearchHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "UserID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "DeviceID",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "PurchaseHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AdvertisingData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "OtherUsageData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PerformanceData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherDiagnosticData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality",
+            "Other"
+          ]
+        }
+      ],
+      "tracking": true
+    },
+    "PlugIns__AwemeBroadcastExtension.appex__BDALog.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__AwemeBroadcastExtension.appex__BDFishhookPrivacyInfo.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__AwemeBroadcastExtension.appex": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1",
+            "1C8F.1",
+            "C56D.1"
+          ]
+        },
+        {
+          "category": "System boot time",
+          "reasons": [
+            "35F9.1"
+          ]
+        },
+        {
+          "category": "Disk space",
+          "reasons": [
+            "7D9E.1",
+            "E174.1",
+            "85F4.1"
+          ]
+        },
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "3B52.1",
+            "C617.1",
+            "DDA9.1"
+          ]
+        },
+        {
+          "category": "Active keyboards",
+          "reasons": [
+            "54BD.1"
+          ]
+        }
+      ],
+      "domains": [
+        "da-an-v3.tiktokv.com",
+        "da-an-v3-va.tiktokv.com",
+        "da-an-v3-sg.tiktokv.com",
+        "da-an-v3-i18n.tiktokv.com",
+        "da-an-v3.tiktokv.us",
+        "da-an-v3-ttp2.tiktokv.us",
+        "da-an-v3.tiktokv.eu",
+        "da-an-v3-ru.tiktokv.com"
+      ],
+      "data": [
+        {
+          "type": "Name",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "EmailAddress",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhoneNumber",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhysicalAddress",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherUserContactInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherFinancialInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "CoarseLocation",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "Contacts",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhotosorVideos",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AudioData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "CustomerSupport",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherUserContent",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "BrowsingHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "SearchHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "UserID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "DeviceID",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "PurchaseHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AdvertisingData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "OtherUsageData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PerformanceData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherDiagnosticData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality",
+            "Other"
+          ]
+        }
+      ],
+      "tracking": true
+    },
+    "PlugIns__AwemeNotificationService.appex__BDALog.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__AwemeNotificationService.appex__BDAlogProtocol.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__AwemeNotificationService.appex__BDFishhookPrivacyInfo.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__AwemeNotificationService.appex": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1",
+            "1C8F.1",
+            "C56D.1"
+          ]
+        },
+        {
+          "category": "System boot time",
+          "reasons": [
+            "35F9.1"
+          ]
+        },
+        {
+          "category": "Disk space",
+          "reasons": [
+            "7D9E.1",
+            "E174.1",
+            "85F4.1"
+          ]
+        },
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "3B52.1",
+            "C617.1",
+            "DDA9.1"
+          ]
+        },
+        {
+          "category": "Active keyboards",
+          "reasons": [
+            "54BD.1"
+          ]
+        }
+      ],
+      "domains": [
+        "da-an-v3.tiktokv.com",
+        "da-an-v3-va.tiktokv.com",
+        "da-an-v3-sg.tiktokv.com",
+        "da-an-v3-i18n.tiktokv.com",
+        "da-an-v3.tiktokv.us",
+        "da-an-v3-ttp2.tiktokv.us",
+        "da-an-v3.tiktokv.eu",
+        "da-an-v3-ru.tiktokv.com"
+      ],
+      "data": [
+        {
+          "type": "Name",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "EmailAddress",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhoneNumber",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhysicalAddress",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherUserContactInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherFinancialInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "CoarseLocation",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "Contacts",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhotosorVideos",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AudioData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "CustomerSupport",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherUserContent",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "BrowsingHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "SearchHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "UserID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "DeviceID",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "PurchaseHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AdvertisingData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "OtherUsageData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PerformanceData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherDiagnosticData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality",
+            "Other"
+          ]
+        }
+      ],
+      "tracking": true
+    },
+    "PlugIns__AwemeShareExtension.appex__BDALog.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__AwemeShareExtension.appex__BDAlogProtocol.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__AwemeShareExtension.appex": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1",
+            "1C8F.1",
+            "C56D.1"
+          ]
+        },
+        {
+          "category": "System boot time",
+          "reasons": [
+            "35F9.1"
+          ]
+        },
+        {
+          "category": "Disk space",
+          "reasons": [
+            "7D9E.1",
+            "E174.1",
+            "85F4.1"
+          ]
+        },
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "3B52.1",
+            "C617.1",
+            "DDA9.1"
+          ]
+        },
+        {
+          "category": "Active keyboards",
+          "reasons": [
+            "54BD.1"
+          ]
+        }
+      ],
+      "domains": [
+        "da-an-v3.tiktokv.com",
+        "da-an-v3-va.tiktokv.com",
+        "da-an-v3-sg.tiktokv.com",
+        "da-an-v3-i18n.tiktokv.com",
+        "da-an-v3.tiktokv.us",
+        "da-an-v3-ttp2.tiktokv.us",
+        "da-an-v3.tiktokv.eu",
+        "da-an-v3-ru.tiktokv.com"
+      ],
+      "data": [
+        {
+          "type": "Name",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "EmailAddress",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhoneNumber",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhysicalAddress",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherUserContactInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherFinancialInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "CoarseLocation",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "Contacts",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhotosorVideos",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AudioData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "CustomerSupport",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherUserContent",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "BrowsingHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "SearchHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "UserID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "DeviceID",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "PurchaseHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AdvertisingData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "OtherUsageData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PerformanceData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherDiagnosticData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality",
+            "Other"
+          ]
+        }
+      ],
+      "tracking": true
+    },
+    "PlugIns__AwemeWidgetExtension.appex__BDALog.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__AwemeWidgetExtension.appex__BDAlogProtocol.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__AwemeWidgetExtension.appex": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1",
+            "1C8F.1",
+            "C56D.1"
+          ]
+        },
+        {
+          "category": "System boot time",
+          "reasons": [
+            "35F9.1"
+          ]
+        },
+        {
+          "category": "Disk space",
+          "reasons": [
+            "7D9E.1",
+            "E174.1",
+            "85F4.1"
+          ]
+        },
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "3B52.1",
+            "C617.1",
+            "DDA9.1"
+          ]
+        },
+        {
+          "category": "Active keyboards",
+          "reasons": [
+            "54BD.1"
+          ]
+        }
+      ],
+      "domains": [
+        "da-an-v3.tiktokv.com",
+        "da-an-v3-va.tiktokv.com",
+        "da-an-v3-sg.tiktokv.com",
+        "da-an-v3-i18n.tiktokv.com",
+        "da-an-v3.tiktokv.us",
+        "da-an-v3-ttp2.tiktokv.us",
+        "da-an-v3.tiktokv.eu",
+        "da-an-v3-ru.tiktokv.com"
+      ],
+      "data": [
+        {
+          "type": "Name",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "EmailAddress",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhoneNumber",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhysicalAddress",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherUserContactInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherFinancialInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "CoarseLocation",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "Contacts",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhotosorVideos",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AudioData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "CustomerSupport",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherUserContent",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "BrowsingHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "SearchHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "UserID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "DeviceID",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "PurchaseHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AdvertisingData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "OtherUsageData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PerformanceData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherDiagnosticData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality",
+            "Other"
+          ]
+        }
+      ],
+      "tracking": true
+    },
+    "PlugIns__TikTokIntentExtension.appex": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1",
+            "1C8F.1",
+            "C56D.1"
+          ]
+        },
+        {
+          "category": "System boot time",
+          "reasons": [
+            "35F9.1"
+          ]
+        },
+        {
+          "category": "Disk space",
+          "reasons": [
+            "7D9E.1",
+            "E174.1",
+            "85F4.1"
+          ]
+        },
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "3B52.1",
+            "C617.1",
+            "DDA9.1"
+          ]
+        },
+        {
+          "category": "Active keyboards",
+          "reasons": [
+            "54BD.1"
+          ]
+        }
+      ],
+      "domains": [
+        "da-an-v3.tiktokv.com",
+        "da-an-v3-va.tiktokv.com",
+        "da-an-v3-sg.tiktokv.com",
+        "da-an-v3-i18n.tiktokv.com",
+        "da-an-v3.tiktokv.us",
+        "da-an-v3-ttp2.tiktokv.us",
+        "da-an-v3.tiktokv.eu",
+        "da-an-v3-ru.tiktokv.com"
+      ],
+      "data": [
+        {
+          "type": "Name",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "EmailAddress",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhoneNumber",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhysicalAddress",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherUserContactInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherFinancialInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "CoarseLocation",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "Contacts",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhotosorVideos",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AudioData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "CustomerSupport",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherUserContent",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "BrowsingHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "SearchHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "UserID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "DeviceID",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "PurchaseHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AdvertisingData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "OtherUsageData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PerformanceData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherDiagnosticData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality",
+            "Other"
+          ]
+        }
+      ],
+      "tracking": true
+    },
+    "PlugIns__TikTokMessageExtension.appex__BDALog.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__TikTokMessageExtension.appex__BDAlogProtocol.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__TikTokMessageExtension.appex": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1",
+            "1C8F.1",
+            "C56D.1"
+          ]
+        },
+        {
+          "category": "System boot time",
+          "reasons": [
+            "35F9.1"
+          ]
+        },
+        {
+          "category": "Disk space",
+          "reasons": [
+            "7D9E.1",
+            "E174.1",
+            "85F4.1"
+          ]
+        },
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "3B52.1",
+            "C617.1",
+            "DDA9.1"
+          ]
+        },
+        {
+          "category": "Active keyboards",
+          "reasons": [
+            "54BD.1"
+          ]
+        }
+      ],
+      "domains": [
+        "da-an-v3.tiktokv.com",
+        "da-an-v3-va.tiktokv.com",
+        "da-an-v3-sg.tiktokv.com",
+        "da-an-v3-i18n.tiktokv.com",
+        "da-an-v3.tiktokv.us",
+        "da-an-v3-ttp2.tiktokv.us",
+        "da-an-v3.tiktokv.eu",
+        "da-an-v3-ru.tiktokv.com"
+      ],
+      "data": [
+        {
+          "type": "Name",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "EmailAddress",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhoneNumber",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhysicalAddress",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherUserContactInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherFinancialInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "CoarseLocation",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "Contacts",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhotosorVideos",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AudioData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "CustomerSupport",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherUserContent",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "BrowsingHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "SearchHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "UserID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "DeviceID",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "PurchaseHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AdvertisingData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "OtherUsageData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PerformanceData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherDiagnosticData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality",
+            "Other"
+          ]
+        }
+      ],
+      "tracking": true
+    },
+    "PlugIns__WalletAuthExtension.appex": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1",
+            "1C8F.1",
+            "C56D.1"
+          ]
+        },
+        {
+          "category": "System boot time",
+          "reasons": [
+            "35F9.1"
+          ]
+        },
+        {
+          "category": "Disk space",
+          "reasons": [
+            "7D9E.1",
+            "E174.1",
+            "85F4.1"
+          ]
+        },
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "3B52.1",
+            "C617.1",
+            "DDA9.1"
+          ]
+        },
+        {
+          "category": "Active keyboards",
+          "reasons": [
+            "54BD.1"
+          ]
+        }
+      ],
+      "domains": [
+        "da-an-v3.tiktokv.com",
+        "da-an-v3-va.tiktokv.com",
+        "da-an-v3-sg.tiktokv.com",
+        "da-an-v3-i18n.tiktokv.com",
+        "da-an-v3.tiktokv.us",
+        "da-an-v3-ttp2.tiktokv.us",
+        "da-an-v3.tiktokv.eu",
+        "da-an-v3-ru.tiktokv.com"
+      ],
+      "data": [
+        {
+          "type": "Name",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "EmailAddress",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhoneNumber",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhysicalAddress",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherUserContactInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherFinancialInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "CoarseLocation",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "Contacts",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhotosorVideos",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AudioData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "CustomerSupport",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherUserContent",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "BrowsingHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "SearchHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "UserID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "DeviceID",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "PurchaseHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AdvertisingData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "OtherUsageData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PerformanceData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherDiagnosticData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality",
+            "Other"
+          ]
+        }
+      ],
+      "tracking": true
+    },
+    "PlugIns__WalletAuthExtension.appex__StripeBundle.bundle": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "PlugIns__WalletShareExtension.appex__BDALog.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__WalletShareExtension.appex__BDAlogProtocol.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "PlugIns__WalletShareExtension.appex": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1",
+            "1C8F.1",
+            "C56D.1"
+          ]
+        },
+        {
+          "category": "System boot time",
+          "reasons": [
+            "35F9.1"
+          ]
+        },
+        {
+          "category": "Disk space",
+          "reasons": [
+            "7D9E.1",
+            "E174.1",
+            "85F4.1"
+          ]
+        },
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "3B52.1",
+            "C617.1",
+            "DDA9.1"
+          ]
+        },
+        {
+          "category": "Active keyboards",
+          "reasons": [
+            "54BD.1"
+          ]
+        }
+      ],
+      "domains": [
+        "da-an-v3.tiktokv.com",
+        "da-an-v3-va.tiktokv.com",
+        "da-an-v3-sg.tiktokv.com",
+        "da-an-v3-i18n.tiktokv.com",
+        "da-an-v3.tiktokv.us",
+        "da-an-v3-ttp2.tiktokv.us",
+        "da-an-v3.tiktokv.eu",
+        "da-an-v3-ru.tiktokv.com"
+      ],
+      "data": [
+        {
+          "type": "Name",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "EmailAddress",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhoneNumber",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhysicalAddress",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherUserContactInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherFinancialInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "CoarseLocation",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "Contacts",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhotosorVideos",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AudioData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "CustomerSupport",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherUserContent",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "BrowsingHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "SearchHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "UserID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "DeviceID",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "PurchaseHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AdvertisingData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "OtherUsageData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PerformanceData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherDiagnosticData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality",
+            "Other"
+          ]
+        }
+      ],
+      "tracking": true
+    },
+    "PlugIns__WalletShareExtension.appex__StripeBundle.bundle": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "PrivacyInfo.xcprivacy": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1",
+            "1C8F.1",
+            "C56D.1"
+          ]
+        },
+        {
+          "category": "System boot time",
+          "reasons": [
+            "35F9.1"
+          ]
+        },
+        {
+          "category": "Disk space",
+          "reasons": [
+            "7D9E.1",
+            "E174.1",
+            "85F4.1"
+          ]
+        },
+        {
+          "category": "File timestamps",
+          "reasons": [
+            "3B52.1",
+            "C617.1",
+            "DDA9.1"
+          ]
+        },
+        {
+          "category": "Active keyboards",
+          "reasons": [
+            "54BD.1"
+          ]
+        }
+      ],
+      "domains": [
+        "da-an-v3.tiktokv.com",
+        "da-an-v3-va.tiktokv.com",
+        "da-an-v3-sg.tiktokv.com",
+        "da-an-v3-i18n.tiktokv.com",
+        "da-an-v3.tiktokv.us",
+        "da-an-v3-ttp2.tiktokv.us",
+        "da-an-v3.tiktokv.eu",
+        "da-an-v3-ru.tiktokv.com"
+      ],
+      "data": [
+        {
+          "type": "Name",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "EmailAddress",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhoneNumber",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhysicalAddress",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherUserContactInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "OtherFinancialInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "CoarseLocation",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "Contacts",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PhotosorVideos",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AudioData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "CustomerSupport",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherUserContent",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "BrowsingHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "SearchHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "UserID",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "DeviceID",
+          "linked": true,
+          "tracking": true,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality",
+            "Other"
+          ]
+        },
+        {
+          "type": "PurchaseHistory",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising",
+            "DeveloperAdvertising",
+            "Analytics",
+            "ProductPersonalization",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "AdvertisingData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "ThirdPartyAdvertising"
+          ]
+        },
+        {
+          "type": "OtherUsageData",
+          "linked": false,
+          "tracking": false,
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "CrashData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PerformanceData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "OtherDiagnosticData",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality",
+            "Other"
+          ]
+        }
+      ],
+      "tracking": true
+    },
+    "StingerPrivacyInfo.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "StripeBundle.bundle": {
+      "apis": [
+        {
+          "category": "User defaults",
+          "reasons": [
+            "CA92.1"
+          ]
+        }
+      ],
+      "domains": [],
+      "data": [
+        {
+          "type": "ProductInteraction",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "Analytics",
+            "AppFunctionality"
+          ]
+        },
+        {
+          "type": "PaymentInfo",
+          "linked": true,
+          "tracking": false,
+          "purposes": [
+            "AppFunctionality"
+          ]
+        }
+      ],
+      "tracking": false
+    },
+    "TokopediaAuthSDK_Privacy.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    },
+    "nanopb_Privacy.bundle": {
+      "apis": [],
+      "domains": [],
+      "data": [],
+      "tracking": false
+    }
+  }
+}

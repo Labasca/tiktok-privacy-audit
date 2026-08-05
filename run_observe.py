@@ -13,7 +13,7 @@ iTunes or the Apple Devices app.
 
 Usage:  python run_observe.py [seconds]
 """
-import sys, os, time, json, shutil, threading, ipaddress, frida
+import sys, os, re, time, json, shutil, threading, ipaddress, frida
 from collections import Counter
 
 # run from the script's own directory so observe.compiled.js resolves anywhere
@@ -40,6 +40,14 @@ def _flag(name):
 _FULL = _flag("TIKTOK_AUDIT_FULL")
 SYSCALL_ON = _FULL
 TLS_ON = _FULL
+# Touch provenance (finger vs synthetic, scroll velocity, live motion) sits on the
+# per-frame input path. It is its OWN opt-in, separate from -Full, so it can be
+# captured without also enabling the raw syscall hooks. Enabled with -Touch.
+TOUCH_ON = _flag("TIKTOK_AUDIT_TOUCH")
+# The live per-event stream is noise on a repeat run. It is off by default now, the
+# boxed report at the end is the product. -Verbose brings the stream back. Either
+# way the full stream is always written to session.log.
+VERBOSE = _flag("TIKTOK_AUDIT_VERBOSE")
 
 # If the phone-side script goes silent this long, the instrumentation has wedged
 # the USB link. The watchdog thread hard-exits so the stall cannot drag on. The
@@ -139,6 +147,12 @@ class Console:
             self._draw_footer()
             sys.stdout.flush()
             self.log.write((coloured if plain is None else plain) + "\n")
+
+    def log_only(self, plain):
+        """Write to the transcript but not the terminal, for the live stream when
+        it is muted by default."""
+        with self.lock:
+            self.log.write(plain + "\n")
 
     def set_footer(self, text):
         if not TTY:
@@ -680,6 +694,28 @@ def describe(cat, key):
     if cat == "REQUEST":
         owner, what, tier = classify_host(key)
         return ("%s, %s" % (owner, what), tier)
+    # behavioral & anti-automation layer
+    if cat == "A11Y":
+        hot = key in ("AssistiveTouch", "VoiceOver", "Switch Control", "Guided Access")
+        return (key, FLAG if hot else WATCH)
+    if cat == "GESTALT":
+        return ("MobileGestalt: " + key, WATCH)
+    if cat == "CAPTURE":
+        return (key, FLAG)
+    if cat == "PERIPHERAL":
+        return (key, FLAG)
+    if cat == "CONTEXT":
+        return (key, WATCH)
+    if cat == "TOUCH":
+        return (key, WATCH)
+    if cat == "SCROLL":
+        return (key, WATCH)
+    if cat == "HAPTIC":
+        return (key, WATCH)
+    if cat == "INSTRUMENT":
+        return (key, FLAG)
+    if cat == "SENSOR_VALUE":
+        return (key, WATCH)
     return (key, INFO)
 
 
@@ -723,7 +759,17 @@ def display_cat(cat, key):
             "BODY": "DEST",
             "PLAINTEXT": "DEST",
             "RESPONSE": "DEST",
-            "TAMPER": "ANTI-TAMPER"}.get(cat, cat)
+            "TAMPER": "ANTI-TAMPER",
+            "INSTRUMENT": "ANTI-TAMPER",
+            "A11Y": "ACCESSIBILITY",
+            "GESTALT": "GESTALT",
+            "CAPTURE": "ENVIRONMENT",
+            "PERIPHERAL": "ENVIRONMENT",
+            "CONTEXT": "SENSOR",
+            "SENSOR_VALUE": "SENSOR",
+            "TOUCH": "INTERACTION",
+            "SCROLL": "INTERACTION",
+            "HAPTIC": "INTERACTION"}.get(cat, cat)
 
 
 # the raw integer is meaningless, what it tells the app is not
@@ -888,7 +934,10 @@ class Recorder:
             "%-*s" % (LIVE_KEY_COL, key),
             c(DIM, detail),
         )
-        self.console.line(pretty, plain)
+        if VERBOSE:
+            self.console.line(pretty, plain)
+        else:
+            self.console.log_only(plain)
 
 
 # --------------------------------------------------------------------------
@@ -1181,9 +1230,45 @@ def intro_sensor(rows, items):
             "every one would cost more than it tells you."]
 
 
+def intro_interaction(rows, items):
+    return ["This is how you touch the glass, not what your device is. For every touch, "
+            "iOS records its source and whether it arrived with the tiny sub-frame samples "
+            "that only real hardware produces. So a line reading 'a real finger' means a "
+            "genuine finger on the screen. A mouse or trackpad pointer, a stylus, or a "
+            "finger with no sub-samples would show up instead, and would suggest something "
+            "other than a hand is driving the feed.",
+            "The flick-speed line is the app measuring how fast and hard you swipe. The "
+            "haptic lines are its own buzzes on taps, likes and errors."]
+
+
+def intro_accessibility(rows, items):
+    return ["None of these need a permission prompt. AssistiveTouch and VoiceOver being "
+            "on are the strongest signals, they are how accessibility-driven automation "
+            "reaches an app. The rest are low-entropy settings that still help tell one "
+            "person's device from another."]
+
+
+def intro_environment(rows, items):
+    return ["Signals about the physical world around the phone: whether the screen is "
+            "being recorded or mirrored to another display, and whether an external "
+            "mouse, keyboard, game controller, or Bluetooth device is attached. A mouse "
+            "or keyboard driving a phone feed is a classic automation-rig tell."]
+
+
+def intro_gestalt(rows, items):
+    return ["MobileGestalt is the private system database of hardware facts. The keys "
+            "listed here are what the app asked it for: model, region, and, when present, "
+            "unique hardware identifiers and the production-status and Developer Mode "
+            "probes. This records the questions, never the answers."]
+
+
 SECTION_SPECS = [
     ("IDENTITY",    "WHO YOU ARE",                      intro_identity,   "kv"),
     ("PERMS",       "WHAT IT CHECKED YOU HAD ALLOWED",  intro_perms,      "kv"),
+    ("INTERACTION", "HOW YOU TOUCH THE SCREEN",         intro_interaction, "kv"),
+    ("ACCESSIBILITY", "ASSISTIVE AND ACCESSIBILITY STATE", intro_accessibility, "kv"),
+    ("ENVIRONMENT", "WHAT IS AROUND YOUR PHONE",        intro_environment, "kv"),
+    ("GESTALT",     "WHAT IT ASKED THE OS ABOUT THIS DEVICE", intro_gestalt, "kv"),
     ("SENSOR",      "MOTION SENSORS",                   intro_sensor,     "kv"),
     ("LOCALE",      "WHERE YOU ARE AND WHAT YOU SPEAK", intro_locale,     "kv"),
     ("CARRIER",     "YOUR MOBILE NETWORK",              intro_carrier,    "kv"),
@@ -1464,24 +1549,90 @@ def render_destinations(p, rows, all_items):
             p("      " + clip(r["key"], W - 8) + c(DIM, "  %dx" % r["count"]))
 
 
+# ---- panel rendering (the boxed "Panels" layout) ------------------------------
+_ANSI_RE = re.compile("\x1b\\[[0-9;]*m")
+_BOX = ("╭", "╮", "╰", "╯", "─", "│") if UNI else ("+", "+", "+", "+", "-", "|")
+
+
+def vislen(s):
+    """Visible width, ignoring ANSI colour codes."""
+    return len(_ANSI_RE.sub("", s))
+
+
+def pad_vis(s, n):
+    """Right-pad s to visible width n. If it overflows, clip ANSI-aware (dropping
+    colour on the clipped tail is a safe, rare fallback)."""
+    v = vislen(s)
+    if v < n:
+        return s + " " * (n - v)
+    if v == n:
+        return s
+    return _ANSI_RE.sub("", s)[: max(0, n - 1)] + ELL
+
+
+def panel_top(p, title, tail, color):
+    tl, tr, bl, br, h, v = _BOX
+    outer = W - 2
+    left = tl + h + " " + title + " "
+    right = ((tail + " " + h) if tail else h) + tr
+    fill = max(1, outer - len(left) - len(right) - (1 if tail else 0))
+    body = left + h * fill + ((" " + right) if tail else right)
+    p("  " + c(color, body))
+
+
+def panel_row(p, content, color):
+    _, _, _, _, _, v = _BOX
+    interior = (W - 2) - 4
+    p("  " + c(color, v) + " " + pad_vis(content, interior) + " " + c(color, v))
+
+
+def panel_bottom(p, color):
+    tl, tr, bl, br, h, v = _BOX
+    p("  " + c(color, bl + h * ((W - 2) - 2) + br))
+
+
+def _capture(mode, rows, cat, items):
+    """Run a section's existing renderer into a buffer at a narrowed width, so its
+    lines fit inside the box. Returns the content lines with their outer margin
+    stripped."""
+    global W
+    saved = W
+    W = max(44, saved - 6)     # leave room for the box walls
+    buf = []
+    cap = lambda coloured="", plain=None: buf.append(coloured)
+    try:
+        if mode == "net":
+            render_exposure(cap, rows, items)
+        elif mode == "dest":
+            render_destinations(cap, rows, items)
+        elif mode == "applist":
+            render_applist(cap, rows)
+        elif mode == "pair":
+            rows_pair(cap, rows, cat)
+        else:
+            rows_kv(cap, rows, cat)
+    except Exception as e:
+        buf.append(c(DIM, "(render error: %s)" % e))
+    finally:
+        W = saved
+    return [ln[2:] if ln.startswith("  ") else ln for ln in buf]
+
+
 def report(rec, console, meta):
     p = console.line
     items = list(rec.items.values())
-
     burst = max((r["first"] for r in items), default=0.0)
+
+    # --- summary panel -------------------------------------------------------
     p("")
-    p("  " + c(BOLD, THICK * (W - 2)))
-    p("  " + c(BOLD, "WHAT TIKTOK READ OFF THIS PHONE"))
     if items:
-        p("  " + c(DIM, "%d separate things, %d reads in total, the last new one at %.1fs "
-                        "of a %ds window" % (len(items), rec.total, burst,
-                                             meta["duration_s"])))
-        # the network verdict belongs where you cannot miss it
+        panel_top(p, "TIKTOK AUDIT", "%d things" % len(items), BOLD)
+        panel_row(p, c(DIM, "%d reads in total, last new at %.1fs of a %ds window"
+                       % (rec.total, burst, meta["duration_s"])), BOLD)
         pic = net_picture(items)
         bits = []
         if pic["tunnels"]:
-            bits.append(c("1;31", "VPN up and visible to the app (%s)"
-                          % pic["tunnels"][0][0]))
+            bits.append(c("1;31", "VPN up and visible to the app (%s)" % pic["tunnels"][0][0]))
         elif pic["scans"]:
             bits.append("no VPN, connection seen directly")
         if pic["public"]:
@@ -1489,45 +1640,33 @@ def report(rec, console, meta):
         elif pic["scans"]:
             bits.append("no public address exposed")
         if bits:
-            p("  " + c(DIM, "network:  ") + "   ".join(bits))
-    p("  " + c(BOLD, THICK * (W - 2)))
+            panel_row(p, c(DIM, "network   ") + "   ".join(bits), BOLD)
+        panel_bottom(p, BOLD)
+    else:
+        panel_top(p, "TIKTOK AUDIT", "nothing", BOLD)
+        panel_row(p, c(DIM, "nothing captured. check the app launched and you touched the phone."), BOLD)
+        panel_bottom(p, BOLD)
 
+    # --- one boxed panel per section ----------------------------------------
     for cat, title, intro, mode in SECTION_SPECS:
         rows = sorted(collapse_groups([r for r in items if r["cat"] == cat]),
                       key=lambda r: (0 if r["tier"] == FLAG else 1, -r["count"], r["key"]))
         if not rows:
             continue
-        head = "  %s" % title
+        color = CAT_COLOR.get(cat, "36")          # cyan default so every panel has a hue
         if cat == "EXPOSURE":
-            tail = "%d interfaces visible" % sum(
-                1 for r in rows if r.get("src") == "INTERFACE")
+            tail = "%d interfaces" % sum(1 for r in rows if r.get("src") == "INTERFACE")
         else:
-            tail = "%d of them" % len(rows)
+            tail = "%d" % len(rows)
         p("")
-        p(c(CAT_COLOR.get(cat, ""), head)
-          + " " * max(1, W - len(head) - len(tail)) + c(DIM, tail))
-        p("  " + c(DIM, RULE * (W - 2)))
-        paras = intro(rows, items)
-        for i, para in enumerate(paras):
-            if i:
-                p("")          # paragraphs need air or the intro reads as a wall
-            for ln in wrap(para, W - 4):
-                p("  " + c(DIM, ln))
-        p("")
-        if mode == "net":
-            render_exposure(p, rows, items)
-        elif mode == "dest":
-            render_destinations(p, rows, items)
-        elif mode == "applist":
-            render_applist(p, rows)
-        elif mode == "pair":
-            rows_pair(p, rows, cat)
-        else:
-            rows_kv(p, rows, cat)
+        panel_top(p, title.strip(), tail, color)
+        for ln in _capture(mode, rows, cat, items):
+            panel_row(p, ln, color)
+        panel_bottom(p, color)
 
+    # --- honest limits, kept light and unboxed to close the report ----------
     p("")
-    p("  " + c(DIM, "NOT SHOWN"))
-    p("  " + c(DIM, RULE * (W - 2)))
+    p("  " + c(DIM, "not shown"))
     for line in caveats(items, rec):
         for i, ln in enumerate(wrap(line, W - 6)):
             p("  " + ("  " if i else c(DIM, MARK + " ")) + c(DIM, ln))
@@ -1675,6 +1814,8 @@ def main():
         src = flip(src, "var SYSCALL_ENABLED = 0;", "var SYSCALL_ENABLED = 1;")
     if TLS_ON:
         src = flip(src, "var TLS_ENABLED = 0;", "var TLS_ENABLED = 1;")
+    if TOUCH_ON:
+        src = flip(src, "var TOUCH_ENABLED = 0;", "var TOUCH_ENABLED = 1;")
     # Spawn + load, with a couple of retries. "connection is closed" here usually
     # means frida-server on the phone is recovering (often right after a previous
     # rough run) or the app died on launch; a fresh spawn commonly succeeds.
@@ -1757,10 +1898,13 @@ def main():
         mode = c("1;32", "safe") + c(DIM, "  (known-good hooks, ~90% coverage)")
     console.line("  " + c(DIM, "%-9s" % "mode") + mode)
     console.line("")
-    console.line("  " + c(DIM, RULE * (W - 2)))
-    console.line("  " + c(DIM, "one line per NEW thing TikTok touches. repeats are counted, not printed."))
-    console.line("  " + c(DIM, "scroll the feed on the phone to exercise more of the app."))
-    console.line("  " + c(DIM, RULE * (W - 2)))
+    if VERBOSE:
+        console.line("  " + c(DIM, RULE * (W - 2)))
+        console.line("  " + c(DIM, "one line per NEW thing TikTok touches. repeats are counted, not printed."))
+        console.line("  " + c(DIM, "scroll the feed on the phone to exercise more of the app."))
+        console.line("  " + c(DIM, RULE * (W - 2)))
+    else:
+        console.line("  " + c(DIM, "watching for %ds. scroll the feed on the phone. the report prints below." % DURATION))
     console.line("")
 
     dev.resume(pid)

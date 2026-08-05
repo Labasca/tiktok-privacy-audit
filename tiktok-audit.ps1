@@ -15,7 +15,7 @@
 #
 # Requires: the project venv (.venv) with the pinned Frida client, and Apple's
 # usbmux layer (iTunes or the Apple Devices app) so Frida can see the iPhone.
-param([int]$Duration = 40, [switch]$Full)
+param([int]$Duration = 40, [switch]$Full, [switch]$Touch, [switch]$Stream)
 
 Set-Location -Path $PSScriptRoot
 
@@ -71,6 +71,18 @@ if (Test-Path "node_modules/frida-objc-bridge") {
 
 # full data unless -Safe. The child reads this env var.
 $env:TIKTOK_AUDIT_FULL = if ($Full) { "1" } else { "" }
+# touch provenance is its own opt-in, separate from -Full. When on, warn clearly:
+# it hooks the per-frame input path, so keep the window short and kill-audit ready.
+$env:TIKTOK_AUDIT_TOUCH = if ($Touch) { "1" } else { "" }
+# -Stream brings back the live per-event stream during the run. Off by default:
+# the boxed report at the end is the product. The full stream is always in session.log.
+$env:TIKTOK_AUDIT_VERBOSE = if ($Stream) { "1" } else { "" }
+if ($Touch) {
+    Write-Host ""
+    Write-Host "  -Touch: input-path hooks are ON (finger-vs-synthetic, scroll)." -ForegroundColor Yellow
+    Write-Host "  They sample only tens of calls then detach. Keep the window short" -ForegroundColor DarkGray
+    Write-Host "  and kill-audit.ps1 ready in another terminal, just in case." -ForegroundColor DarkGray
+}
 
 # clear any stale heartbeat so a leftover file cannot look "fresh"
 $hb = Join-Path $PSScriptRoot "audit.heartbeat"
@@ -107,5 +119,7 @@ finally {
     }
     Remove-Item $hb -Force -ErrorAction SilentlyContinue
     $env:TIKTOK_AUDIT_FULL = ""
+    $env:TIKTOK_AUDIT_TOUCH = ""
+    $env:TIKTOK_AUDIT_VERBOSE = ""
 }
 exit 0

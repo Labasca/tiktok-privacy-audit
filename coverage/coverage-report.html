@@ -1,0 +1,559 @@
+<title>TikTok Audit · Coverage Dossier</title>
+<style>
+  :root {
+    --paper: #ECEDE8;
+    --paper-2: #E3E4DE;
+    --card: #F5F6F2;
+    --ink: #15171C;
+    --ink-2: #3B3F47;
+    --ink-3: #6A6F78;
+    --line: #D2D4CC;
+    --accent: #1F6F6A;
+    --accent-soft: #DCEAE8;
+    --good: #3E7C4C;
+    --good-soft: #DEEBDE;
+    --warn: #B0741A;
+    --warn-soft: #F0E6D2;
+    --gap: #B23B29;
+    --gap-soft: #F1DDD8;
+    --mono: 'Cascadia Code', 'SF Mono', ui-monospace, Consolas, monospace;
+    --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #101216;
+      --paper-2: #0B0D10;
+      --card: #181B21;
+      --ink: #E9EAE4;
+      --ink-2: #B7BAB4;
+      --ink-3: #7E838C;
+      --line: #262A31;
+      --accent: #4FB2AA;
+      --accent-soft: #16302E;
+      --good: #6FBF7A;
+      --good-soft: #16271A;
+      --warn: #DBA24A;
+      --warn-soft: #2C2413;
+      --gap: #E17361;
+      --gap-soft: #2E1712;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #ECEDE8; --paper-2: #E3E4DE; --card: #F5F6F2; --ink: #15171C;
+    --ink-2: #3B3F47; --ink-3: #6A6F78; --line: #D2D4CC; --accent: #1F6F6A;
+    --accent-soft: #DCEAE8; --good: #3E7C4C; --good-soft: #DEEBDE; --warn: #B0741A;
+    --warn-soft: #F0E6D2; --gap: #B23B29; --gap-soft: #F1DDD8;
+  }
+  :root[data-theme="dark"] {
+    --paper: #101216; --paper-2: #0B0D10; --card: #181B21; --ink: #E9EAE4;
+    --ink-2: #B7BAB4; --ink-3: #7E838C; --line: #262A31; --accent: #4FB2AA;
+    --accent-soft: #16302E; --good: #6FBF7A; --good-soft: #16271A; --warn: #DBA24A;
+    --warn-soft: #2C2413; --gap: #E17361; --gap-soft: #2E1712;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px 96px; }
+
+  /* masthead */
+  header.mast {
+    border-bottom: 2px solid var(--ink); padding: 44px 0 24px; margin-bottom: 40px;
+  }
+  .eyebrow {
+    font-size: 12px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(30px, 5vw, 50px); line-height: 1.02; letter-spacing: -.02em;
+    margin: 0 0 16px; text-wrap: balance; font-weight: 720;
+  }
+  .dek { font-size: 17px; color: var(--ink-2); max-width: 64ch; margin: 0; }
+
+  /* stat band */
+  .band {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--line); border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden; margin-top: 30px;
+  }
+  .stat { background: var(--card); padding: 18px 20px; }
+  .stat .n { font-size: 30px; font-weight: 720; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 12.5px; color: var(--ink-3); letter-spacing: .04em; text-transform: uppercase; margin-top: 2px; }
+  .stat.good .n { color: var(--good); }
+  .stat.warn .n { color: var(--warn); }
+  .stat.gap .n { color: var(--gap); }
+
+  section { margin-top: 54px; }
+  h2 {
+    font-size: 13px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700;
+    color: var(--ink-2); margin: 0 0 20px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  h2 .idx { color: var(--accent); font-variant-numeric: tabular-nums; }
+  p.lead { font-size: 16px; color: var(--ink-2); max-width: 68ch; margin: 0 0 24px; }
+
+  /* source triptych */
+  .triptych { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .srccard {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .srccard .tag {
+    font-family: var(--mono); font-size: 11px; color: var(--accent);
+    letter-spacing: .04em; font-weight: 600;
+  }
+  .srccard h3 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
+  .srccard p { margin: 0; font-size: 13.5px; color: var(--ink-3); line-height: 1.5; }
+  .srccard .metric { margin-top: auto; padding-top: 12px; font-size: 13px; color: var(--ink-2); border-top: 1px dashed var(--line); }
+  .srccard .metric b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* evidence panel */
+  .evidence {
+    background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--gap);
+    border-radius: 12px; padding: 24px 26px;
+  }
+  .evidence .hd { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .evidence .hd h3 { margin: 0; font-size: 18px; }
+  .evidence .hd .src { font-size: 12.5px; color: var(--ink-3); font-family: var(--mono); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+  .grid2 h4 { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 12px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip {
+    font-size: 12.5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--paper); color: var(--ink-2);
+  }
+  .chip.hot { border-color: var(--gap); color: var(--gap); background: var(--gap-soft); font-weight: 600; }
+  .domlist { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); columns: 2; column-gap: 24px; }
+  .domlist span { display: block; padding: 2px 0; break-inside: avoid; }
+  .domlist b { color: var(--gap); }
+
+  /* matrix */
+  .theme { margin-bottom: 26px; }
+  .theme-hd {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .theme-hd .name { font-size: 15px; font-weight: 680; letter-spacing: -.01em; }
+  .rr {
+    font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; font-weight: 700;
+    color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 2px 7px;
+  }
+  .rows { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .row {
+    display: grid; grid-template-columns: 96px 1fr auto; gap: 16px; align-items: center;
+    padding: 11px 16px; background: var(--card); border-top: 1px solid var(--line);
+  }
+  .row:first-child { border-top: none; }
+  .row .surface { font-size: 14px; font-weight: 560; }
+  .row .sym { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); overflow-wrap: anywhere; }
+  .st {
+    font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 5px; white-space: nowrap; text-align: center;
+  }
+  .st.hooked { color: var(--good); background: var(--good-soft); }
+  .st.full { color: var(--warn); background: var(--warn-soft); }
+  .st.gap { color: var(--gap); background: var(--gap-soft); }
+  .row .note { grid-column: 2 / 4; font-size: 12px; color: var(--ink-3); font-style: italic; margin-top: -4px; }
+
+  /* gaps / recommendation */
+  .plan { display: grid; gap: 14px; }
+  .risk {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  }
+  .risk-hd {
+    display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line);
+  }
+  .risk-hd .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .risk-hd .t { font-size: 15px; font-weight: 680; }
+  .risk-hd .sub { font-size: 13px; color: var(--ink-3); margin-left: auto; }
+  .risk.safe .dot { background: var(--good); } .risk.safe { border-left: 4px solid var(--good); }
+  .risk.mod .dot { background: var(--warn); } .risk.mod { border-left: 4px solid var(--warn); }
+  .risk.skip .dot { background: var(--ink-3); } .risk.skip { border-left: 4px solid var(--ink-3); }
+  .risk ul { margin: 0; padding: 14px 20px 16px 20px; list-style: none; display: grid; gap: 11px; }
+  .risk li { display: grid; grid-template-columns: 1fr; gap: 2px; }
+  .risk li .h { font-size: 14px; font-weight: 560; }
+  .risk li .h code { font-family: var(--mono); font-size: 12.5px; background: var(--paper-2); padding: 1px 6px; border-radius: 4px; color: var(--accent); }
+  .risk li .d { font-size: 13px; color: var(--ink-3); }
+
+  footer { margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); }
+  footer code { font-family: var(--mono); color: var(--ink-2); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 22px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  @media (max-width: 760px) {
+    .band { grid-template-columns: repeat(2, 1fr); }
+    .triptych, .grid2 { grid-template-columns: 1fr; }
+    .row { grid-template-columns: 74px 1fr; }
+    .row .st { grid-column: 2; justify-self: start; }
+    .domlist { columns: 1; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .stat, .srccard, .risk { transition: none; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <p class="eyebrow">Read-only instrumentation · coverage audit</p>
+    <h1>What TikTok reads, and what our rig still misses</h1>
+    <p class="dek">We stopped guessing which APIs to hook. This dossier covers two layers. The <b>data layer</b> (what TikTok reads about your device) is cross-checked against three sources of truth, including TikTok's own on-device privacy declarations. The <b>behavioral layer</b> (how you touch and scroll, and whether a real finger is driving) is enumerated from the anti-automation research and mapped to a safe build order.</p>
+    <div class="band">
+      <div class="stat good"><div class="n">32</div><div class="l">Surfaces hooked</div></div>
+      <div class="stat warn"><div class="n">5</div><div class="l">Full-mode only</div></div>
+      <div class="stat gap"><div class="n">10</div><div class="l">Genuine gaps</div></div>
+      <div class="stat"><div class="n">58</div><div class="l">TikTok manifests read</div></div>
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="idx">01</span> Three sources of truth</h2>
+    <p class="lead">Each answers a different question. Together they turn "did I remember timezone" into a checklist where every row is either covered or a named gap.</p>
+    <div class="triptych">
+      <div class="srccard">
+        <span class="tag">apple · canonical</span>
+        <h3>Required-Reason API list</h3>
+        <p>Apple's own enumeration of the sneaky fingerprinting APIs: file timestamps, disk space, boot time, active keyboards, user defaults. The exhaustive completeness oracle.</p>
+        <div class="metric"><b>5</b> categories · <b>17</b> approved reason codes</div>
+      </div>
+      <div class="srccard">
+        <span class="tag">tooling · community</span>
+        <h3>objection + frida-ios-hook</h3>
+        <p>Maintained toolkits with prewritten hooks for keychain, cookies, pasteboard, defaults, plus a research catalog of hardware and sensor reads. We harvested their hook lists instead of hand-guessing.</p>
+        <div class="metric"><b>10</b> themed read surfaces mapped</div>
+      </div>
+      <div class="srccard">
+        <span class="tag">tiktok · self-declared</span>
+        <h3>PrivacyInfo.xcprivacy</h3>
+        <p>Apple forces every app to ship a machine-readable manifest of the API categories, tracking domains, and data types it touches. We pulled all of TikTok's off the phone.</p>
+        <div class="metric"><b>58</b> manifests · app + <b>57</b> SDKs and extensions</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">02</span> What TikTok admits, in its own manifests</h2>
+    <p class="lead">This is not our inference. It is what TikTok is legally required to declare to Apple, aggregated across the main app and every embedded SDK we extracted from the bundle.</p>
+    <div class="evidence">
+      <div class="hd">
+        <h3>Declared collection and tracking</h3>
+        <span class="src">source: manifests/*.xcprivacy · Info.plist</span>
+      </div>
+      <div class="grid2">
+        <div>
+          <h4>Data types collected (25) · red = used for cross-app tracking</h4>
+          <div class="chips">
+            <span class="chip hot">Device ID</span>
+            <span class="chip hot">Email address</span>
+            <span class="chip hot">Phone number</span>
+            <span class="chip">Payment info</span>
+            <span class="chip">Other financial info</span>
+            <span class="chip">Physical address</span>
+            <span class="chip">Contacts</span>
+            <span class="chip">Coarse location</span>
+            <span class="chip">Precise location*</span>
+            <span class="chip">Search history</span>
+            <span class="chip">Browsing history</span>
+            <span class="chip">Audio data</span>
+            <span class="chip">Photos or videos</span>
+            <span class="chip">Purchase history</span>
+            <span class="chip">Product interaction</span>
+            <span class="chip">Advertising data</span>
+            <span class="chip">User ID</span>
+            <span class="chip">Name</span>
+            <span class="chip">Crash + perf data</span>
+          </div>
+          <p style="font-size:12.5px;color:var(--ink-3);margin:12px 0 0;">Every type above is declared <b>linked to your identity</b>. Device ID, email, and phone number are further declared as used for tracking across other companies' apps and sites.</p>
+        </div>
+        <div>
+          <h4>Tracking domains (24) · fail without ATT consent</h4>
+          <div class="domlist">
+            <span><b>da-an-v3</b>.tiktokv.com</span>
+            <span>da-an-v3.tiktokv.<b>us</b></span>
+            <span>da-an-v3.tiktokv.<b>eu</b></span>
+            <span>da-an-v3-<b>ru</b>.tiktokv.com</span>
+            <span>da-an-v3-sg.tiktokv.com</span>
+            <span>da-an-v3-va.tiktokv.com</span>
+            <span>da-an-v3-i18n.tiktokv.com</span>
+            <span>att.attr.<b>appsflyer</b>sdk.com</span>
+            <span>att.conversions.appsflyersdk.com</span>
+            <span>att.launches.appsflyersdk.com</span>
+            <span>att.dlsdk.appsflyersdk.com</span>
+            <span>+ 13 more appsflyer-cn variants</span>
+          </div>
+          <p style="font-size:12.5px;color:var(--ink-3);margin:12px 0 0;">Two tracking backends: TikTok's own <b>da-an-v3</b> analytics fleet across six regions, and <b>AppsFlyer</b> attribution. Payment stack declared via Stripe, Braintree, Venmo, and PayPal SDKs.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">03</span> Coverage matrix</h2>
+    <p class="lead">Every read surface from all three sources, checked against <code style="font-family:var(--mono);font-size:13px;">observe.js</code> as it stands. Rows marked <span class="rr" style="display:inline;padding:1px 6px;">req-reason</span> are Apple categories TikTok explicitly declares, so they carry the most weight.</p>
+
+    <div class="legend">
+      <span><i style="background:var(--good-soft);border:1px solid var(--good)"></i> Hooked in the default safe set</span>
+      <span><i style="background:var(--warn-soft);border:1px solid var(--warn)"></i> Only with <code>-Full</code></span>
+      <span><i style="background:var(--gap-soft);border:1px solid var(--gap)"></i> Not captured</span>
+    </div>
+    <div style="height:22px;"></div>
+
+    <!-- Identity -->
+    <div class="theme">
+      <div class="theme-hd"><span class="name">Identity</span></div>
+      <div class="rows">
+        <div class="row"><span class="surface">Vendor ID (IDFV)</span><span class="sym">identifierForVendor</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Advertising ID</span><span class="sym">ASIdentifierManager.advertisingIdentifier</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">ATT tracking status</span><span class="sym">ATTrackingManager.trackingAuthorizationStatus</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Device name / model</span><span class="sym">UIDevice.name / model / localizedModel</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">OS version</span><span class="sym">UIDevice.systemVersion, NSProcessInfo</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Hardware model</span><span class="sym">sysctlbyname(hw.machine / hw.model)</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Kernel / build</span><span class="sym">uname()</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Memory / CPU count</span><span class="sym">NSProcessInfo.physicalMemory / processorCount</span><span class="st hooked">Hooked</span></div>
+      </div>
+    </div>
+
+    <!-- Boot time -->
+    <div class="theme">
+      <div class="theme-hd"><span class="name">System boot time</span><span class="rr">req-reason</span></div>
+      <div class="rows">
+        <div class="row"><span class="surface">System uptime</span><span class="sym">NSProcessInfo.systemUptime</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Boot time via sysctl</span><span class="sym">sysctlbyname(kern.boottime)</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Monotonic clock</span><span class="sym">mach_absolute_time()</span><span class="st gap">Gap</span></div>
+      </div>
+    </div>
+
+    <!-- Disk space -->
+    <div class="theme">
+      <div class="theme-hd"><span class="name">Disk space</span><span class="rr">req-reason</span></div>
+      <div class="rows">
+        <div class="row"><span class="surface">statfs family</span><span class="sym">statfs / statfs64</span><span class="st full">Full only</span></div>
+        <div class="row"><span class="surface">statvfs family</span><span class="sym">statvfs / fstatfs / fstatvfs</span><span class="st gap">Gap</span></div>
+        <div class="row"><span class="surface">Free space via ObjC</span><span class="sym">NSFileManager.attributesOfFileSystemForPath</span><span class="st gap">Gap</span></div>
+        <div class="row"><span class="surface">Volume capacity keys</span><span class="sym">NSURL volumeAvailableCapacity* / total</span><span class="st gap">Gap</span></div>
+      </div>
+    </div>
+
+    <!-- File timestamps -->
+    <div class="theme">
+      <div class="theme-hd"><span class="name">File timestamps</span><span class="rr">req-reason</span></div>
+      <div class="rows">
+        <div class="row"><span class="surface">stat / lstat</span><span class="sym">stat / lstat</span><span class="st full">Full only</span></div>
+        <div class="row"><span class="surface">getattrlist family</span><span class="sym">getattrlist / getattrlistbulk / fgetattrlist</span><span class="st gap">Gap</span>
+          <span class="note">excluded by design: fires constantly on the hot path, needs a self-detaching hotHook first</span></div>
+        <div class="row"><span class="surface">File dates via ObjC</span><span class="sym">NSFileManager.attributesOfItemAtPath</span><span class="st gap">Gap</span></div>
+        <div class="row"><span class="surface">File dates via NSURL</span><span class="sym">contentModificationDateKey / creationDateKey</span><span class="st gap">Gap</span></div>
+      </div>
+    </div>
+
+    <!-- Keyboards + defaults -->
+    <div class="theme">
+      <div class="theme-hd"><span class="name">Active keyboards &amp; user defaults</span><span class="rr">req-reason</span></div>
+      <div class="rows">
+        <div class="row"><span class="surface">Active keyboards</span><span class="sym">UITextInputMode.activeInputModes</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">User defaults</span><span class="sym">NSUserDefaults.objectForKey / dictionaryRepresentation</span><span class="st hooked">Hooked</span></div>
+      </div>
+    </div>
+
+    <!-- Locale -->
+    <div class="theme">
+      <div class="theme-hd"><span class="name">Locale &amp; region</span></div>
+      <div class="rows">
+        <div class="row"><span class="surface">Current locale</span><span class="sym">NSLocale.currentLocale</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Preferred languages</span><span class="sym">NSLocale.preferredLanguages</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Time zone</span><span class="sym">NSTimeZone.defaultTimeZone</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Calendar</span><span class="sym">NSCalendar.currentCalendar</span><span class="st hooked">Hooked</span></div>
+      </div>
+    </div>
+
+    <!-- Network -->
+    <div class="theme">
+      <div class="theme-hd"><span class="name">Carrier &amp; network</span></div>
+      <div class="rows">
+        <div class="row"><span class="surface">Carrier / MCC / MNC</span><span class="sym">CTCarrier</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">WiFi SSID / BSSID</span><span class="sym">CNCopyCurrentNetworkInfo</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Local IPs / interfaces</span><span class="sym">getifaddrs</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Outbound connections</span><span class="sym">connect / getaddrinfo / nw_path</span><span class="st full">Full only</span></div>
+        <div class="row"><span class="surface">HTTP cookies</span><span class="sym">NSHTTPCookieStorage.cookies</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">TLS payload</span><span class="sym">SSLRead / SSLWrite</span><span class="st full">Full only</span></div>
+      </div>
+    </div>
+
+    <!-- Clipboard + keychain -->
+    <div class="theme">
+      <div class="theme-hd"><span class="name">Clipboard &amp; credentials</span></div>
+      <div class="rows">
+        <div class="row"><span class="surface">Pasteboard contents</span><span class="sym">UIPasteboard.generalPasteboard</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Keychain query</span><span class="sym">SecItemCopyMatching</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">URL credential store</span><span class="sym">NSURLCredentialStorage.allCredentials</span><span class="st gap">Gap</span></div>
+        <div class="row"><span class="surface">Crypto material</span><span class="sym">CCCrypt / CCCryptorUpdate</span><span class="st gap">Gap</span></div>
+      </div>
+    </div>
+
+    <!-- Installed apps -->
+    <div class="theme">
+      <div class="theme-hd"><span class="name">Installed apps</span></div>
+      <div class="rows">
+        <div class="row"><span class="surface">Enumerate installed apps</span><span class="sym">LSApplicationWorkspace.allApplications</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Can-open-URL probing</span><span class="sym">canOpenURL:</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Declared query schemes</span><span class="sym">LSApplicationQueriesSchemes (54 declared)</span><span class="st hooked">Hooked</span></div>
+      </div>
+    </div>
+
+    <!-- Sensors -->
+    <div class="theme">
+      <div class="theme-hd"><span class="name">Sensors &amp; location</span></div>
+      <div class="rows">
+        <div class="row"><span class="surface">Motion / gyro</span><span class="sym">CMMotionManager</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Pedometer / steps</span><span class="sym">CMPedometer</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Battery level / state</span><span class="sym">UIDevice.batteryLevel / batteryState</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Screen geometry</span><span class="sym">UIScreen.nativeBounds / scale</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">GPS location</span><span class="sym">CLLocationManager.location / startUpdating</span><span class="st hooked">Hooked</span></div>
+      </div>
+    </div>
+
+    <!-- Permissions -->
+    <div class="theme">
+      <div class="theme-hd"><span class="name">Permissions &amp; contacts</span></div>
+      <div class="rows">
+        <div class="row"><span class="surface">Permission status probes</span><span class="sym">authorizationStatus (photos / mic / ...)</span><span class="st hooked">Hooked</span></div>
+        <div class="row"><span class="surface">Contacts read</span><span class="sym">CNContactStore.enumerateContacts</span><span class="st gap">Gap</span></div>
+      </div>
+    </div>
+
+    <!-- Anti-tamper -->
+    <div class="theme">
+      <div class="theme-hd"><span class="name">Anti-tamper</span></div>
+      <div class="rows">
+        <div class="row"><span class="surface">Debugger / code-sign check</span><span class="sym">csops</span><span class="st full">Full only</span></div>
+        <div class="row"><span class="surface">Jailbreak path probes</span><span class="sym">stat / lstat / access on JB paths</span><span class="st hooked">Hooked</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">04</span> The ten gaps, ranked by risk to add</h2>
+    <p class="lead">Every gap is a real fingerprinting vector, but they are not equal to hook. Ordered so we can add the safe ones first, exactly as before.</p>
+    <div class="plan">
+      <div class="risk safe">
+        <div class="risk-hd"><span class="dot"></span><span class="t">Safe to add now</span><span class="sub">cold ObjC reads, same class as existing hooks · zero freeze risk</span></div>
+        <ul>
+          <li><span class="h">URL credential store &nbsp; <code>NSURLCredentialStorage.allCredentials</code></span><span class="d">Saved HTTP credentials, one cold call. objection surfaces this.</span></li>
+          <li><span class="h">Free disk space &nbsp; <code>attributesOfFileSystemForPath</code></span><span class="d">The ObjC way to read free space. TikTok declares the disk-space category via 13 modules.</span></li>
+          <li><span class="h">Volume capacity keys &nbsp; <code>resourceValuesForKeys:</code></span><span class="d">The modern NSURL free-space path, same declared category.</span></li>
+          <li><span class="h">File timestamps via ObjC &nbsp; <code>attributesOfItemAtPath</code></span><span class="d">Creation / modification dates. TikTok declares file-timestamp use via 16 modules.</span></li>
+          <li><span class="h">Contacts read &nbsp; <code>CNContactStore.enumerateContacts</code></span><span class="d">Fires when contacts are actually read, not just the permission check we already have. TikTok declares Contacts collection.</span></li>
+        </ul>
+      </div>
+      <div class="risk mod">
+        <div class="risk-hd"><span class="dot"></span><span class="t">Moderate · needs a self-detaching hotHook</span><span class="sub">native, on the hot path · sample then detach, like getifaddrs</span></div>
+        <ul>
+          <li><span class="h">statvfs family &nbsp; <code>statvfs / fstatfs / fstatvfs</code></span><span class="d">Native disk-space siblings of statfs. Can be called in loops, so sample and self-detach.</span></li>
+          <li><span class="h">getattrlist family &nbsp; <code>getattrlist / getattrlistbulk</code></span><span class="d">The currently-excluded file-metadata call. Hottest of the set, worth it only behind a strict hotHook cap.</span></li>
+          <li><span class="h">Crypto material &nbsp; <code>CCCrypt / CCCryptorUpdate</code></span><span class="d">Keys, IVs, and plaintext passing through CommonCrypto. High signal, high volume, sample only.</span></li>
+        </ul>
+      </div>
+      <div class="risk skip">
+        <div class="risk-hd"><span class="dot"></span><span class="t">Skip</span><span class="sub">low value for the freeze risk it carries</span></div>
+        <ul>
+          <li><span class="h">Monotonic clock &nbsp; <code>mach_absolute_time()</code></span><span class="d">One of the hottest functions in the process and boot time is already covered by systemUptime and sysctl. Not worth the exposure.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">05</span> Your device, read live</h2>
+    <p class="lead">To prove these symbols resolve on your exact build, and to answer the standing questions directly, we spawned Settings, read the same C functions TikTok would call, and killed it. Cold reads only, no hooks.</p>
+    <div class="evidence" style="border-left-color:var(--accent);">
+      <div class="hd">
+        <h3>iPhone10,3 · iOS 16.7.16 · build 20H392 · region J/A</h3>
+        <span class="src">source: snapshot_state.py · MGCopyAnswer + UIAccessibility</span>
+      </div>
+      <div class="grid2">
+        <div>
+          <h4>Accessibility state (what TikTok can fingerprint)</h4>
+          <div class="chips">
+            <span class="chip">AssistiveTouch off</span>
+            <span class="chip">VoiceOver off</span>
+            <span class="chip">Switch Control off</span>
+            <span class="chip">Guided Access off</span>
+            <span class="chip hot" style="border-color:var(--accent);color:var(--accent);background:var(--accent-soft);">Shake to Undo ON</span>
+            <span class="chip hot" style="border-color:var(--accent);color:var(--accent);background:var(--accent-soft);">Video Autoplay ON</span>
+          </div>
+          <p style="font-size:12.5px;color:var(--ink-3);margin:12px 0 0;">The two assistive-automation tells, AssistiveTouch and VoiceOver, are off. So a real finger is the expected input, which is exactly the baseline the touch-provenance hooks would confirm against.</p>
+        </div>
+        <div>
+          <h4>Anti-tamper baseline + Developer Mode</h4>
+          <div class="chips">
+            <span class="chip">Production silicon: true</span>
+            <span class="chip">Signing fuse: true</span>
+            <span class="chip">Internal build: false</span>
+          </div>
+          <p style="font-size:12.5px;color:var(--ink-3);margin:12px 0 0;">A clean retail device, no dev-fused or demoted-silicon flags. <b>Developer Mode:</b> the plaintext MobileGestalt key <code style="font-family:var(--mono);color:var(--gap);">DeveloperModeStatus</code> returns nothing on this build. Reading Dev Mode needs the obfuscated key or an AMFI side-channel, so our hook will log both the attempt and the failure.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">06</span> The behavioral layer: how you touch, not what you are</h2>
+    <p class="lead">None of this appears in privacy manifests, because Apple does not class it as data collection. It is input provenance and anti-automation: whether a real finger drives the feed, how you flick, and whether the runtime is instrumented. It is grouped into build waves by the one thing that matters here, freeze risk. <b style="color:var(--good);">All three waves are now implemented and verified in a clean 25-second run</b>, no freeze, all kill layers idle.</p>
+
+    <div class="evidence" style="border-left-color:var(--good);margin-bottom:22px;">
+      <div class="hd">
+        <h3>First live capture from the new hooks</h3>
+        <span class="src">source: 25s safe-mode run · observe.js</span>
+      </div>
+      <p style="font-size:14px;color:var(--ink-2);margin:0 0 14px;max-width:74ch;">On launch alone, before any scrolling, TikTok asked MobileGestalt for <b>16 device keys</b>. Several are plaintext, model and region and <code style="font-family:var(--mono);color:var(--gap);">IsSimulator</code> and <code style="font-family:var(--mono);color:var(--gap);">apple-internal-install</code> (an emulator / non-retail tell). Several more are <b>obfuscated hash keys</b>, which is exactly how the sensitive identity and anti-tamper values (serial, UDID, production status) are addressed.</p>
+      <div class="chips">
+        <span class="chip">ProductVersion</span><span class="chip">DeviceName</span><span class="chip">ProductType</span><span class="chip">HasBaseband</span>
+        <span class="chip hot">IsSimulator</span><span class="chip hot">apple-internal-install</span>
+        <span class="chip" style="font-family:var(--mono);font-size:11px;">AoKnINTLPoKML3ctoP0AZg</span>
+        <span class="chip" style="font-family:var(--mono);font-size:11px;">j9Th5smJpdztHwc+i39zIg</span>
+        <span class="chip" style="font-family:var(--mono);font-size:11px;">+ 4 more hashed</span>
+      </div>
+      <p style="font-size:12.5px;color:var(--ink-3);margin:14px 0 0;">The touch-provenance section needs you to actually scroll the feed to fill, since <code style="font-family:var(--mono);">sendEvent:</code> only fires on real touches. Everything else populates on launch.</p>
+    </div>
+
+    <div class="plan">
+      <div class="risk safe">
+        <div class="risk-hd"><span class="dot"></span><span class="t">Wave 1 · safe cold reads</span><span class="sub">one-shot getters, same class as current hooks · zero freeze risk</span></div>
+        <ul>
+          <li><span class="h">Accessibility bitmask &nbsp; <code>UIAccessibilityIs*Running / *Enabled</code></span><span class="d">All 15 flags in one cold loop. AssistiveTouch and VoiceOver are the automation tells, the rest is fingerprint entropy.</span></li>
+          <li><span class="h">Device attribute stream &nbsp; <code>MGCopyAnswer</code></span><span class="d">Log every MobileGestalt key TikTok pulls: UDID, serial, IMEI, WiFi/Bluetooth MAC, model, region, SigningFuse, and its Developer Mode probe. The single highest-value new hook. Budgeted so a launch burst cannot run away.</span></li>
+          <li><span class="h">Screen capture &amp; mirroring &nbsp; <code>UIScreen.isCaptured</code>, screenshots, external display</span><span class="d">Is the feed being recorded, mirrored, or screenshotted, and is a second display wired in.</span></li>
+          <li><span class="h">Connected peripherals &nbsp; <code>GCMouse.mice</code>, <code>GCKeyboard</code>, <code>GCController</code>, <code>EAAccessoryManager</code>, <code>CBCentralManager</code></span><span class="d">External mouse, keyboard, controller, MFi hardware, or Bluetooth reach. A mouse or keyboard driving a phone feed is a strong automation-rig signal.</span></li>
+          <li><span class="h">Physical context &nbsp; <code>proximityState</code>, <code>orientation</code>, <code>UIScreen.brightness</code>, haptic hardware class</span><span class="d">Held to the face, held upright vs flat on a table, ambient-light proxy, and whether a real Taptic Engine exists.</span></li>
+          <li><span class="h">Anti-tamper environment &nbsp; <code>getenv(DYLD_INSERT_LIBRARIES)</code>, dyld image scan, Frida-port / thread-name checks, <code>csops</code>, entitlements, <code>sysctl(KERN_PROC)</code></span><span class="d">Everything TikTok reads to detect jailbreak, injection, and debugging. We log and pass through, never neutralize.</span></li>
+        </ul>
+      </div>
+
+      <div class="risk mod">
+        <div class="risk-hd"><span class="dot"></span><span class="t">Wave 2 · hot, self-detaching hotHook</span><span class="sub">the finger-vs-synthetic core · sample then detach, like getifaddrs</span></div>
+        <ul>
+          <li><span class="h">Touch provenance &nbsp; one interpose on <code>-[UIApplication sendEvent:]</code></span><span class="d">Every UIEvent passes here once. Read <code>UITouch.type</code> (Direct finger vs IndirectPointer mouse/trackpad vs Stylus), whether <code>_hidEvent</code> is non-null, and whether <code>coalescedTouchesForTouch:</code> is non-empty. Those three catch the majority of injected/synthetic input. This is the direct answer to "is a real finger driving the swipes."</span></li>
+          <li><span class="h">Flick dynamics &nbsp; <code>UIPanGestureRecognizer.velocityInView:</code>, scroll delegate</span><span class="d">The velocity and overshoot curve of each swipe. Humans vary it, scripts repeat it. Sampled, not streamed.</span></li>
+          <li><span class="h">Engagement haptics &nbsp; <code>UIImpactFeedbackGenerator</code>, notification / selection</span><span class="d">Intercepting the haptic calls hands us TikTok's own taxonomy of "moments" (like, snap, error) for free.</span></li>
+        </ul>
+      </div>
+
+      <div class="risk skip">
+        <div class="risk-hd"><span class="dot" style="background:var(--accent);"></span><span class="t">Wave 3 · optional hot sensor sampling</span><span class="sub">high signal, highest volume · sample a handful then detach</span></div>
+        <ul>
+          <li><span class="h">Hand tremor &amp; hold angle &nbsp; <code>CMDeviceMotion.attitude</code> / <code>userAcceleration</code></span><span class="d">Real hands micro-jitter, a perfectly static rig does not. We already log that TikTok starts the stream, this would sample a few live values.</span></li>
+          <li><span class="h">Live barometer &nbsp; <code>CMAltimeter</code> pressure</span><span class="d">Ambient pressure micro-fluctuations are one of the hardest live-hardware signals to fake. Sample only.</span></li>
+        </ul>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--ink-3);margin:22px 0 0;max-width:70ch;"><b>One read-only caveat:</b> two anti-tamper calls, <code style="font-family:var(--mono);">ptrace(PT_DENY_ATTACH)</code> and its raw-syscall twin, actively block instrumentation rather than read state. We observe that TikTok calls them and pass through. We never neutralize them, which keeps the rig honest and read-only even though it means accepting whatever defense TikTok mounts.</p>
+  </section>
+
+  <footer>
+    <p>Generated from <code>coverage/coverage.json</code> and <code>coverage/tiktok_declared.json</code>, both rebuildable with <code>pull_manifests.py</code> then <code>analyze_manifests.py</code> then <code>build_coverage.py</code>. Manifests were read from the app bundle via a cold, spawn-suspended Frida file read that never runs TikTok's own code. Read-only throughout.</p>
+    <p style="margin-top:10px;">* Precise location appears in TikTok's Info.plist usage strings and permission set. In the manifests the declared granularity is Coarse plus Precise via the location permission surface.</p>
+  </footer>
+</div>

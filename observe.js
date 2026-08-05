@@ -61,6 +61,16 @@ var TLS_ENABLED = 0;   // 0 = off, driver rewrites to 1 to enable
 // Same single-character flip rule as TLS_ENABLED: length must not change.
 var SYSCALL_ENABLED = 0;   // 0 = off, driver rewrites to 1 to enable
 
+// The touch-provenance hooks (sendEvent, scroll velocity, live motion samples)
+// sit on the per-frame input path. Even with hotHook, a heavy handler run across
+// a scroll burst can saturate the phone's frida-server and wedge the USB link,
+// which has frozen the machine. They are OFF by default and, unlike -Full, do NOT
+// pull in the raw syscall hooks, so the -Touch opt-in captures finger-vs-synthetic
+// input in isolation. When on, their sample limits are tiny (tens of calls) so the
+// hot window is under a second of scrolling before they detach for good. Same
+// single-character flip rule as the other flags: the length must not change.
+var TOUCH_ENABLED = 0;   // 0 = off, driver rewrites to 1 to enable
+
 var SEP = String.fromCharCode(1);   // never occurs inside a key or a value
 var _tally = new Map();       // key -> [count, firstMs, lastSentCount]
 var _t0 = Date.now();
@@ -395,7 +405,7 @@ if (!ObjC.available) {
 
   // hotHook, not a plain attach: getifaddrs can be called in tight loops by
   // networking code, so it self-detaches after a sample like the TLS hooks.
-  hotHook(Module.findGlobalExportByName('getifaddrs'), 4000, 'interface scans', {
+  hotHook(Module.findGlobalExportByName('getifaddrs'), 500, 'interface scans', {
     onEnter: function (args) { this.listp = args[0]; },
     onLeave: function (retval) {
       emit('NETWORK', 'getifaddrs', null);
@@ -439,13 +449,13 @@ if (!ObjC.available) {
 
   // All of these fire per network operation, which during streaming means many
   // per second, so every one self-detaches after its sample.
-  hotHook(dangerousExport('connect'), 4000, 'outbound connects', {
+  hotHook(dangerousExport('connect'), 500, 'outbound connects', {
     onEnter: function (args) { reportDest(args[1]); }
   });
 
   // Network.framework goes through connectx. In sa_endpoints_t the destination
   // pointer sits at offset 24 on arm64.
-  hotHook(dangerousExport('connectx'), 4000, 'outbound connects (nw)', {
+  hotHook(dangerousExport('connectx'), 500, 'outbound connects (nw)', {
     onEnter: function (args) {
       try {
         if (args[1].isNull()) return;
@@ -454,7 +464,7 @@ if (!ObjC.available) {
     }
   });
 
-  hotHook(dangerousExport('getsockname'), 4000, 'egress address reads', {
+  hotHook(dangerousExport('getsockname'), 500, 'egress address reads', {
     onEnter: function (args) { this.sa = args[1]; },
     onLeave: function (retval) {
       try {
@@ -467,7 +477,7 @@ if (!ObjC.available) {
     }
   });
 
-  hotHook(dangerousExport('getaddrinfo'), 4000, 'name lookups', {
+  hotHook(dangerousExport('getaddrinfo'), 500, 'name lookups', {
     onEnter: function (args) {
       this.host = args[0].isNull() ? null : cstr(args[0]);
       this.res = args[3];
@@ -495,7 +505,7 @@ if (!ObjC.available) {
   // interface type 'other'. Called very frequently by networking, so hotHook.
   const NW_TYPE = ['other, which is where a VPN shows up', 'Wi-Fi', 'cellular',
                    'wired', 'loopback'];
-  hotHook(dangerousExport('nw_path_uses_interface_type'), 4000,
+  hotHook(dangerousExport('nw_path_uses_interface_type'), 500,
           'path type checks', {
     onEnter: function (args) { this.t = args[1].toInt32(); },
     onLeave: function (retval) {
@@ -507,18 +517,18 @@ if (!ObjC.available) {
   // The older, quieter way to enumerate interfaces, which getifaddrs hooks miss
   try {
     const SIOCGIFCONF = 0xc0106924, SIOCGIFADDR = 0xc0206921;
-    const ioctlBudget = budget(60000, 'ioctl calls');   // ioctl runs on every socket operation
-    const ioctl = dangerousExport('ioctl');
-    if (ioctl) {
-      Interceptor.attach(ioctl, {
-        onEnter: function (args) {
-          if (!ioctlBudget()) return;
-          const req = args[1].toUInt32();
-          if (req === SIOCGIFCONF) emit('IFENUM', 'ioctl SIOCGIFCONF', null);
-          else if (req === SIOCGIFADDR) emit('IFENUM', 'ioctl SIOCGIFADDR', null);
-        }
-      });
-    }
+    // ioctl runs on EVERY socket operation, one of the hottest syscalls there is.
+    // A plain attach with a budget still TRAPS on every call (the budget only
+    // skips the work), and that trap volume alone wedges the USB link. It must
+    // sample-then-detach. We keep the sample tiny: this signal is redundant with
+    // getifaddrs, so missing a rare SIOCGIFCONF is an acceptable trade for safety.
+    hotHook(dangerousExport('ioctl'), 200, 'ioctl calls', {
+      onEnter: function (args) {
+        const req = args[1].toUInt32();
+        if (req === SIOCGIFCONF) emit('IFENUM', 'ioctl SIOCGIFCONF', null);
+        else if (req === SIOCGIFADDR) emit('IFENUM', 'ioctl SIOCGIFADDR', null);
+      }
+    });
   } catch (e) {}
 
   // --- Locale, language, timezone and keyboards (read-only) ---
@@ -731,12 +741,9 @@ if (!ObjC.available) {
   const diskBudget = budget(20000, 'disk space reads');
   (SYSCALL_ENABLED ? ['statfs', 'statfs64'] : []).forEach(function (fn) {
     try {
-      const p = Module.findGlobalExportByName(fn);
-      if (!p) return;
-      Interceptor.attach(p, {
-        onEnter: function () {
-          if (diskBudget()) emit('DISPLAY', 'free disk space', 'read via ' + fn);
-        }
+      // sample then detach: a plain attach would keep trapping on a hot call
+      hotHook(Module.findGlobalExportByName(fn), 300, 'disk checks (' + fn + ')', {
+        onEnter: function () { emit('DISPLAY', 'free disk space', 'read via ' + fn); }
       });
     } catch (e) {}
   });
@@ -779,13 +786,11 @@ if (!ObjC.available) {
   // --- Tamper checks the sysctl hooks miss (read-only) ---
   // sysctlbyname is the friendly form. The numeric one bypasses it entirely,
   // and kern.proc through that route is the classic debugger check.
-  const sysctlBudget = budget(20000, 'numeric sysctl reads');
   try {
-    const p = dangerousExport('sysctl');
-    if (p) {
-      Interceptor.attach(p, {
+    // sysctl is called frequently, so sample-then-detach, never a bare attach
+    // that keeps trapping.
+    hotHook(dangerousExport('sysctl'), 400, 'numeric sysctl reads', {
         onEnter: function (args) {
-          if (!sysctlBudget()) return;
           try {
             const n = args[1].toInt32();
             if (n < 1 || n > 8) return;
@@ -806,19 +811,15 @@ if (!ObjC.available) {
           } catch (e) {}
         }
       });
-    }
   } catch (e) {}
 
-  // a library-enumeration sweep calls these once per loaded image, so a few
-  // hundred times per sweep. Budgeted so a detector in a loop cannot run away.
-  const dyldBudget = budget(20000, 'loaded-library enumeration');
+  // a library-enumeration sweep calls these once per loaded image. A plain attach
+  // keeps trapping, so sample-then-detach instead.
   [['_dyld_image_count', 'counting loaded libraries'],
    ['_dyld_get_image_name', 'reading loaded library names']].forEach(function (pair) {
     try {
-      const p = Module.findGlobalExportByName(pair[0]);
-      if (!p) return;
-      Interceptor.attach(p, {
-        onEnter: function () { if (dyldBudget()) emit('TAMPER', pair[0], pair[1]); }
+      hotHook(Module.findGlobalExportByName(pair[0]), 800, 'dyld scan (' + pair[0] + ')', {
+        onEnter: function () { emit('TAMPER', pair[0], pair[1]); }
       });
     } catch (e) {}
   });
@@ -830,7 +831,7 @@ if (!ObjC.available) {
   // Low-frequency, but routed through hotHook to stay safe. CS_OPS_STATUS = 0.
   const CS_DEBUGGED = 0x10000000, CS_GET_TASK_ALLOW = 0x00000004;
   ['csops', 'csops_audittoken'].forEach(function (fn) {
-    hotHook(dangerousExport(fn), 4000, 'code-signing checks (' + fn + ')', {
+    hotHook(dangerousExport(fn), 500, 'code-signing checks (' + fn + ')', {
       onEnter: function (args) {
         // csops(pid, ops, useraddr, usersize); audittoken variant shifts by one
         var opsIdx = fn === 'csops' ? 1 : 1;
@@ -871,7 +872,7 @@ if (!ObjC.available) {
   // out entirely: a jailbreak probe uses stat or access, and open() carries far
   // more traffic. Guards inside stay cheap-first: length before regex.
   (SYSCALL_ENABLED ? ['stat', 'lstat', 'access'] : []).forEach(function (fn) {
-    hotHook(Module.findGlobalExportByName(fn), 20000, 'filesystem checks (' + fn + ')', {
+    hotHook(Module.findGlobalExportByName(fn), 400, 'filesystem checks (' + fn + ')', {
       onEnter: function (args) {
         try {
           // NUL-terminated, never an explicit length: a length makes Frida
@@ -1012,24 +1013,18 @@ if (!ObjC.available) {
   // which DNS servers the phone is using. These identify your ISP even when a
   // VPN is carrying the traffic, if resolution goes outside the tunnel.
   try {
-    const p = dangerousExport('res_9_getservers');
-    if (p) {
-      Interceptor.attach(p, {
-        onEnter: function () { emit('DISPLAY', 'DNS servers', 'read the resolver list'); }
-      });
-    }
+    hotHook(dangerousExport('res_9_getservers'), 100, 'resolver list reads', {
+      onEnter: function () { emit('DISPLAY', 'DNS servers', 'read the resolver list'); }
+    });
   } catch (e) {}
 
   try {
-    const p = dangerousExport('SCNetworkReachabilityGetFlags');
-    if (p) {
-      const reachBudget = budget(20000, 'reachability checks');
-      Interceptor.attach(p, {
-        onEnter: function () {
-          if (reachBudget()) emit('DISPLAY', 'connection reachability', 'via SystemConfiguration');
-        }
-      });
-    }
+    // reachability gets polled during network activity, so sample-then-detach.
+    hotHook(dangerousExport('SCNetworkReachabilityGetFlags'), 400, 'reachability checks', {
+      onEnter: function () {
+        emit('DISPLAY', 'connection reachability', 'via SystemConfiguration');
+      }
+    });
   } catch (e) {}
 
   // --- Motion sensors (read-only) ---
@@ -1197,7 +1192,7 @@ if (!ObjC.available) {
 
   if (TLS_ENABLED) {
     ['SSLWrite', 'SSL_write'].forEach(function (nm) {
-      hotHook(Module.findGlobalExportByName(nm), 800, 'TLS write (' + nm + ')',
+      hotHook(Module.findGlobalExportByName(nm), 400, 'TLS write (' + nm + ')',
               { onEnter: tlsWriteHandler });
     });
   }
@@ -1263,9 +1258,9 @@ if (!ObjC.available) {
   }
 
   if (TLS_ENABLED) {
-    hotHook(Module.findGlobalExportByName('SSLRead'), 800, 'TLS read (SSLRead)',
+    hotHook(Module.findGlobalExportByName('SSLRead'), 400, 'TLS read (SSLRead)',
             makeReadHandlers(true));
-    hotHook(Module.findGlobalExportByName('SSL_read'), 800, 'TLS read (SSL_read)',
+    hotHook(Module.findGlobalExportByName('SSL_read'), 400, 'TLS read (SSL_read)',
             makeReadHandlers(false));
   }
 
@@ -1367,6 +1362,487 @@ if (!ObjC.available) {
       } catch (e) {}
     } catch (e) {}
   }
+
+  // =====================================================================
+  // BEHAVIORAL & ANTI-AUTOMATION LAYER
+  // Input provenance, accessibility state, screen capture, peripherals,
+  // physical context, and the anti-tamper reads TikTok does while you use
+  // the feed. None of this appears in a privacy manifest.
+  //
+  // SAFETY: anything that can be read per frame during a scroll uses hotHook,
+  // which samples a few times then DETACHES for good, so no trap survives into
+  // the scroll. The three genuinely hot input-path hooks (sendEvent touch
+  // provenance, scroll velocity, live motion values) are gated behind
+  // TOUCH_ENABLED and stay OFF unless -Touch is passed. Low-rate reads (key and
+  // name loggers, haptics) use a plain budget. Read-only: we never alter a result.
+  // =====================================================================
+
+  // --- Wave 1: accessibility state (cold C booleans, device-wide) ---
+  // AssistiveTouch and VoiceOver being on are the assistive-automation tells.
+  // The rest are low-entropy fingerprint bits, each a permission-free read.
+  [['UIAccessibilityIsAssistiveTouchRunning', 'AssistiveTouch'],
+   ['UIAccessibilityIsVoiceOverRunning', 'VoiceOver'],
+   ['UIAccessibilityIsSwitchControlRunning', 'Switch Control'],
+   ['UIAccessibilityIsGuidedAccessEnabled', 'Guided Access'],
+   ['UIAccessibilityIsBoldTextEnabled', 'Bold Text'],
+   ['UIAccessibilityIsReduceMotionEnabled', 'Reduce Motion'],
+   ['UIAccessibilityIsReduceTransparencyEnabled', 'Reduce Transparency'],
+   ['UIAccessibilityIsInvertColorsEnabled', 'Invert Colors'],
+   ['UIAccessibilityIsGrayscaleEnabled', 'Grayscale'],
+   ['UIAccessibilityDarkerSystemColorsEnabled', 'Darker Colors'],
+   ['UIAccessibilityIsShakeToUndoEnabled', 'Shake to Undo'],
+   ['UIAccessibilityIsMonoAudioEnabled', 'Mono Audio'],
+   ['UIAccessibilityIsClosedCaptioningEnabled', 'Closed Captioning'],
+   ['UIAccessibilityIsSpeakScreenEnabled', 'Speak Screen'],
+   ['UIAccessibilityIsVideoAutoplayEnabled', 'Video Autoplay'],
+  ].forEach(function (pair) {
+    try {
+      const p = Module.findGlobalExportByName(pair[0]);
+      if (!p) return;
+      // These are static for the session, so sample a few then DETACH. A plain
+      // budget would stop the work but leave the trap firing on every layout,
+      // and layout runs every frame during a scroll, which is trap-volume we
+      // must not carry. hotHook removes the trap entirely after the sample.
+      hotHook(p, 6, 'accessibility (' + pair[1] + ')', {
+        onLeave: function (ret) { emit('A11Y', pair[1], ret.toInt32() ? 'on' : 'off'); }
+      });
+    } catch (e) {}
+  });
+
+  // --- Wave 1: MobileGestalt key logger ---
+  // MGCopyAnswer(key) is how apps read every hardware fact: UDID, serial, IMEI,
+  // Wi-Fi/Bluetooth MAC, model, region, plus the Developer Mode and production
+  // status probes. We log the KEY asked for, never touch the answer.
+  try {
+    const mg = Module.findGlobalExportByName('MGCopyAnswer');
+    if (mg) {
+      const b = budget(4000, 'MobileGestalt reads');
+      Interceptor.attach(mg, {
+        onEnter: function (args) {
+          if (!b()) return;
+          try {
+            const key = new ObjC.Object(args[0]).toString();
+            if (key && key.length < 64) emit('GESTALT', key, null);
+          } catch (e) {}
+        }
+      });
+    }
+  } catch (e) {}
+
+  // --- Wave 1: screen capture, mirroring, external display ---
+  // isCaptured can be polled on every cell as the feed scrolls, so it uses
+  // hotHook (sample then detach), not a budget that leaves the trap in place.
+  try {
+    const m = ObjC.classes.UIScreen && ObjC.classes.UIScreen['- isCaptured'];
+    if (m) {
+      hotHook(m.implementation, 12, 'isCaptured reads', {
+        onLeave: function (ret) {
+          emit('CAPTURE', 'screen recording or mirroring check',
+               ret.toInt32() ? 'currently captured' : 'checked, not captured');
+        }
+      });
+    }
+  } catch (e) {}
+  try {
+    const m = ObjC.classes.UIScreen && ObjC.classes.UIScreen['+ screens'];
+    if (m) {
+      hotHook(m.implementation, 12, 'screens list reads', {
+        onLeave: function (ret) {
+          try {
+            const n = ret.isNull() ? 0 : new ObjC.Object(ret).count();
+            emit('CAPTURE', 'external display check',
+                 n > 1 ? (n + ' screens attached') : 'one screen');
+          } catch (e) {}
+        }
+      });
+    }
+  } catch (e) {}
+  try {
+    const m = ObjC.classes.RPScreenRecorder && ObjC.classes.RPScreenRecorder['- isRecording'];
+    if (m) {
+      hotHook(m.implementation, 12, 'ReplayKit recording reads', {
+        onLeave: function (ret) {
+          emit('CAPTURE', 'ReplayKit recording check',
+               ret.toInt32() ? 'recording' : 'not recording');
+        }
+      });
+    }
+  } catch (e) {}
+
+  // --- Wave 1: connected peripherals (external input = automation tell) ---
+  // These class methods can be polled, so sample then detach (hotHook), never a
+  // bare attach that keeps trapping.
+  try {
+    const m = ObjC.classes.GCController && ObjC.classes.GCController['+ controllers'];
+    if (m) {
+      hotHook(m.implementation, 12, 'controller reads', {
+        onLeave: function (ret) {
+          try {
+            const n = ret.isNull() ? 0 : new ObjC.Object(ret).count();
+            emit('PERIPHERAL', 'game controllers', n > 0 ? (n + ' attached') : 'none');
+          } catch (e) {}
+        }
+      });
+    }
+  } catch (e) {}
+  try {
+    const m = ObjC.classes.GCKeyboard && ObjC.classes.GCKeyboard['+ coalescedKeyboard'];
+    if (m) {
+      hotHook(m.implementation, 12, 'keyboard reads', {
+        onLeave: function (ret) {
+          emit('PERIPHERAL', 'hardware keyboard', ret.isNull() ? 'none' : 'attached');
+        }
+      });
+    }
+  } catch (e) {}
+  try {
+    const m = ObjC.classes.GCMouse && ObjC.classes.GCMouse['+ mice'];
+    if (m) {
+      hotHook(m.implementation, 12, 'mouse reads', {
+        onLeave: function (ret) {
+          try {
+            const n = ret.isNull() ? 0 : new ObjC.Object(ret).count();
+            emit('PERIPHERAL', 'mouse', n > 0 ? (n + ' attached') : 'none');
+          } catch (e) {}
+        }
+      });
+    }
+  } catch (e) {}
+  try {
+    const m = ObjC.classes.EAAccessoryManager &&
+              ObjC.classes.EAAccessoryManager['- connectedAccessories'];
+    if (m) {
+      hotHook(m.implementation, 12, 'accessory reads', {
+        onLeave: function (ret) {
+          try {
+            const n = ret.isNull() ? 0 : new ObjC.Object(ret).count();
+            emit('PERIPHERAL', 'MFi accessories', String(n));
+          } catch (e) {}
+        }
+      });
+    }
+  } catch (e) {}
+  ['- scanForPeripheralsWithServices:options:',
+   '- retrieveConnectedPeripheralsWithServices:'].forEach(function (sel) {
+    try {
+      const m = ObjC.classes.CBCentralManager && ObjC.classes.CBCentralManager[sel];
+      if (!m) return;
+      Interceptor.attach(m.implementation, {
+        onEnter: function () {
+          emit('PERIPHERAL', 'Bluetooth', sel.indexOf('scan') >= 0
+               ? 'scanned for nearby BLE devices' : 'listed connected BLE devices');
+        }
+      });
+    } catch (e) {}
+  });
+
+  // --- Wave 1: physical context (proximity, orientation, brightness, haptics) ---
+  // All three can be read per frame, so sample then detach.
+  try {
+    const m = ObjC.classes.UIDevice && ObjC.classes.UIDevice['- proximityState'];
+    if (m) {
+      hotHook(m.implementation, 12, 'proximity reads', {
+        onLeave: function (ret) {
+          emit('CONTEXT', 'proximity sensor (phone at your face)',
+               ret.toInt32() ? 'covered' : 'clear');
+        }
+      });
+    }
+  } catch (e) {}
+  try {
+    const m = ObjC.classes.UIDevice && ObjC.classes.UIDevice['- orientation'];
+    if (m) {
+      const ORI = ['unknown', 'portrait', 'portrait upside down', 'landscape left',
+                   'landscape right', 'face up', 'face down'];
+      hotHook(m.implementation, 12, 'orientation reads', {
+        onLeave: function (ret) {
+          emit('CONTEXT', 'device orientation', ORI[ret.toInt32()] || 'read');
+        }
+      });
+    }
+  } catch (e) {}
+  try {
+    const m = ObjC.classes.UIScreen && ObjC.classes.UIScreen['- brightness'];
+    if (m) {
+      hotHook(m.implementation, 12, 'brightness reads', {
+        onEnter: function () {
+          emit('CONTEXT', 'screen brightness (ambient light proxy)', 'read');
+        }
+      });
+    }
+  } catch (e) {}
+  try {
+    const m = ObjC.classes.CHHapticEngine &&
+              ObjC.classes.CHHapticEngine['+ capabilitiesForHardware'];
+    if (m) {
+      Interceptor.attach(m.implementation, {
+        onEnter: function () {
+          emit('CONTEXT', 'haptic hardware class', 'checked Taptic Engine capability');
+        }
+      });
+    }
+  } catch (e) {}
+
+  // --- Wave 1: anti-tamper environment reads (log and pass through) ---
+  // TikTok reads these to detect jailbreak, injection and debugging. We only
+  // record that it looked; we never change the answer, which keeps us read-only.
+  try {
+    const ge = Module.findGlobalExportByName('getenv');
+    if (ge) {
+      const b = budget(6000, 'getenv reads');
+      const WATCH_ENV = /^(DYLD_INSERT_LIBRARIES|DYLD_|_MSSafeMode|SIMULATOR_)/;
+      Interceptor.attach(ge, {
+        onEnter: function (args) { this.n = b() ? cstr(args[0]) : null; },
+        onLeave: function (ret) {
+          if (this.n && WATCH_ENV.test(this.n)) {
+            emit('INSTRUMENT', 'read env ' + this.n, ret.isNull() ? 'unset' : 'set');
+          }
+        }
+      });
+    }
+  } catch (e) {}
+  try {
+    const p = Module.findGlobalExportByName('dlsym');
+    if (p) {
+      const b = budget(4000, 'dlsym reads');
+      const WATCH_SYM = /MSHook|MSGetImage|substrate|substitute|frida|cynject|fishhook/i;
+      Interceptor.attach(p, {
+        onEnter: function (args) { this.s = b() ? cstr(args[1]) : null; },
+        onLeave: function () {
+          if (this.s && WATCH_SYM.test(this.s)) {
+            emit('INSTRUMENT', 'looked up hook symbol ' + this.s, null);
+          }
+        }
+      });
+    }
+  } catch (e) {}
+  try {
+    const p = Module.findGlobalExportByName('SecTaskCopyValueForEntitlement');
+    if (p) {
+      const b = budget(2000, 'entitlement reads');
+      Interceptor.attach(p, {
+        onEnter: function (args) {
+          if (!b()) { this.k = null; return; }
+          try { this.k = new ObjC.Object(args[1]).toString(); } catch (e) { this.k = null; }
+        },
+        onLeave: function () {
+          if (this.k && this.k.length < 80) {
+            emit('INSTRUMENT', 'read entitlement ' + this.k, null);
+          }
+        }
+      });
+    }
+  } catch (e) {}
+
+  // --- Wave 2: touch provenance. ONE choke point sees every UIEvent once. ---
+  // Finger vs mouse/trackpad pointer vs stylus, plus the injection tell: real
+  // hardware fills coalescedTouchesForTouch, scripted/synthetic input usually
+  // leaves it empty. sendEvent: is hot, so it self-detaches after a sample.
+  // We do NOT gate on the event type integer (its bridged form is easy to
+  // misread). Instead we ask the event for its touches: a non-touch event has
+  // none, so it falls through. For each touch, UITouchType says finger vs stylus
+  // vs mouse/trackpad pointer, and coalescedTouchesForTouch separates real
+  // hardware (which fills sub-frame samples) from scripted input (which usually
+  // does not). Number() coerces the bridged values so comparisons are reliable.
+  // GATED behind -Touch. Only 20 samples before it detaches for good, so the hot
+  // window is a few hundred ms of scrolling. Each sample reads a battery of touch
+  // signals so a real finger and an AssistiveTouch (synthetic) touch print visibly
+  // different lines: the synthetic one lacks contact width, pressure, hardware
+  // micro-samples, and a digitizer origin, even though it still claims type=direct.
+  if (TOUCH_ENABLED) {
+    const TOUCHSRC = { 1: 'an indirect remote', 2: 'a stylus or Apple Pencil',
+                       3: 'a mouse or trackpad pointer' };
+    const PHASE = { 0: 'finger down', 1: 'moving', 2: 'held still',
+                    3: 'lifted off', 4: 'cancelled' };
+    function bRadius(r) {
+      if (!(r > 0)) return 'zero, no contact patch (synthetic tell)';
+      const a = Math.round(r / 5) * 5;
+      if (r < 12) return 'narrow, ~' + a + 'pt';
+      if (r < 28) return 'finger-width, ~' + a + 'pt';
+      return 'wide, ~' + a + 'pt';
+    }
+    function bForce(f) {
+      if (!(f > 0)) return 'zero (synthetic, or no force applied)';
+      if (f < 1) return 'light';
+      if (f < 3) return 'medium';
+      return 'firm';
+    }
+    function bCoalesced(n) {
+      if (!(n > 0)) return 'none (synthetic tell)';
+      if (n <= 2) return String(n);
+      return n + ' (only real hardware fills these)';
+    }
+    function bSpeed(d) {
+      if (d < 2) return 'still';
+      if (d < 15) return 'slow';
+      if (d < 40) return 'medium';
+      return 'fast';
+    }
+    try {
+      const se = ObjC.classes.UIApplication && ObjC.classes.UIApplication['- sendEvent:'];
+      if (se) {
+        hotHook(se.implementation, 20, 'touch events (sendEvent)', {
+          onEnter: function (args) {
+            try {
+              const ev = new ObjC.Object(args[2]);
+              let arr = null;
+              try {
+                const touches = ev.allTouches();
+                if (touches && !touches.isNull() && Number(touches.count()) > 0) {
+                  arr = touches.allObjects();
+                }
+              } catch (e) {}
+              if (!arr) return;            // not a touch event, nothing to profile
+              const t = arr.objectAtIndex_(0);
+
+              // hardware micro-samples: real finger drags fill these, synthetic none
+              let coalesced = -1;
+              try {
+                const c = ev.coalescedTouchesForTouch_(t);
+                coalesced = (c && !c.isNull()) ? Number(c.count()) : 0;
+              } catch (e) {}
+
+              // 1. input source + authenticity verdict
+              let tt = 0;
+              try { tt = Number(t.type()); } catch (e) {}
+              let verdict;
+              if (tt === 0) {
+                verdict = (coalesced > 0)
+                  ? 'a real finger'
+                  : 'a finger with no hardware sub-samples (synthetic / AssistiveTouch)';
+              } else {
+                verdict = TOUCHSRC[tt] || ('input type ' + tt);
+              }
+              emit('TOUCH', 'what is driving the feed', verdict);
+
+              // 2. did it come from the hardware digitizer (the strongest tell)
+              try {
+                const hid = ev._hidEvent();
+                emit('TOUCH', 'came from the hardware digitizer',
+                     (hid && !hid.isNull()) ? 'yes, real hardware' : 'no, it was synthesized');
+              } catch (e) {}
+
+              // 3. how many hardware micro-samples this move carried
+              if (coalesced >= 0) {
+                emit('TOUCH', 'hardware micro-samples this move', bCoalesced(coalesced));
+              }
+
+              // 4. contact patch width (a synthetic tap has none)
+              try { emit('TOUCH', 'fingertip contact width', bRadius(Number(t.majorRadius()))); } catch (e) {}
+
+              // 5. press pressure
+              try { emit('TOUCH', 'finger pressure', bForce(Number(t.force()))); } catch (e) {}
+
+              // 6. touch phase
+              try { emit('TOUCH', 'touch phase', PHASE[Number(t.phase())] || 'phase'); } catch (e) {}
+
+              // 7. swipe speed + direction, measured from the touch's own movement
+              try {
+                const loc = t.locationInView_(ptr(0));
+                const prev = t.previousLocationInView_(ptr(0));
+                const dx = loc.x - prev.x, dy = loc.y - prev.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                emit('TOUCH', 'swipe speed', bSpeed(dist));
+                if (dist >= 2) {
+                  emit('TOUCH', 'swipe direction',
+                       (Math.abs(dy) >= Math.abs(dx)) ? (dy > 0 ? 'down' : 'up')
+                                                      : (dx > 0 ? 'right' : 'left'));
+                }
+              } catch (e) {}
+            } catch (e) {}
+          }
+        });
+      }
+    } catch (e) {}
+  }
+
+  // --- Wave 2: flick dynamics. How hard/fast each swipe is driven. GATED. ---
+  if (TOUCH_ENABLED) {
+    try {
+      const m = ObjC.classes.UIPanGestureRecognizer &&
+                ObjC.classes.UIPanGestureRecognizer['- velocityInView:'];
+      if (m) {
+        hotHook(m.implementation, 40, 'scroll velocity reads', {
+          onEnter: function () {
+            emit('SCROLL', 'your flick speed and direction', 'measured as you scroll');
+          }
+        });
+      }
+    } catch (e) {}
+  }
+
+  // --- Wave 2: engagement haptics. TikTok's own taxonomy of moments. ---
+  ['- impactOccurred', '- impactOccurredWithIntensity:'].forEach(function (sel) {
+    try {
+      const m = ObjC.classes.UIImpactFeedbackGenerator &&
+                ObjC.classes.UIImpactFeedbackGenerator[sel];
+      if (!m) return;
+      const b = budget(3000, 'impact haptics');
+      Interceptor.attach(m.implementation, {
+        onEnter: function () { if (b()) emit('HAPTIC', 'a buzz on tap or like', 'played'); }
+      });
+    } catch (e) {}
+  });
+  try {
+    const m = ObjC.classes.UINotificationFeedbackGenerator &&
+              ObjC.classes.UINotificationFeedbackGenerator['- notificationOccurred:'];
+    if (m) {
+      const b = budget(3000, 'notification haptics');
+      const NT = ['success', 'warning', 'error'];
+      Interceptor.attach(m.implementation, {
+        onEnter: function (args) {
+          if (!b()) return;
+          let t = -1;
+          try { t = Number(args[2].toInt32()); } catch (e) {}
+          emit('HAPTIC', 'a success or error buzz', NT[t] || 'played');
+        }
+      });
+    }
+  } catch (e) {}
+  try {
+    const m = ObjC.classes.UISelectionFeedbackGenerator &&
+              ObjC.classes.UISelectionFeedbackGenerator['- selectionChanged'];
+    if (m) {
+      const b = budget(3000, 'selection haptics');
+      Interceptor.attach(m.implementation, {
+        onEnter: function () { if (b()) emit('HAPTIC', 'a selection tick', 'played'); }
+      });
+    }
+  } catch (e) {}
+
+  // --- Wave 3: live device-motion sampling. Real hands micro-jitter; a static ---
+  // rig does not. GATED, and only 30 samples before it detaches for good.
+  if (TOUCH_ENABLED) {
+    try {
+      const m = ObjC.classes.CMMotionManager && ObjC.classes.CMMotionManager['- deviceMotion'];
+      if (m) {
+        hotHook(m.implementation, 30, 'device-motion value samples', {
+          onLeave: function (ret) {
+            try {
+              if (ret.isNull()) return;
+              const dm = new ObjC.Object(ret);
+              const att = dm.attitude();
+              if (!att || att.isNull()) return;
+              const roll = Math.round(att.roll() * 10) / 10;
+              const pitch = Math.round(att.pitch() * 10) / 10;
+              emit('SENSOR_VALUE', 'hold angle (roll, pitch)', roll + ', ' + pitch);
+            } catch (e) {}
+          }
+        });
+      }
+    } catch (e) {}
+  }
+  ['- startDeviceMotionUpdatesToQueue:withHandler:', '- startDeviceMotionUpdates'].forEach(
+    function (sel) {
+      try {
+        const m = ObjC.classes.CMHeadphoneMotionManager &&
+                  ObjC.classes.CMHeadphoneMotionManager[sel];
+        if (!m) return;
+        Interceptor.attach(m.implementation, {
+          onEnter: function () { emit('SENSOR', 'AirPods head motion', 'started collecting'); }
+        });
+      } catch (e) {}
+    });
 
   emit('READY', 'attached', null);
 }

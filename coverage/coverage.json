@@ -1,0 +1,569 @@
+{
+  "counts": {
+    "hooked": 32,
+    "full-only": 5,
+    "missing": 10
+  },
+  "rows": [
+    {
+      "theme": "Identity",
+      "surface": "Vendor ID (IDFV)",
+      "symbol": "identifierForVendor",
+      "sources": [
+        "T",
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Identity",
+      "surface": "Advertising ID (IDFA)",
+      "symbol": "ASIdentifierManager advertisingIdentifier",
+      "sources": [
+        "T",
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Identity",
+      "surface": "ATT tracking status",
+      "symbol": "ATTrackingManager trackingAuthorizationStatus",
+      "sources": [
+        "T",
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Identity",
+      "surface": "Device name / model",
+      "symbol": "UIDevice name/model/localizedModel",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Identity",
+      "surface": "OS version",
+      "symbol": "UIDevice systemVersion / NSProcessInfo",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Identity",
+      "surface": "Hardware model string",
+      "symbol": "sysctlbyname(hw.machine/hw.model)",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Identity",
+      "surface": "Kernel/build (uname)",
+      "symbol": "uname()",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Identity",
+      "surface": "Physical memory / CPU count",
+      "symbol": "NSProcessInfo physicalMemory/processorCount",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Boot time*",
+      "surface": "System uptime",
+      "symbol": "NSProcessInfo systemUptime",
+      "sources": [
+        "A",
+        "T",
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Boot time*",
+      "surface": "Boot time via sysctl",
+      "symbol": "sysctlbyname(kern.boottime)",
+      "sources": [
+        "A",
+        "T",
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Boot time*",
+      "surface": "mach_absolute_time",
+      "symbol": "mach_absolute_time()",
+      "sources": [
+        "A",
+        "D"
+      ],
+      "status": "missing",
+      "note": ""
+    },
+    {
+      "theme": "Disk space*",
+      "surface": "statfs family",
+      "symbol": "statfs / statfs64",
+      "sources": [
+        "A",
+        "D"
+      ],
+      "status": "full-only",
+      "note": ""
+    },
+    {
+      "theme": "Disk space*",
+      "surface": "statvfs family",
+      "symbol": "statvfs / fstatfs / fstatvfs",
+      "sources": [
+        "A",
+        "D"
+      ],
+      "status": "missing",
+      "note": ""
+    },
+    {
+      "theme": "Disk space*",
+      "surface": "Free space via ObjC",
+      "symbol": "NSFileManager attributesOfFileSystemForPath (NSFileSystemFreeSize)",
+      "sources": [
+        "A",
+        "D"
+      ],
+      "status": "missing",
+      "note": ""
+    },
+    {
+      "theme": "Disk space*",
+      "surface": "Volume capacity URL keys",
+      "symbol": "NSURL volumeAvailableCapacity* / volumeTotalCapacity",
+      "sources": [
+        "A",
+        "D"
+      ],
+      "status": "missing",
+      "note": ""
+    },
+    {
+      "theme": "File timestamps*",
+      "surface": "stat / lstat",
+      "symbol": "stat / lstat",
+      "sources": [
+        "A",
+        "D"
+      ],
+      "status": "full-only",
+      "note": ""
+    },
+    {
+      "theme": "File timestamps*",
+      "surface": "getattrlist family",
+      "symbol": "getattrlist / getattrlistbulk / fgetattrlist / getattrlistat",
+      "sources": [
+        "A",
+        "D"
+      ],
+      "status": "missing",
+      "note": "excluded by design: fires constantly on the hot path, needs a self-detaching hotHook before it is safe to add"
+    },
+    {
+      "theme": "File timestamps*",
+      "surface": "File dates via ObjC",
+      "symbol": "NSFileManager attributesOfItemAtPath (creation/modification date)",
+      "sources": [
+        "A",
+        "D"
+      ],
+      "status": "missing",
+      "note": ""
+    },
+    {
+      "theme": "File timestamps*",
+      "surface": "File dates via NSURL",
+      "symbol": "NSURL contentModificationDateKey / creationDateKey",
+      "sources": [
+        "A",
+        "D"
+      ],
+      "status": "missing",
+      "note": ""
+    },
+    {
+      "theme": "Keyboards*",
+      "surface": "Active keyboards",
+      "symbol": "UITextInputMode activeInputModes",
+      "sources": [
+        "A",
+        "T",
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "User defaults*",
+      "surface": "User defaults read",
+      "symbol": "NSUserDefaults objectForKey/dictionaryRepresentation",
+      "sources": [
+        "A",
+        "T",
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Locale/Region",
+      "surface": "Current locale",
+      "symbol": "NSLocale currentLocale",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Locale/Region",
+      "surface": "Preferred languages",
+      "symbol": "NSLocale preferredLanguages",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Locale/Region",
+      "surface": "Time zone",
+      "symbol": "NSTimeZone defaultTimeZone",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Locale/Region",
+      "surface": "Calendar",
+      "symbol": "NSCalendar currentCalendar",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Carrier/Network",
+      "surface": "Carrier name/MCC/MNC/ISO",
+      "symbol": "CTCarrier",
+      "sources": [
+        "T",
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Carrier/Network",
+      "surface": "WiFi SSID/BSSID",
+      "symbol": "CNCopyCurrentNetworkInfo",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Carrier/Network",
+      "surface": "Local IPs / interfaces",
+      "symbol": "getifaddrs",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Carrier/Network",
+      "surface": "Outbound connections",
+      "symbol": "connect / getaddrinfo / nw_path",
+      "sources": [
+        "T"
+      ],
+      "status": "full-only",
+      "note": ""
+    },
+    {
+      "theme": "Carrier/Network",
+      "surface": "HTTP cookies",
+      "symbol": "NSHTTPCookieStorage cookies",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Carrier/Network",
+      "surface": "TLS payload",
+      "symbol": "SSLRead / SSLWrite",
+      "sources": [
+        "T"
+      ],
+      "status": "full-only",
+      "note": ""
+    },
+    {
+      "theme": "Clipboard",
+      "surface": "Pasteboard contents",
+      "symbol": "UIPasteboard generalPasteboard",
+      "sources": [
+        "T",
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Keychain/Creds",
+      "surface": "Keychain query",
+      "symbol": "SecItemCopyMatching",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Keychain/Creds",
+      "surface": "URL credential store",
+      "symbol": "NSURLCredentialStorage allCredentials",
+      "sources": [
+        "T"
+      ],
+      "status": "missing",
+      "note": ""
+    },
+    {
+      "theme": "Keychain/Creds",
+      "surface": "Crypto material",
+      "symbol": "CCCrypt / CCCryptorUpdate",
+      "sources": [
+        "T"
+      ],
+      "status": "missing",
+      "note": ""
+    },
+    {
+      "theme": "Installed apps",
+      "surface": "Enumerate installed apps",
+      "symbol": "LSApplicationWorkspace allApplications",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Installed apps",
+      "surface": "Can-open URL probing",
+      "symbol": "canOpenURL:",
+      "sources": [
+        "T",
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Installed apps",
+      "surface": "Declared query schemes",
+      "symbol": "Info.plist LSApplicationQueriesSchemes",
+      "sources": [
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Sensors",
+      "surface": "Motion/accelerometer/gyro",
+      "symbol": "CMMotionManager",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Sensors",
+      "surface": "Pedometer / steps",
+      "symbol": "CMPedometer",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Sensors",
+      "surface": "Battery level/state",
+      "symbol": "UIDevice batteryLevel/State",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Sensors",
+      "surface": "Screen geometry",
+      "symbol": "UIScreen nativeBounds/scale",
+      "sources": [
+        "T"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Location",
+      "surface": "GPS location",
+      "symbol": "CLLocationManager location/startUpdating",
+      "sources": [
+        "T",
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Permissions",
+      "surface": "Permission status probes",
+      "symbol": "authorizationStatus (photos/contacts/mic/...)",
+      "sources": [
+        "T",
+        "D"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Permissions",
+      "surface": "Contacts read",
+      "symbol": "CNContactStore enumerateContacts",
+      "sources": [
+        "T",
+        "D"
+      ],
+      "status": "missing",
+      "note": ""
+    },
+    {
+      "theme": "Anti-tamper",
+      "surface": "Debugger/code-sign check",
+      "symbol": "csops",
+      "sources": [
+        "-"
+      ],
+      "status": "full-only",
+      "note": ""
+    },
+    {
+      "theme": "Anti-tamper",
+      "surface": "Jailbreak path probes",
+      "symbol": "stat/lstat/access on JB paths",
+      "sources": [
+        "-"
+      ],
+      "status": "hooked",
+      "note": ""
+    }
+  ],
+  "tiktok_declared_summary": {
+    "manifests": 58,
+    "required_reason_categories": [
+      "Active keyboards",
+      "Disk space",
+      "File timestamps",
+      "System boot time",
+      "User defaults"
+    ],
+    "tracking_domains": [
+      "att.attr.appsflyer-cn.com",
+      "att.attr.appsflyersdk.com",
+      "att.attr.hevents.appsflyer-cn.com",
+      "att.attr.whappsflyer.com",
+      "att.conversions.appsflyer-cn.com",
+      "att.conversions.appsflyersdk.com",
+      "att.conversions.hevents.appsflyer-cn.com",
+      "att.conversions.whappsflyer.com",
+      "att.dlsdk.appsflyer-cn.com",
+      "att.dlsdk.appsflyersdk.com",
+      "att.dlsdk.hevents.appsflyer-cn.com",
+      "att.dlsdk.whappsflyer.com",
+      "att.launches.appsflyer-cn.com",
+      "att.launches.appsflyersdk.com",
+      "att.launches.hevents.appsflyer-cn.com",
+      "att.launches.whappsflyer.com",
+      "da-an-v3-i18n.tiktokv.com",
+      "da-an-v3-ru.tiktokv.com",
+      "da-an-v3-sg.tiktokv.com",
+      "da-an-v3-ttp2.tiktokv.us",
+      "da-an-v3-va.tiktokv.com",
+      "da-an-v3.tiktokv.com",
+      "da-an-v3.tiktokv.eu",
+      "da-an-v3.tiktokv.us"
+    ],
+    "collected_data_types": [
+      "AdvertisingData",
+      "AudioData",
+      "BrowsingHistory",
+      "CoarseLocation",
+      "Contacts",
+      "CrashData",
+      "CustomerSupport",
+      "DeviceID",
+      "EmailAddress",
+      "Name",
+      "OtherDataTypes",
+      "OtherDiagnosticData",
+      "OtherFinancialInfo",
+      "OtherUsageData",
+      "OtherUserContactInfo",
+      "OtherUserContent",
+      "PaymentInfo",
+      "PerformanceData",
+      "PhoneNumber",
+      "PhotosorVideos",
+      "PhysicalAddress",
+      "ProductInteraction",
+      "PurchaseHistory",
+      "SearchHistory",
+      "UserID"
+    ],
+    "declared_query_schemes": 54
+  }
+}
