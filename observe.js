@@ -44,32 +44,42 @@ import ObjC from 'frida-objc-bridge';
 var FLUSH_MS = 400;
 var MAX_DISTINCT = 3000;      // distinct cat+key+value combinations
 var MAX_EVENTS = 2000000;     // total observed calls before we stop counting
-var HOT_MAX_MS = 9000;        // after this, EVERY hot hook is force-detached
 
-// Payload capture (SSLRead/SSLWrite) hooks the hottest functions in a streaming
-// app. It is OFF unless the driver turns it on, because those hooks are the ones
-// that have taken the machine down. The driver flips the digit below IN PLACE:
-// it must stay a single character so the compiled bundle's byte offsets, which
-// are baked into its header, do not shift. A length change corrupts the package.
-var TLS_ENABLED = 0;   // 0 = off, driver rewrites to 1 to enable
+/* ---------------------------------------------------------------------------
+ * WHY NOTHING HOT ATTACHES AT LOAD ANY MORE.
+ *
+ * The failure this file kept chasing was never the USB link. iOS crash reports
+ * name it exactly: SpringBoard's launch watchdog kills TikTok for missing the
+ * 10.00 second wall-clock allowance it gets to bring a scene up, at 5-26% CPU.
+ * The app is not busy, it is BLOCKED. Every intercepted call is a native-to-JS
+ * transition onto one serialized script thread, so the app's threads queue
+ * behind each other. That cost is invisible in CPU time and fatal in wall-clock
+ * time, which is the only metric iOS enforces.
+ *
+ * So the rule is now about WHEN, not just how much:
+ *
+ *   1. Hooks that fire at app-logic rate (ObjC selectors, keychain,
+ *      sysctlbyname, getenv) attach at load and stay. They have never been
+ *      implicated in a termination.
+ *   2. Hooks that fire at packet or syscall rate are REGISTERED at load and
+ *      attach later, when the driver arms their group, one group at a time,
+ *      for well under a second, long after the scene is up.
+ *   3. Both cutoffs, sample count and wall clock, are checked INLINE on the
+ *      trap itself. The old wall-clock time-box ran on the flush timer, which
+ *      is starved by exactly the call storm it exists to stop.
+ *
+ * There is no digit-flipping of the compiled bundle any more. The driver picks
+ * groups by calling rpc.exports.arm(), so the byte offsets of the compiled
+ * package are no longer load bearing.
+ * ------------------------------------------------------------------------- */
 
-// Raw syscall hooks (connect, getaddrinfo, stat, access, statfs, ioctl, numeric
-// sysctl, reachability...) sit on the app's HOT PATH. During active scrolling
-// they fire fast enough to peg the phone's frida-server and hang the USB link,
-// which is what has frozen the machine. They are OFF by default. The original,
-// known-safe hooks (ObjC, keychain, sysctlbyname, uname, getifaddrs) stay on.
-// Same single-character flip rule as TLS_ENABLED: length must not change.
-var SYSCALL_ENABLED = 0;   // 0 = off, driver rewrites to 1 to enable
+// How long the always-on probes may stay attached, measured from the moment the
+// app is actually resumed rather than from script load. Everything else attaches
+// later, on the driver's schedule, and carries its own much shorter window.
+var BASE_WINDOW_MS = 4000;
 
-// The touch-provenance hooks (sendEvent, scroll velocity, live motion samples)
-// sit on the per-frame input path. Even with hotHook, a heavy handler run across
-// a scroll burst can saturate the phone's frida-server and wedge the USB link,
-// which has frozen the machine. They are OFF by default and, unlike -Full, do NOT
-// pull in the raw syscall hooks, so the -Touch opt-in captures finger-vs-synthetic
-// input in isolation. When on, their sample limits are tiny (tens of calls) so the
-// hot window is under a second of scrolling before they detach for good. Same
-// single-character flip rule as the other flags: the length must not change.
-var TOUCH_ENABLED = 0;   // 0 = off, driver rewrites to 1 to enable
+// Fallback window for a group the driver arms without naming one.
+var GROUP_WINDOW_MS = 800;
 
 var SEP = String.fromCharCode(1);   // never occurs inside a key or a value
 var _tally = new Map();       // key -> [count, firstMs, lastSentCount]
@@ -91,68 +101,134 @@ function emit(cat, key, value) {
 }
 
 /* ---------------------------------------------------------------------------
- * HOT HOOKS. This is the fix for the crash that a plain budget did NOT solve.
+ * PROBES. A probe is a hook that is allowed to be expensive, but only briefly
+ * and only when the driver says so.
  *
- * A budget stops the WORK inside a handler, but Frida still traps every call:
- * each one is a native-to-JS transition on the phone's frida-server. On a
- * function that carries the video stream (SSLRead, SSLWrite, read, write) that
- * is tens of thousands of traps a second, which pegs frida-server and hangs the
- * USB link, which hangs the host.
+ * probe(group, target, limit, label, handlers) REGISTERS. It does not attach.
+ * Registration is free: it resolves a symbol and pushes a record. Attaching is
+ * what costs, so attaching is what gets scheduled.
  *
- * The only real cure is to stop trapping. hotHook() collects a small sample,
- * then DETACHES the listener entirely, so afterwards the function runs natively
- * with zero Frida involvement. A wall-clock backstop force-detaches every hot
- * hook after HOT_MAX_MS no matter what, so a burst that never reaches the sample
- * limit still cannot run the whole session.
+ * The 'base' group is the exception: it attaches at load, because those hooks
+ * are the ones that have always been safe and they cover the launch sequence,
+ * which is where most identifier reads happen. Their limits are small.
+ *
+ * Every attached probe dies on whichever comes first:
+ *   a. its sample count, checked on every trap
+ *   b. its wall-clock deadline, checked on every 32nd trap
+ *   c. the driver disarming its group
+ *   d. the flush-timer sweep, when the timer is able to run at all
+ *
+ * (a) and (b) are inline, on the trap itself, so they still fire when the JS
+ * thread is saturated. That is the whole point: the previous time-box lived in
+ * the flush timer and was starved by precisely the storm it was meant to end.
  * ------------------------------------------------------------------------- */
-var _hotListeners = [];   // every hot listener, for the time-box kill
-var _detachQueue = [];    // listeners that spent their sample, detached on flush
-var _hotKilled = false;
+var GROUP_BASE = 'base';
+var _probes = [];         // every registered probe, attached or not
+var _live = [];           // probes currently attached
+var _detachQueue = [];    // listeners that spent their sample, swept on flush
+var _startedAt = 0;       // set by rpc start(), the moment the app is resumed
 
-function hotHook(target, limit, label, handlers) {
+function probe(group, target, limit, label, handlers) {
   if (!target) return;
+  var p = { g: group, t: target, lim: limit, lbl: label, h: handlers,
+            l: null, dl: Infinity };
+  _probes.push(p);
+  if (group === GROUP_BASE) attachProbe(p, BASE_WINDOW_MS);
+}
+
+// Kept so the existing call sites that are genuinely always-on read unchanged.
+function hotHook(target, limit, label, handlers) {
+  probe(GROUP_BASE, target, limit, label, handlers);
+}
+
+function attachProbe(p, windowMs) {
+  if (p.l) return;                       // already attached
   var n = 0, dead = false, self = null;
-  self = Interceptor.attach(target, {
-    onEnter: function (args) {
-      if (dead) return;                    // cheapest possible: one read + return
-      if (++n > limit) {
-        // Spend the sample and detach RIGHT NOW, inline. Deferring to the flush
-        // timer is unsafe: under a saturating call rate the JS thread never
-        // yields, so the timer that would detach us is starved exactly when it
-        // matters. Detaching inline stops the trapping immediately. The queue
-        // and the time-box are belt-and-suspenders on top.
-        dead = true;
-        emit('CAPPED', label, String(limit));
-        _detachQueue.push(self);
-        try { self.detach(); } catch (e) {}
-        return;
+  // Base probes are registered while the process is still spawn-paused, so their
+  // clock cannot start until the app is actually resumed. start() stamps it.
+  p.dl = _startedAt ? (Date.now() + windowMs) : Infinity;
+  p.win = windowMs;
+  try {
+    self = Interceptor.attach(p.t, {
+      onEnter: function (args) {
+        if (dead) return;                // cheapest possible: one read + return
+        n++;
+        // Both cutoffs inline. Date.now() is read on every 32nd call only, so
+        // the common path stays a compare and an increment.
+        if (n > p.lim || ((n & 31) === 0 && Date.now() > p.dl)) {
+          dead = true;
+          emit('CAPPED', p.lbl, n > p.lim ? String(p.lim) : (p.win + 'ms'));
+          _detachQueue.push(self);
+          try { self.detach(); } catch (e) {}
+          return;
+        }
+        this._s = true;
+        if (p.h.onEnter) { try { p.h.onEnter.call(this, args); } catch (e) {} }
+      },
+      onLeave: function (ret) {
+        if (this._s && p.h.onLeave) {
+          try { p.h.onLeave.call(this, ret); } catch (e) {}
+        }
       }
-      this._s = true;
-      if (handlers.onEnter) { try { handlers.onEnter.call(this, args); } catch (e) {} }
-    },
-    onLeave: function (ret) {
-      if (this._s && handlers.onLeave) {
-        try { handlers.onLeave.call(this, ret); } catch (e) {}
-      }
-    }
+    });
+  } catch (e) { return; }
+  p.l = self;
+  // Read the sample count without paying for it on every trap. A probe that was
+  // armed and saw zero calls is a real finding about the run (the app was idle),
+  // and without this the report cannot tell that apart from "the hook is broken".
+  p.count = function () { return n; };
+  _live.push(p);
+}
+
+function detachProbe(p) {
+  if (!p.l) return;
+  try { p.l.detach(); } catch (e) {}
+  p.l = null;
+  try { emit('PROBE', p.g + '|' + p.lbl, 'saw ' + p.count() + ' calls'); } catch (e) {}
+  var i = _live.indexOf(p);
+  if (i >= 0) _live.splice(i, 1);
+}
+
+function armGroup(group, windowMs) {
+  var w = windowMs || GROUP_WINDOW_MS;
+  var n = 0;
+  _probes.forEach(function (p) {
+    if (p.g !== group || p.l) return;
+    attachProbe(p, w);
+    if (p.l) n++;
   });
-  _hotListeners.push(self);
+  emit('PROBE', group, 'armed ' + n + ' hooks for ' + w + 'ms');
+  return n;
+}
+
+function disarmGroup(group) {
+  var n = 0;
+  _live.slice().forEach(function (p) {
+    if (group && p.g !== group) return;   // null group means tear everything down
+    detachProbe(p);
+    n++;
+  });
+  return n;
 }
 
 function flush() {
-  // 1. detach any hot hook that spent its sample but whose inline detach was
-  // deferred by Frida's interceptor transaction. Cheap and idempotent.
+  // 1. sweep listeners whose inline detach was deferred by Frida's interceptor
+  // transaction. Cheap and idempotent.
   while (_detachQueue.length) {
     var l = _detachQueue.pop();
     try { l.detach(); } catch (e) {}
   }
-  // 2. wall-clock backstop: kill EVERY remaining hot hook once the window is up
-  if (!_hotKilled && (Date.now() - _t0) > HOT_MAX_MS) {
-    _hotKilled = true;
-    _hotListeners.forEach(function (l) { try { l.detach(); } catch (e) {} });
-    _hotListeners = [];
-    emit('CAPPED', 'all hot hooks (time-box)', String(HOT_MAX_MS) + 'ms');
-  }
+  // 2. backstop for probes that never reached their sample limit and never hit
+  // the every-32nd-call check because they simply are not being called much.
+  // This is the layer that only works when the timer is free to run, which is
+  // fine: a probe that is not being called is not the one that saturates us.
+  var now = Date.now();
+  _live.slice().forEach(function (p) {
+    if (now > p.dl) {
+      emit('CAPPED', p.lbl, p.win + 'ms');
+      detachProbe(p);
+    }
+  });
   // 3. ship the batch. Always send something, even an empty batch, so the driver
   // can tell "idle" from "the phone-side script has wedged" and abort if so.
   var batch = [];
@@ -162,10 +238,30 @@ function flush() {
     batch.push([p[0], p[1], p[2], row[0], row[1]]);
     row[2] = row[0];
   });
-  send({ b: batch, dropped: _dropped, capped: _capped, events: _events, hb: 1 });
+  send({ b: batch, dropped: _dropped, capped: _capped, events: _events,
+         live: _live.length, hb: 1 });
 }
 setInterval(flush, FLUSH_MS);
-rpc.exports = { flush: flush };
+
+rpc.exports = {
+  flush: flush,
+  // Called by the driver the instant the app is resumed. Until this lands the
+  // base probes have no deadline, because a spawn-paused process burns no time.
+  start: function () {
+    _startedAt = Date.now();
+    _t0 = _startedAt;
+    _live.forEach(function (p) { p.dl = _startedAt + BASE_WINDOW_MS; });
+    return _probes.length;
+  },
+  arm: function (group, windowMs) { return armGroup(group, windowMs); },
+  disarm: function (group) { return disarmGroup(group); },
+  disarmall: function () { return disarmGroup(null); },
+  groups: function () {
+    var g = {};
+    _probes.forEach(function (p) { g[p.g] = (g[p.g] || 0) + 1; });
+    return g;
+  }
+};
 
 /* Kept for hooks called at APP-LOGIC rate (settings reads, sysctls) rather than
  * PACKET rate. Those never approach the trap volume that requires detaching, so
@@ -180,13 +276,13 @@ function budget(limit, label) {
   };
 }
 
-/* Look up a hot syscall ONLY when raw-syscall capture is enabled. When it is
- * off this returns null, so every hook site that goes through it simply never
- * attaches. This is the single switch that keeps the default run on the
- * known-safe hook set. Route every hot C function through this, never the safe
- * ones (sysctlbyname, uname, getifaddrs, SecItemCopyMatching). */
+/* Resolve a hot C symbol. Resolving is just an address lookup and costs nothing,
+ * so this no longer gates anything: the gate moved to WHEN the probe's group is
+ * armed, which is the thing that actually matters. Route every hot C function
+ * through this so the dangerous ones stay easy to find, and keep the safe ones
+ * (sysctlbyname, uname, SecItemCopyMatching) on a plain findGlobalExportByName. */
 function dangerousExport(name) {
-  return SYSCALL_ENABLED ? Module.findGlobalExportByName(name) : null;
+  try { return Module.findGlobalExportByName(name); } catch (e) { return null; }
 }
 
 // Darwin utsname is 5 fixed-size char[256] fields back to back.
@@ -403,9 +499,10 @@ if (!ObjC.available) {
     return addr === '0.0.0.0' || /^0(:0)*$/.test(addr);
   }
 
-  // hotHook, not a plain attach: getifaddrs can be called in tight loops by
-  // networking code, so it self-detaches after a sample like the TLS hooks.
-  hotHook(Module.findGlobalExportByName('getifaddrs'), 500, 'interface scans', {
+  // Stays in the base group so the launch sequence is still covered, but the
+  // sample is small: every single call hands back the COMPLETE interface list,
+  // so 48 of them answer the question as well as 500 did, at a tenth the cost.
+  hotHook(Module.findGlobalExportByName('getifaddrs'), 48, 'interface scans', {
     onEnter: function (args) { this.listp = args[0]; },
     onLeave: function (retval) {
       emit('NETWORK', 'getifaddrs', null);
@@ -448,14 +545,16 @@ if (!ObjC.available) {
   }
 
   // All of these fire per network operation, which during streaming means many
-  // per second, so every one self-detaches after its sample.
-  hotHook(dangerousExport('connect'), 500, 'outbound connects', {
+  // per second. They are registered here and attached only when the driver arms
+  // the 'net' group, which it does after the scene is up, for well under a
+  // second. Nothing in this group is ever live during a watchdog window.
+  probe('net', dangerousExport('connect'), 120, 'outbound connects', {
     onEnter: function (args) { reportDest(args[1]); }
   });
 
   // Network.framework goes through connectx. In sa_endpoints_t the destination
   // pointer sits at offset 24 on arm64.
-  hotHook(dangerousExport('connectx'), 500, 'outbound connects (nw)', {
+  probe('net', dangerousExport('connectx'), 120, 'outbound connects (nw)', {
     onEnter: function (args) {
       try {
         if (args[1].isNull()) return;
@@ -464,7 +563,7 @@ if (!ObjC.available) {
     }
   });
 
-  hotHook(dangerousExport('getsockname'), 500, 'egress address reads', {
+  probe('net', dangerousExport('getsockname'), 120, 'egress address reads', {
     onEnter: function (args) { this.sa = args[1]; },
     onLeave: function (retval) {
       try {
@@ -477,7 +576,7 @@ if (!ObjC.available) {
     }
   });
 
-  hotHook(dangerousExport('getaddrinfo'), 500, 'name lookups', {
+  probe('net', dangerousExport('getaddrinfo'), 120, 'name lookups', {
     onEnter: function (args) {
       this.host = args[0].isNull() ? null : cstr(args[0]);
       this.res = args[3];
@@ -505,8 +604,8 @@ if (!ObjC.available) {
   // interface type 'other'. Called very frequently by networking, so hotHook.
   const NW_TYPE = ['other, which is where a VPN shows up', 'Wi-Fi', 'cellular',
                    'wired', 'loopback'];
-  hotHook(dangerousExport('nw_path_uses_interface_type'), 500,
-          'path type checks', {
+  probe('net', dangerousExport('nw_path_uses_interface_type'), 150,
+        'path type checks', {
     onEnter: function (args) { this.t = args[1].toInt32(); },
     onLeave: function (retval) {
       emit('NWPATH', NW_TYPE[this.t] || ('interface type ' + this.t),
@@ -518,11 +617,9 @@ if (!ObjC.available) {
   try {
     const SIOCGIFCONF = 0xc0106924, SIOCGIFADDR = 0xc0206921;
     // ioctl runs on EVERY socket operation, one of the hottest syscalls there is.
-    // A plain attach with a budget still TRAPS on every call (the budget only
-    // skips the work), and that trap volume alone wedges the USB link. It must
-    // sample-then-detach. We keep the sample tiny: this signal is redundant with
-    // getifaddrs, so missing a rare SIOCGIFCONF is an acceptable trade for safety.
-    hotHook(dangerousExport('ioctl'), 200, 'ioctl calls', {
+    // Sample stays tiny: this signal is redundant with getifaddrs, so missing a
+    // rare SIOCGIFCONF is an acceptable trade for never being live at launch.
+    probe('net', dangerousExport('ioctl'), 150, 'ioctl calls', {
       onEnter: function (args) {
         const req = args[1].toUInt32();
         if (req === SIOCGIFCONF) emit('IFENUM', 'ioctl SIOCGIFCONF', null);
@@ -739,10 +836,9 @@ if (!ObjC.available) {
   // getattrlist is deliberately excluded: it is a general file-metadata call
   // that fires constantly, and statfs already covers the disk question.
   const diskBudget = budget(20000, 'disk space reads');
-  (SYSCALL_ENABLED ? ['statfs', 'statfs64'] : []).forEach(function (fn) {
+  ['statfs', 'statfs64'].forEach(function (fn) {
     try {
-      // sample then detach: a plain attach would keep trapping on a hot call
-      hotHook(Module.findGlobalExportByName(fn), 300, 'disk checks (' + fn + ')', {
+      probe('fs', dangerousExport(fn), 80, 'disk checks (' + fn + ')', {
         onEnter: function () { emit('DISPLAY', 'free disk space', 'read via ' + fn); }
       });
     } catch (e) {}
@@ -789,7 +885,7 @@ if (!ObjC.available) {
   try {
     // sysctl is called frequently, so sample-then-detach, never a bare attach
     // that keeps trapping.
-    hotHook(dangerousExport('sysctl'), 400, 'numeric sysctl reads', {
+    probe('sys', dangerousExport('sysctl'), 200, 'numeric sysctl reads', {
         onEnter: function (args) {
           try {
             const n = args[1].toInt32();
@@ -818,7 +914,9 @@ if (!ObjC.available) {
   [['_dyld_image_count', 'counting loaded libraries'],
    ['_dyld_get_image_name', 'reading loaded library names']].forEach(function (pair) {
     try {
-      hotHook(Module.findGlobalExportByName(pair[0]), 800, 'dyld scan (' + pair[0] + ')', {
+      // 64, not 800. "The app sweeps its loaded libraries" is proven by the
+      // first few dozen calls; the rest were pure trap cost during launch.
+      hotHook(Module.findGlobalExportByName(pair[0]), 64, 'dyld scan (' + pair[0] + ')', {
         onEnter: function () { emit('TAMPER', pair[0], pair[1]); }
       });
     } catch (e) {}
@@ -831,7 +929,7 @@ if (!ObjC.available) {
   // Low-frequency, but routed through hotHook to stay safe. CS_OPS_STATUS = 0.
   const CS_DEBUGGED = 0x10000000, CS_GET_TASK_ALLOW = 0x00000004;
   ['csops', 'csops_audittoken'].forEach(function (fn) {
-    hotHook(dangerousExport(fn), 500, 'code-signing checks (' + fn + ')', {
+    probe('sys', dangerousExport(fn), 80, 'code-signing checks (' + fn + ')', {
       onEnter: function (args) {
         // csops(pid, ops, useraddr, usersize); audittoken variant shifts by one
         var opsIdx = fn === 'csops' ? 1 : 1;
@@ -871,8 +969,8 @@ if (!ObjC.available) {
   // seconds, so a bounded sample still catches it. open() and fopen() are left
   // out entirely: a jailbreak probe uses stat or access, and open() carries far
   // more traffic. Guards inside stay cheap-first: length before regex.
-  (SYSCALL_ENABLED ? ['stat', 'lstat', 'access'] : []).forEach(function (fn) {
-    hotHook(Module.findGlobalExportByName(fn), 400, 'filesystem checks (' + fn + ')', {
+  ['stat', 'lstat', 'access'].forEach(function (fn) {
+    probe('fs', dangerousExport(fn), 150, 'filesystem checks (' + fn + ')', {
       onEnter: function (args) {
         try {
           // NUL-terminated, never an explicit length: a length makes Frida
@@ -1013,14 +1111,14 @@ if (!ObjC.available) {
   // which DNS servers the phone is using. These identify your ISP even when a
   // VPN is carrying the traffic, if resolution goes outside the tunnel.
   try {
-    hotHook(dangerousExport('res_9_getservers'), 100, 'resolver list reads', {
+    probe('net', dangerousExport('res_9_getservers'), 40, 'resolver list reads', {
       onEnter: function () { emit('DISPLAY', 'DNS servers', 'read the resolver list'); }
     });
   } catch (e) {}
 
   try {
     // reachability gets polled during network activity, so sample-then-detach.
-    hotHook(dangerousExport('SCNetworkReachabilityGetFlags'), 400, 'reachability checks', {
+    probe('net', dangerousExport('SCNetworkReachabilityGetFlags'), 120, 'reachability checks', {
       onEnter: function () {
         emit('DISPLAY', 'connection reachability', 'via SystemConfiguration');
       }
@@ -1190,12 +1288,13 @@ if (!ObjC.available) {
     emit('PLAINTEXT', firstLine, null);
   }
 
-  if (TLS_ENABLED) {
-    ['SSLWrite', 'SSL_write'].forEach(function (nm) {
-      hotHook(Module.findGlobalExportByName(nm), 400, 'TLS write (' + nm + ')',
-              { onEnter: tlsWriteHandler });
-    });
-  }
+  // 60, not 400. SSLWrite carries every outbound byte of a video app, so the
+  // sample is spent almost instantly either way; the only thing a larger limit
+  // bought was a longer stretch of trapping.
+  ['SSLWrite', 'SSL_write'].forEach(function (nm) {
+    probe('tls', dangerousExport(nm), 60, 'TLS write (' + nm + ')',
+          { onEnter: tlsWriteHandler });
+  });
 
   // --- Response bodies after decryption (read-only) ---
   //
@@ -1257,12 +1356,10 @@ if (!ObjC.available) {
     };
   }
 
-  if (TLS_ENABLED) {
-    hotHook(Module.findGlobalExportByName('SSLRead'), 400, 'TLS read (SSLRead)',
-            makeReadHandlers(true));
-    hotHook(Module.findGlobalExportByName('SSL_read'), 400, 'TLS read (SSL_read)',
-            makeReadHandlers(false));
-  }
+  probe('tls', dangerousExport('SSLRead'), 60, 'TLS read (SSLRead)',
+        makeReadHandlers(true));
+  probe('tls', dangerousExport('SSL_read'), 60, 'TLS read (SSL_read)',
+        makeReadHandlers(false));
 
   // --- Explicit VPN and proxy checks (read-only) ---
   try {
@@ -1372,9 +1469,10 @@ if (!ObjC.available) {
   // SAFETY: anything that can be read per frame during a scroll uses hotHook,
   // which samples a few times then DETACHES for good, so no trap survives into
   // the scroll. The three genuinely hot input-path hooks (sendEvent touch
-  // provenance, scroll velocity, live motion values) are gated behind
-  // TOUCH_ENABLED and stay OFF unless -Touch is passed. Low-rate reads (key and
-  // name loggers, haptics) use a plain budget. Read-only: we never alter a result.
+  // provenance, scroll velocity, live motion values) live in the 'touch' probe
+  // group, which the driver only arms when -Touch is passed, and then only for a
+  // fraction of a second well after launch. Low-rate reads (key and name
+  // loggers, haptics) use a plain budget. Read-only: we never alter a result.
   // =====================================================================
 
   // --- Wave 1: accessibility state (cold C booleans, device-wide) ---
@@ -1649,7 +1747,7 @@ if (!ObjC.available) {
   // signals so a real finger and an AssistiveTouch (synthetic) touch print visibly
   // different lines: the synthetic one lacks contact width, pressure, hardware
   // micro-samples, and a digitizer origin, even though it still claims type=direct.
-  if (TOUCH_ENABLED) {
+  {   // bare block, not a flag test: registration is free, arming is what costs
     const TOUCHSRC = { 1: 'an indirect remote', 2: 'a stylus or Apple Pencil',
                        3: 'a mouse or trackpad pointer' };
     const PHASE = { 0: 'finger down', 1: 'moving', 2: 'held still',
@@ -1681,7 +1779,7 @@ if (!ObjC.available) {
     try {
       const se = ObjC.classes.UIApplication && ObjC.classes.UIApplication['- sendEvent:'];
       if (se) {
-        hotHook(se.implementation, 20, 'touch events (sendEvent)', {
+        probe('touch', se.implementation, 20, 'touch events (sendEvent)', {
           onEnter: function (args) {
             try {
               const ev = new ObjC.Object(args[2]);
@@ -1757,12 +1855,12 @@ if (!ObjC.available) {
   }
 
   // --- Wave 2: flick dynamics. How hard/fast each swipe is driven. GATED. ---
-  if (TOUCH_ENABLED) {
+  {
     try {
       const m = ObjC.classes.UIPanGestureRecognizer &&
                 ObjC.classes.UIPanGestureRecognizer['- velocityInView:'];
       if (m) {
-        hotHook(m.implementation, 40, 'scroll velocity reads', {
+        probe('touch', m.implementation, 40, 'scroll velocity reads', {
           onEnter: function () {
             emit('SCROLL', 'your flick speed and direction', 'measured as you scroll');
           }
@@ -1812,11 +1910,11 @@ if (!ObjC.available) {
 
   // --- Wave 3: live device-motion sampling. Real hands micro-jitter; a static ---
   // rig does not. GATED, and only 30 samples before it detaches for good.
-  if (TOUCH_ENABLED) {
+  {
     try {
       const m = ObjC.classes.CMMotionManager && ObjC.classes.CMMotionManager['- deviceMotion'];
       if (m) {
-        hotHook(m.implementation, 30, 'device-motion value samples', {
+        probe('touch', m.implementation, 30, 'device-motion value samples', {
           onLeave: function (ret) {
             try {
               if (ret.isNull()) return;

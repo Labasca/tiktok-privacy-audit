@@ -32,18 +32,97 @@ def _flag(name):
     return os.environ.get(name, "") not in ("", "0", "false", "no")
 
 
-# Default is the known-safe hook set, which loads reliably. The hot hooks (raw
-# syscalls, TLS payload) are opt-in via TIKTOK_AUDIT_FULL, because turning them
-# all on at launch can crash the app before the script even finishes loading,
-# and because they are the ones that can wedge the USB link. Use the -Full switch
-# on the launcher, which runs the kill layers alongside them.
+# The hot hooks (raw syscalls, TLS payload) are opt-in via TIKTOK_AUDIT_FULL.
+# What changed: they are no longer switched on at load. They are registered on
+# the phone and ATTACHED LATER, one group at a time, for a fraction of a second
+# each, long after the app has finished launching.
+#
+# The reason is in the iOS crash reports. TikTok was not wedging the USB link,
+# it was being killed by SpringBoard's launch watchdog for missing the 10.00
+# second wall-clock allowance to bring a scene up, while using 5-26% CPU. The
+# app was blocked on Frida's single script thread, not busy. Any hook that is
+# live during a watchdog window costs wall-clock time the app does not have.
 _FULL = _flag("TIKTOK_AUDIT_FULL")
-SYSCALL_ON = _FULL
-TLS_ON = _FULL
 # Touch provenance (finger vs synthetic, scroll velocity, live motion) sits on the
 # per-frame input path. It is its OWN opt-in, separate from -Full, so it can be
 # captured without also enabling the raw syscall hooks. Enabled with -Touch.
 TOUCH_ON = _flag("TIKTOK_AUDIT_TOUCH")
+# stat / lstat / access / statfs are the highest-volume, lowest-value hooks in
+# the set, so -Full no longer includes them. -Deep adds them back.
+DEEP_ON = _flag("TIKTOK_AUDIT_DEEP")
+# Attach to an already-running TikTok instead of spawning it. This removes the
+# scene-create watchdog from the picture entirely, at the cost of the launch
+# sequence, which is where most of the identifier reads happen.
+ATTACH_ON = _flag("TIKTOK_AUDIT_ATTACH")
+
+# (group, how long that group may stay attached, in ms). One group is armed at
+# a time. Sub-second windows are the point: the sample limits are spent in the
+# first few milliseconds anyway, and everything after that was only trap cost.
+# Order matters: net and tls carry the signal that decays fastest, so they go
+# first and land inside the launch traffic burst. sys reads (numeric sysctl,
+# csops) are available whenever, so they take the later slot.
+PROBE_PLAN = []
+if _FULL:
+    PROBE_PLAN += [("net", 800), ("tls", 600), ("sys", 800)]
+if DEEP_ON:
+    PROBE_PLAN += [("fs", 700)]
+if TOUCH_ON:
+    PROBE_PLAN += [("touch", 700)]
+
+# 11s, and the number is not arbitrary: scene-create's allowance is 10.00 seconds
+# measured from launch. Arming strictly after it means a probe can never
+# contribute to a scene-create kill, whatever else is going on. The scene-update
+# watchdog is also 10s but runs per update cycle, and what protects against that
+# one is each group being live for well under a second.
+#
+# The other side of the constraint, measured on this phone with an uninstrumented
+# launch: TikTok's network activity is heavily bursty and almost all of it lands
+# between 5s and 17s (one 2s bucket held 1504 SSL_read and 2802 ioctl calls; past
+# 17s idle buckets are flat zero unless someone is scrolling). So the first pass
+# has to start the moment the watchdog floor lifts, and the passes have to be
+# tight, or an 800ms sample lands in dead air and reports nothing.
+PROBE_SETTLE_S = 11.0   # after resume, before the first group is armed
+PROBE_GAP_S = 0.8       # idle between groups, so the app's run loop catches up
+PROBE_ROUND_GAP_S = 1.5     # idle between complete passes over the plan
+PROBE_MAX_ROUNDS = 12
+
+
+def probe_min_duration(plan, settle=PROBE_SETTLE_S, gap=PROBE_GAP_S):
+    """Shortest window that fits one complete pass."""
+    t = settle
+    for _group, win in plan:
+        t += win / 1000.0 + 0.35 + gap
+    return t
+
+
+def probe_schedule(plan, duration, settle=PROBE_SETTLE_S, gap=PROBE_GAP_S,
+                   round_gap=PROBE_ROUND_GAP_S, max_rounds=PROBE_MAX_ROUNDS):
+    """Offsets from resume: when to arm each group and when to tear it down.
+
+    The plan repeats for as long as the window allows. A single pass is a lottery:
+    a sub-second sample of connect() only sees anything if the app happens to be
+    opening a socket in that exact sub-second, and by moving off the launch path
+    we deliberately gave up the busiest moment in the process's life. Repeating
+    cheaply buys back the coverage, because each pass re-attaches from scratch
+    with a fresh sample count and a fresh deadline.
+
+    The teardown is slack past the phone-side deadline on purpose. The inline
+    cutoffs are what actually end a sample; this is only tidy-up, and it must
+    never be the thing the safety depends on, because it travels over USB.
+    """
+    out, t, rounds = [], settle, 0
+    if not plan:
+        return out
+    while rounds < max_rounds:
+        for group, win in plan:
+            down = t + win / 1000.0 + 0.35
+            if down > duration - 0.4:
+                return out
+            out.append((t, down, group, win))
+            t = down + gap
+        t += round_gap
+        rounds += 1
+    return out
 # The live per-event stream is noise on a repeat run. It is off by default now, the
 # boxed report at the end is the product. -Verbose brings the stream back. Either
 # way the full stream is always written to session.log.
@@ -1627,8 +1706,25 @@ def report(rec, console, meta):
     p("")
     if items:
         panel_top(p, "TIKTOK AUDIT", "%d things" % len(items), BOLD)
-        panel_row(p, c(DIM, "%d reads in total, last new at %.1fs of a %ds window"
-                       % (rec.total, burst, meta["duration_s"])), BOLD)
+        # The window that matters is the one the app was ALIVE for, not the one
+        # that was asked for. Printing the requested duration next to a process
+        # that died a third of the way through is how a 13 second capture got
+        # read as a 40 second audit.
+        obs = meta.get("observed_s")
+        full = obs is None or obs >= meta["duration_s"] - 1.0
+        if full:
+            panel_row(p, c(DIM, "%d reads in total, last new at %.1fs of a %ds window"
+                           % (rec.total, burst, meta["duration_s"])), BOLD)
+        else:
+            panel_row(p, c("1;31", "%d reads over %.1fs, not the %ds asked for"
+                           % (rec.total, obs, meta["duration_s"]))
+                      + c(DIM, "   last new at %.1fs" % burst), BOLD)
+            panel_row(p, c(DIM, "the app %s, so the rest of the window is not observation"
+                           % ("was killed" if meta.get("died_reason") == "process-terminated"
+                              else "stopped reporting")), BOLD)
+        if meta.get("attached"):
+            panel_row(p, c(DIM, "attached to a running app, so the launch sequence is "
+                                "outside this capture"), BOLD)
         pic = net_picture(items)
         bits = []
         if pic["tunnels"]:
@@ -1665,9 +1761,42 @@ def report(rec, console, meta):
         panel_bottom(p, color)
 
     # --- honest limits, kept light and unboxed to close the report ----------
+    extra = []
+    if meta.get("died_reason") == "process-terminated":
+        extra.append(
+            "Anything after %.1fs. iOS killed the app there, so the remaining %.0fs of "
+            "the window recorded nothing and no absence below should be read as proof."
+            % (meta.get("observed_s") or 0.0,
+               max(0.0, meta["duration_s"] - (meta.get("observed_s") or 0.0))))
+    if meta.get("attached"):
+        extra.append(
+            "The launch sequence. This run attached to an app that was already open, "
+            "which is what keeps iOS from killing it, but the first seconds of a cold "
+            "start are where most identifier reads happen.")
+    if meta.get("probes"):
+        calls = meta.get("probe_calls") or {}
+        idle = [g for g in meta["probes"] if calls.get(g, 0) == 0]
+        extra.append(
+            "Most of what the %s %s could have seen. Each attaches for well under a "
+            "second at a time, %d %s in this run, because keeping them on is what made "
+            "iOS kill the app. They prove a mechanism is used, never how often."
+            % (", ".join(meta["probes"]),
+               "probe" if len(meta["probes"]) == 1 else "probes",
+               meta.get("probe_passes") or 0,
+               "pass" if (meta.get("probe_passes") or 0) == 1 else "passes"))
+        if idle:
+            extra.append(
+                "Anything the %s %s would have caught. %s armed correctly and saw ZERO "
+                "calls, which means the app was idle in those windows, not that it never "
+                "does these things. Raw-socket and TLS work clusters in the first ten "
+                "seconds, which is under the launch watchdog and cannot be sampled "
+                "safely. Scroll the feed while the probes run, or use -Attach on an app "
+                "you are already using."
+                % (", ".join(idle), "probe" if len(idle) == 1 else "probes",
+                   "It" if len(idle) == 1 else "They"))
     p("")
     p("  " + c(DIM, "not shown"))
-    for line in caveats(items, rec):
+    for line in extra + caveats(items, rec):
         for i, ln in enumerate(wrap(line, W - 6)):
             p("  " + ("  " if i else c(DIM, MARK + " ")) + c(DIM, ln))
     p("")
@@ -1691,10 +1820,23 @@ def caveats(items, rec=None):
     which they are not."""
     out = []
     if rec is not None and rec.caps:
-        for label, limit in sorted(rec.caps.items()):
+        # Two very different things end a probe, and only one of them means the
+        # number shown is a floor. A SAMPLE cap ("400") means the calls kept
+        # coming and we stopped counting. A WINDOW cap ("800ms") means the probe
+        # simply ran out of its slot, which says nothing about the true rate and
+        # is already covered by the probe caveat. Listing both put fifty lines of
+        # "the real one is higher" under hooks that saw nothing at all.
+        floors = {k: v for k, v in rec.caps.items() if not str(v).endswith("ms")}
+        windowed = [k for k, v in rec.caps.items() if str(v).endswith("ms")]
+        for label, limit in sorted(floors.items()):
             out.append("Exact counts for %s. It stopped counting at %s to keep the app "
                        "responsive, so that number is a floor and the real one is higher."
                        % (label, limit))
+        if windowed:
+            out.append("Rates for %d other %s. They ran for a fixed slice of time rather "
+                       "than to a call limit, so their counts are what happened in that "
+                       "slice and imply nothing about the rest of the run."
+                       % (len(windowed), "hook" if len(windowed) == 1 else "hooks"))
     if rec is not None and rec.truncated:
         out.append("Some kinds of event beyond the safety ceiling. The capture stops "
                    "recording new ones rather than growing without bound.")
@@ -1759,6 +1901,8 @@ def main():
     errors = []
     last_beat = [time.time()]   # wall time of the last message from the phone
     armed = [False]             # watchdog waits for the first message before judging
+    probe_log = []              # which groups actually attached, for the footer
+    probe_calls = {}            # group -> calls its hooks actually saw
 
     def on_message(msg, data):
         t = msg.get("type")
@@ -1786,6 +1930,19 @@ def main():
                     # floor. Saying so beats printing it as if it were exact.
                     rec.caps[key] = value
                     continue
+                if cat == "PROBE":
+                    # scheduling diagnostics, not a finding about the phone.
+                    # "group|label saw N calls" also tells us whether a probe
+                    # window landed on a busy app or on dead air.
+                    probe_log.append("%s %s" % (key, value))
+                    if "|" in key and "saw " in (value or ""):
+                        grp = key.split("|", 1)[0]
+                        try:
+                            probe_calls[grp] = probe_calls.get(grp, 0) + int(
+                                value.split("saw ", 1)[1].split()[0])
+                        except (ValueError, IndexError):
+                            pass
+                    continue
                 if cat == "NOTE":
                     continue
                 rec.apply(cat, key or "?", value or None, count, first_ms / 1000.0)
@@ -1797,44 +1954,49 @@ def main():
     dev = frida.get_usb_device(timeout=8)
     with open("observe.compiled.js", "r", encoding="utf-8") as f:
         src = f.read()
-    # Payload capture (SSLRead/SSLWrite) is OFF unless explicitly asked for, because
-    # those hooks are what has taken the machine down. Turn on with TIKTOK_AUDIT_TLS=1.
-    # The flip is a SINGLE character so the compiled bundle's baked-in byte offsets
-    # do not move. Changing the length would corrupt the package (malformed package).
-    def flip(src, before, after):
-        # single-character, length-preserving edit: the compiled bundle bakes byte
-        # offsets into its header, so any length change corrupts it ("malformed
-        # package"). That is why the flags are digits, not true/false.
-        if before not in src:
-            raise SystemExit("anchor '%s' not found, recompile observe.js first" % before)
-        assert len(before) == len(after)
-        return src.replace(before, after, 1)
-
-    if SYSCALL_ON:
-        src = flip(src, "var SYSCALL_ENABLED = 0;", "var SYSCALL_ENABLED = 1;")
-    if TLS_ON:
-        src = flip(src, "var TLS_ENABLED = 0;", "var TLS_ENABLED = 1;")
-    if TOUCH_ON:
-        src = flip(src, "var TOUCH_ENABLED = 0;", "var TOUCH_ENABLED = 1;")
+    # No source rewriting any more. Which hooks run is decided at RUNTIME, by the
+    # driver calling arm() over rpc, so the compiled bundle ships byte for byte as
+    # frida-compile produced it and the old length-preserving digit-flip hack (and
+    # the "malformed package" class of failure it invited) is gone.
+    #
     # Spawn + load, with a couple of retries. "connection is closed" here usually
     # means frida-server on the phone is recovering (often right after a previous
     # rough run) or the app died on launch; a fresh spawn commonly succeeds.
     pid = session = script = None
     last_err = None
+    spawned = not ATTACH_ON
     for attempt in range(3):
         try:
-            pid = dev.spawn([BUNDLE])
-            session = dev.attach(pid)
+            if ATTACH_ON:
+                # attach to the running app: no scene-create watchdog to violate,
+                # because the scene is already up before we touch anything.
+                # Match on the bundle identifier, not the process name: get_process
+                # matches names ("TikTok") and would miss com.zhiliaoapp.musically.
+                app = next((a for a in dev.enumerate_applications()
+                            if a.identifier == BUNDLE), None)
+                if app is None or not app.pid:
+                    raise frida.ProcessNotFoundError(BUNDLE)
+                pid = app.pid
+                session = dev.attach(pid)
+            else:
+                pid = dev.spawn([BUNDLE])
+                session = dev.attach(pid)
             script = session.create_script(src)
             script.on("message", on_message)
             script.load()
             last_err = None
             break
+        except frida.ProcessNotFoundError as e:
+            sys.stderr.write(
+                "\n[attach failed] TikTok is not running.\n"
+                "  -Attach instruments an app that is already open. Launch TikTok\n"
+                "  on the phone, wait for the feed, then run this again.\n")
+            raise SystemExit(1)
         except (frida.TransportError, frida.InvalidOperationError,
                 frida.ProcessNotRespondingError) as e:
             last_err = e
             try:
-                if pid:
+                if pid and spawned:
                     dev.kill(pid)
             except Exception:
                 pass
@@ -1852,6 +2014,25 @@ def main():
     ident = None
     try:
         ident = script.exports_sync
+    except Exception:
+        pass
+
+    # ----- know when the app dies -----
+    # Without this a terminated process and an idle one look identical to the
+    # driver, so it keeps counting down a window in which nothing is left alive
+    # to observe, and then prints the result as if it were a full observation.
+    # That is how a run that was killed by iOS at 12.9s got reported as a clean
+    # 40 second audit. frida fires 'detached' with a reason; the reason that
+    # matters is process-terminated.
+    died = {"reason": None, "t": None}
+
+    def on_detached(*a):
+        if died["reason"] is None:
+            died["reason"] = str(a[0]) if a else "unknown"
+            died["t"] = time.time()
+
+    try:
+        session.on("detached", on_detached)
     except Exception:
         pass
 
@@ -1890,13 +2071,14 @@ def main():
     console.line("  " + c(DIM, "%-9s" % "target") + BUNDLE + c(DIM, "  pid %d" % pid))
     console.line("  " + c(DIM, "%-9s" % "device") + str(dev.name))
     console.line("  " + c(DIM, "%-9s" % "window") + "%ds" % DURATION)
-    if TLS_ON and SYSCALL_ON:
-        mode = c("1;31", "FULL, all hooks") + c(DIM, "  (hot hooks on, self-kills if it wedges)")
-    elif SYSCALL_ON:
-        mode = c("1;31", "FULL, no payload") + c(DIM, "  (hot hooks on)")
+    if PROBE_PLAN:
+        mode = c("1;31", "FULL") + c(DIM, "  (%s, armed one at a time after launch)"
+                                     % ", ".join(g for g, _ in PROBE_PLAN))
     else:
-        mode = c("1;32", "safe") + c(DIM, "  (known-good hooks, ~90% coverage)")
+        mode = c("1;32", "safe") + c(DIM, "  (always-on hooks only)")
     console.line("  " + c(DIM, "%-9s" % "mode") + mode)
+    if ATTACH_ON:
+        console.line("  " + c(DIM, "%-9s" % "") + c(DIM, "attached to the running app, launch not observed"))
     console.line("")
     if VERBOSE:
         console.line("  " + c(DIM, RULE * (W - 2)))
@@ -1907,9 +2089,33 @@ def main():
         console.line("  " + c(DIM, "watching for %ds. scroll the feed on the phone. the report prints below." % DURATION))
     console.line("")
 
-    dev.resume(pid)
+    if not ATTACH_ON:
+        dev.resume(pid)
     rec.t0 = time.time()
     last_beat[0] = time.time()
+    # Stamp the phone-side clock the moment the app is actually running. The base
+    # probes hold no deadline until this lands, because a spawn-paused process
+    # burns no wall-clock time and must not burn its sample either.
+    try:
+        script.exports_sync.start()
+    except Exception:
+        pass
+
+    sched = probe_schedule(PROBE_PLAN, DURATION)
+    if PROBE_PLAN and not sched:
+        console.line("  " + c("1;33", "note: ") + c(DIM,
+            "the window is %ds, too short to arm a single probe pass (needs about "
+            "%.0fs). Running with the always-on hooks only."
+            % (DURATION, probe_min_duration(PROBE_PLAN))))
+        console.line("")
+    elif sched:
+        rounds = len(sched) // max(1, len(PROBE_PLAN))
+        console.line("  " + c(DIM, "%-9s" % "probes") + c(DIM,
+            "%d %s from %.0fs. scroll the feed while they run, that is when the "
+            "network hooks can see anything."
+            % (rounds, "pass" if rounds == 1 else "passes", PROBE_SETTLE_S)))
+        console.line("")
+    next_arm, pending = 0, None
 
     # The phone-side script flushes every 400ms, empty batch or not, so a silence
     # longer than this means it has wedged. Rather than let a hung frida-server
@@ -1921,22 +2127,64 @@ def main():
     try:
         while True:
             elapsed = time.time() - rec.t0
+            if died["reason"]:
+                break
             if elapsed >= DURATION:
                 break
             if time.time() - last_beat[0] > WATCHDOG_S:
                 aborted = True
                 break
+
+            # --- probe schedule -------------------------------------------
+            # Arming is a host-side decision so the sequencing cannot be starved
+            # by the phone's script thread. The phone still enforces its own
+            # inline cutoffs, so a group that never hears the disarm still dies.
+            if pending is None and next_arm < len(sched) and elapsed >= sched[next_arm][0]:
+                pending = sched[next_arm]
+                try:
+                    script.exports_sync.arm(pending[2], pending[3])
+                except Exception:
+                    pass
+            elif pending is not None and elapsed >= pending[1]:
+                try:
+                    script.exports_sync.disarm(pending[2])
+                except Exception:
+                    pass
+                pending = None
+                next_arm += 1
+
             filled = int(24 * elapsed / DURATION)
             bar = BAR_ON * filled + BAR_OFF * (24 - filled)
-            console.set_footer("  %s  %s  %s" % (
+            probing = c("1;33", "  probing %s" % pending[2]) if pending else ""
+            console.set_footer("  %s  %s  %s%s" % (
                 c("1;32", bar),
                 c(DIM, "%2ds / %ds" % (int(elapsed), DURATION)),
                 c(DIM, "%d calls, %d distinct" % (rec.total, len(rec.items))),
+                probing,
             ))
             time.sleep(0.2)
     except KeyboardInterrupt:
         console.line("")
         console.line("  " + c(DIM, "stopped early, reporting on what was captured."))
+
+    if died["reason"]:
+        observed = max(0.0, died["t"] - rec.t0)
+    elif aborted:
+        observed = max(0.0, last_beat[0] - rec.t0)
+    else:
+        observed = time.time() - rec.t0
+
+    if died["reason"]:
+        console.drop_footer()
+        console.line("")
+        if died["reason"] == "process-terminated":
+            console.line("  " + c("1;31", "the app died ") + c(DIM,
+                "%.1fs into a %ds window. iOS kills TikTok when instrumentation makes "
+                "it miss a scene deadline. Everything below is what was seen before "
+                "that, and nothing after." % (observed, DURATION)))
+        else:
+            console.line("  " + c("1;31", "session ended early ") + c(DIM,
+                "at %.1fs of %ds (%s)." % (observed, DURATION, died["reason"])))
 
     if aborted:
         console.drop_footer()
@@ -1950,9 +2198,13 @@ def main():
             pass
 
     console.drop_footer()
-    # ask the script for one last batch, so the final 400ms is not lost. Skipped
-    # after a watchdog abort, where the session is already gone.
-    if not aborted:
+    # tear every probe down before we let go, then ask for one last batch so the
+    # final 400ms is not lost. Both are skipped when the session is already gone.
+    if not aborted and not died["reason"]:
+        try:
+            script.exports_sync.disarmall()
+        except Exception:
+            pass
         try:
             script.exports_sync.flush()
             time.sleep(0.3)
@@ -1970,7 +2222,19 @@ def main():
         pass
 
     meta = {"window": "%ds window" % DURATION, "duration_s": DURATION,
-            "device": str(dev.name), "pid": pid}
+            "device": str(dev.name), "pid": pid,
+            "observed_s": round(observed, 1),
+            "died_reason": died["reason"],
+            "attached": bool(ATTACH_ON),
+            "probes": [g for g, _ in PROBE_PLAN],
+            "probe_calls": dict(probe_calls),
+            "probe_passes": (len(probe_log and [x for x in probe_log if "armed" in x])
+                             // max(1, len(PROBE_PLAN))),
+            "probe_log": list(probe_log)}
+    if probe_log and VERBOSE:
+        console.line("")
+        for ln in probe_log:
+            console.line("  " + c(DIM, "probe  " + ln))
     report(rec, console, meta)
     if errors:
         console.line("  " + c(DIM, "hook errors: " + "; ".join(errors[:3])))

@@ -8,14 +8,22 @@
 # a stale heartbeat (the child stopped reporting), or Ctrl-C. Between this, the
 # child's own self-kill watchdog, and kill-audit.ps1, a hung run cannot linger.
 #
-# Default is the known-safe hook set (loads reliably, captures ~90%). -Full adds
-# the raw syscall + TLS payload hooks: more data, but they can wedge the USB link
-# or crash the app on launch, so use -Full with a short window (15) at first and
-# keep kill-audit.ps1 handy.
+# Default is the always-on hook set. -Full adds the raw syscall and TLS payload
+# probes. Those are no longer switched on at launch: they are attached one group
+# at a time, for well under a second each, starting several seconds after the app
+# is up. That ordering is the fix. iOS was killing TikTok for missing its 10.00s
+# scene deadline while blocked on Frida, and any hook live during that window
+# costs wall-clock time the app does not have.
+#
+# -Full needs room for the schedule, about 19s, so give it 25 or more.
+# -Attach instruments an app you have already opened, which skips the launch
+# watchdog entirely. -Deep adds the stat/access/statfs probes, which are the
+# highest volume and lowest value in the set.
 #
 # Requires: the project venv (.venv) with the pinned Frida client, and Apple's
 # usbmux layer (iTunes or the Apple Devices app) so Frida can see the iPhone.
-param([int]$Duration = 40, [switch]$Full, [switch]$Touch, [switch]$Stream)
+param([int]$Duration = 40, [switch]$Full, [switch]$Touch, [switch]$Deep,
+      [switch]$Attach, [switch]$Stream)
 
 Set-Location -Path $PSScriptRoot
 
@@ -69,19 +77,31 @@ if (Test-Path "node_modules/frida-objc-bridge") {
     )
 }
 
-# full data unless -Safe. The child reads this env var.
+# The child reads these env vars. None of them switch a hook on at load any more,
+# they only decide which probe groups the driver arms after the app has settled.
 $env:TIKTOK_AUDIT_FULL = if ($Full) { "1" } else { "" }
-# touch provenance is its own opt-in, separate from -Full. When on, warn clearly:
-# it hooks the per-frame input path, so keep the window short and kill-audit ready.
 $env:TIKTOK_AUDIT_TOUCH = if ($Touch) { "1" } else { "" }
+$env:TIKTOK_AUDIT_DEEP = if ($Deep) { "1" } else { "" }
+$env:TIKTOK_AUDIT_ATTACH = if ($Attach) { "1" } else { "" }
 # -Stream brings back the live per-event stream during the run. Off by default:
 # the boxed report at the end is the product. The full stream is always in session.log.
 $env:TIKTOK_AUDIT_VERBOSE = if ($Stream) { "1" } else { "" }
-if ($Touch) {
+
+# The probe schedule needs settle time plus a slot per group. Warn rather than
+# silently arming only the first group or two.
+$needed = 11
+if ($Full)  { $needed += 6 }
+if ($Deep)  { $needed += 2 }
+if ($Touch) { $needed += 2 }
+if (($Full -or $Deep -or $Touch) -and $Duration -lt $needed) {
     Write-Host ""
-    Write-Host "  -Touch: input-path hooks are ON (finger-vs-synthetic, scroll)." -ForegroundColor Yellow
-    Write-Host "  They sample only tens of calls then detach. Keep the window short" -ForegroundColor DarkGray
-    Write-Host "  and kill-audit.ps1 ready in another terminal, just in case." -ForegroundColor DarkGray
+    Write-Host "  window is ${Duration}s but the probe schedule needs about ${needed}s." -ForegroundColor Yellow
+    Write-Host "  The later groups will not be armed. Try: .\tiktok-audit.ps1 $needed ..." -ForegroundColor DarkGray
+}
+if ($Attach) {
+    Write-Host ""
+    Write-Host "  -Attach: open TikTok on the phone first and wait for the feed." -ForegroundColor Yellow
+    Write-Host "  Nothing is spawned, so the launch sequence is not observed." -ForegroundColor DarkGray
 }
 
 # clear any stale heartbeat so a leftover file cannot look "fresh"
@@ -120,6 +140,8 @@ finally {
     Remove-Item $hb -Force -ErrorAction SilentlyContinue
     $env:TIKTOK_AUDIT_FULL = ""
     $env:TIKTOK_AUDIT_TOUCH = ""
+    $env:TIKTOK_AUDIT_DEEP = ""
+    $env:TIKTOK_AUDIT_ATTACH = ""
     $env:TIKTOK_AUDIT_VERBOSE = ""
 }
 exit 0

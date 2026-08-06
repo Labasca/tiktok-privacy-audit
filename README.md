@@ -164,43 +164,97 @@ tunnel endpoint is local. It says nothing about where traffic finally exits.
 Absence still proves nothing: "no location calls" means none happened while observed.
 Exercise the app during the window.
 
-## Running it, and the crash
+## Running it
 
 ```powershell
-.\tiktok-audit.ps1 40          # everything on, supervised
-.\tiktok-audit.ps1 40 -Safe    # minimal known-safe hook set, if you ever want it
+.\tiktok-audit.ps1 40                    # always-on hooks, supervised
+.\tiktok-audit.ps1 40 -Full              # adds the net / tls / sys probes
+.\tiktok-audit.ps1 25 -Full -Attach      # probe an app you already have open
+.\tiktok-audit.ps1 40 -Full -Deep        # adds stat / access / statfs
 ```
 
-**All hooks are on by default** for maximum coverage. The freeze risk is real: the network
-and payload hooks sit on the app's hot path, and under active scrolling they can peg the
-phone's frida-server and hang the USB link, which freezes the terminals. Host memory stays
-low the whole time, so watching host RAM does not catch it.
+`-Full` needs about 17s of window for one probe pass, so give it 25 or more. The launcher
+warns if the window is too short instead of silently skipping groups.
 
-The safety is not fewer hooks, it is **four independent ways a hung run dies**, none of
-which touch USB:
+### What was actually killing it
 
-1. **Phone-side self-detach.** Every hot hook (`hotHook`) grabs a small sample then removes
-   itself, and a 9s time-box detaches all of them regardless. Instrumentation winds down on
-   its own after the first seconds.
+For a long time the theory was that the hot hooks wedged the USB link and froze the host.
+That is not what happens. iOS crash reports name it exactly:
+
+```
+scene-create watchdog transgression: application<com.zhiliaoapp.musically>
+exhausted real (wall clock) time allowance of 10.00 seconds
+Elapsed total CPU time (seconds): 4.570, 7% CPU
+```
+
+**SpringBoard was killing TikTok**, because instrumentation made it miss the 10.00 second
+wall-clock deadline it gets to bring a scene up. Across twelve terminations the app never
+exceeded 26% CPU. It was not busy, it was *blocked*: every intercepted call is a native to
+JS transition onto one serialized script thread, so the app's threads queue behind each
+other. That cost is invisible in CPU time and fatal in wall-clock time, which is the only
+thing iOS measures. Everything downstream (the phone going quiet, the host watchdog firing,
+a truncated report) followed from the app dying.
+
+So the rule is now about **when**, not only how much:
+
+- Hooks that fire at app-logic rate (ObjC selectors, keychain, `sysctlbyname`, `getenv`)
+  attach at load and cover the launch. They were never implicated.
+- Hooks that fire at packet or syscall rate are *registered* at load and attached later, in
+  named **probe groups**, one group at a time, for well under a second, starting at 11s.
+  11s is not arbitrary: it is past the 10.00s scene-create allowance, so a probe can never
+  contribute to that kill.
+- Both cutoffs, sample count and wall clock, are checked **inline on the trap itself**. The
+  old time-box ran on the flush timer, which is starved by exactly the call storm it existed
+  to stop.
+
+The probe schedule repeats for as long as the window allows, because a single sub-second
+sample of `connect()` only sees anything if the app happens to be opening a socket in that
+exact sub-second.
+
+### Four independent ways a hung run still dies
+
+None of them touch USB, and all four are unchanged. They were never the problem, they were
+just diagnosing the wrong cause.
+
+1. **Phone-side self-detach.** Every probe dies on its sample count or its wall-clock
+   deadline, both checked inline, plus the driver disarming it, plus a flush-timer sweep.
 2. **Host self-kill watchdog.** A daemon thread in the driver hard-exits (`os._exit`) if the
    phone goes silent for 6s. That fires even while the main thread is stuck in a native
-   Frida call, because the phone flushes a heartbeat every 400ms and real silence means the
-   link wedged.
+   Frida call, because the phone flushes a heartbeat every 400ms.
 3. **External supervisor.** `tiktok-audit.ps1` runs the audit as a separate low-priority
    child and watches it from a loop that never touches USB, so it stays responsive and
    force-kills the child on a deadline, a stale heartbeat, or Ctrl-C.
-4. **Manual kill.** If a run ever hangs, open a new terminal and run `.\kill-audit.ps1`. It
-   force-kills the audit without touching USB. If even that will not run, unplug the phone:
-   that drops the USB session and the link recovers in seconds.
+4. **Manual kill.** If a run ever hangs, open a new terminal and run `.\kill-audit.ps1`. If
+   even that will not run, unplug the phone: that drops the USB session and it recovers in
+   seconds.
 
-**Honest limit:** if the USB stall is severe enough to freeze Windows entirely, no host-side
-script can run. That is why layers 1 and 2 (phone-side and the self-kill) exist, and why the
-manual last resort is to unplug the phone.
+**Honest limit:** if a USB stall is ever severe enough to freeze Windows entirely, no
+host-side script can run. That is why layers 1 and 2 exist.
 
-Inside `observe.js` the switches are `SYSCALL_ENABLED` and `TLS_ENABLED`, single digits the
-driver flips in place (a length change would corrupt the compiled bundle's byte-offset
-header). `-Safe` leaves them at 0. Any hot C function is looked up through
-`dangerousExport()`, which returns null when the gate is off so the hook never attaches.
+### The driver now knows when the app dies
+
+The driver registers `session.on('detached')`. Without it a terminated process and an idle
+one are indistinguishable, so a run that iOS killed at 12.9s was reported as a clean 40
+second audit, with 27 seconds of dead air presented as observation. The summary panel now
+prints the window the app was **alive** for, not the one that was requested, and says so in
+red when they differ.
+
+It also records how many calls each probe group actually saw. A group that armed correctly
+and saw zero is a fact about the run (the app was idle), not a fact about TikTok, and the
+report says which one it is.
+
+### Choosing between spawn and attach
+
+Raw-socket and TLS work clusters in the first ten seconds after launch, which is under the
+watchdog floor and cannot be sampled safely. So:
+
+- **Default (spawn)** captures the whole launch sequence through the always-on hooks, which
+  is where the identifier reads are, but the probes usually arrive after the network burst.
+- **`-Attach`** instruments an app you already have open and are using. Nothing is spawned,
+  so there is no scene-create watchdog to violate at all, and the probes land while the app
+  is genuinely busy. It cannot see the launch.
+
+Either way, scroll the feed while the probes run. The footer shows which group is live.
 
 ## Safety rules for adding hooks
 
@@ -211,12 +265,11 @@ drains, and **the host machine runs out of memory and locks up.** The launcher r
 `observe.js` on every run, so an untested hook reaches the phone the moment you run it.
 
 The deeper lesson from the repeated freezes: a `budget()` stops the *work* in a handler but
-Frida still *traps every call*, and on a hot function that trapping alone hangs the phone.
-The real fixes are (a) don't hook hot syscalls by default, and (b) for the ones you do,
-route them through `hotHook()`, which detaches the listener after a small sample so the
-function goes back to running natively with zero Frida involvement.
+Frida still *traps every call*, and the trapping alone is what costs. The fixes are (a)
+never attach a packet-rate hook at load, register it in a probe group instead, and (b) make
+every cutoff inline, because anything on a timer is starved when it matters most.
 
-Three rules, all enforced in the code:
+Four rules, all enforced in the code:
 
 1. **Never call `send()` from a hook.** Everything goes through `emit()`, which counts in
    memory. A timer ships only what changed, a few times a second, so the message rate is a
@@ -227,6 +280,11 @@ Three rules, all enforced in the code:
    is a floor rather than printing it as exact.
 3. **Order your guards cheap to expensive.** Integer compare, then length check, then
    regex. The filesystem hooks skip anything over 70 characters before touching a pattern.
+4. **Anything at packet or syscall rate goes in a probe group.** `probe(group, target,
+   limit, label, handlers)` registers without attaching; `hotHook(...)` is the same thing
+   pinned to the always-on `base` group. If you are unsure which a function is, measure it
+   before you decide: attach a bare counter for one second and look at the number. On this
+   phone `ioctl` came back at 2802 calls in a two second window, and `SSL_read` at 1504.
 
 Ceilings, all fail-safe: 3000 distinct events and 4M observed calls in the script, 4000
 records in the driver. Past those it stops recording and the report says it truncated.
