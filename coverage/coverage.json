@@ -1,6 +1,6 @@
 {
   "counts": {
-    "hooked": 32,
+    "hooked": 41,
     "full-only": 5,
     "missing": 10
   },
@@ -479,6 +479,96 @@
         "D"
       ],
       "status": "missing",
+      "note": ""
+    },
+    {
+      "theme": "Media",
+      "surface": "Photo picker (out of process)",
+      "symbol": "PHPickerViewController initWithConfiguration:",
+      "sources": [
+        "-"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Media",
+      "surface": "Photo picker (in process)",
+      "symbol": "UIImagePickerController sourceType",
+      "sources": [
+        "-"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Media",
+      "surface": "Camera/mic actually opened",
+      "symbol": "AVCaptureSession startRunning / addInput:",
+      "sources": [
+        "-"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Media",
+      "surface": "Record-mode audio session",
+      "symbol": "AVAudioSession setCategory:",
+      "sources": [
+        "-"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Media",
+      "surface": "Image metadata + GPS block",
+      "symbol": "CGImageSourceCopyProperties(AtIndex)",
+      "sources": [
+        "-"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Media",
+      "surface": "Video metadata + geotag",
+      "symbol": "AVAsset commonMetadata / metadata",
+      "sources": [
+        "-"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Media",
+      "surface": "Library asset facts",
+      "symbol": "PHAsset location/creationDate/localIdentifier",
+      "sources": [
+        "-"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Media",
+      "surface": "Video encode",
+      "symbol": "AVAssetWriter / AVAssetExportSession / VTCompressionSessionCreate",
+      "sources": [
+        "-"
+      ],
+      "status": "hooked",
+      "note": ""
+    },
+    {
+      "theme": "Media",
+      "surface": "Upload payload",
+      "symbol": "NSURLSession uploadTaskWithRequest:",
+      "sources": [
+        "-"
+      ],
+      "status": "hooked",
       "note": ""
     },
     {

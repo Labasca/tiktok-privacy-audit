@@ -100,6 +100,20 @@ ROWS = [
     ("Permissions", "Permission status probes", "authorizationStatus (photos/contacts/mic/...)", "T,D", ["authorizationStatus"]),
     ("Permissions", "Contacts read", "CNContactStore enumerateContacts", "T,D", ["enumerateContacts"]),
 
+    # ---- The post / publish path ----
+    # None of these are required-reason APIs, which is exactly why they matter:
+    # a coordinate read out of a file the app already holds is invisible to
+    # Apple's declaration scheme and to every permission prompt.
+    ("Media", "Photo picker (out of process)", "PHPickerViewController initWithConfiguration:", "-", ["PHPickerViewController"]),
+    ("Media", "Photo picker (in process)", "UIImagePickerController sourceType", "-", ["UIImagePickerController"]),
+    ("Media", "Camera/mic actually opened", "AVCaptureSession startRunning / addInput:", "-", ["AVCaptureSession"]),
+    ("Media", "Record-mode audio session", "AVAudioSession setCategory:", "-", ["AVAudioSession"]),
+    ("Media", "Image metadata + GPS block", "CGImageSourceCopyProperties(AtIndex)", "-", ["CGImageSourceCopyProperties"]),
+    ("Media", "Video metadata + geotag", "AVAsset commonMetadata / metadata", "-", ["commonMetadata"]),
+    ("Media", "Library asset facts", "PHAsset location/creationDate/localIdentifier", "-", ["PHAsset"]),
+    ("Media", "Video encode", "AVAssetWriter / AVAssetExportSession / VTCompressionSessionCreate", "-", ["VTCompressionSessionCreate"]),
+    ("Media", "Upload payload", "NSURLSession uploadTaskWithRequest:", "-", ["uploadTaskWithRequest"]),
+
     # ---- Anti-tamper ----
     ("Anti-tamper", "Debugger/code-sign check", "csops", "-", ["csops"]),
     ("Anti-tamper", "Jailbreak path probes", "stat/lstat/access on JB paths", "-", ["JBPATH", "jailbreak"]),
