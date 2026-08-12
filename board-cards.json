@@ -1,0 +1,641 @@
+[
+  {
+    "id": "c1",
+    "col": "fix",
+    "pri": 1,
+    "title": "Move egress off the phones",
+    "note": "utun5 carries 198.18.0.1 and fd00:1234:ffff::10, with a listener on 127.0.0.1:1082. A tunnel holding routable addresses reads as a live VPN on every one of the 48 interface scans. Benchmark-range addresses are never routed publicly, which is exactly why on-device proxy clients self-assign them, so their presence proves the tunnel endpoint is local.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Inventory which phones run an on-device client",
+      "Stand up gateway or router-level egress for the rack subnet",
+      "Remove the client from one phone and re-run the audit",
+      "Confirm getifaddrs returns only en0 and lo0",
+      "Roll out to the fleet"
+    ]
+  },
+  {
+    "id": "c2",
+    "col": "fix",
+    "pri": 1,
+    "title": "Strip metadata from every clip before it reaches a phone",
+    "note": "TikTok read the geotag out of the video file 18 times, with no permission, no prompt and zero CLLocationManager calls. It took camera make, model, capture date and authoring software from the same container in the same burst.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Add an exiftool or ffmpeg pass to the content pipeline",
+      "Strip GPS, make, model, creation date and software",
+      "Vary the remaining timestamps so they are not all identical",
+      "Re-run the audit on a stripped clip and expect zero geotag reads"
+    ]
+  },
+  {
+    "id": "c3",
+    "col": "fix",
+    "pri": 1,
+    "title": "System proxy settings are handed over verbatim",
+    "note": "CFNetworkCopySystemProxySettings is asked 29 times a session, deliberately rather than as a side effect of sending traffic. A Wi-Fi HTTP proxy creates no tunnel but is reported host and port included.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Remove any proxy set in the Wi-Fi settings pane",
+      "Move the same routing to the gateway",
+      "Confirm the proxy read comes back empty"
+    ]
+  },
+  {
+    "id": "c4",
+    "col": "fix",
+    "pri": 1,
+    "title": "Rename the phones",
+    "note": "MobileGestalt DeviceName is read 43 times a session, permission free. Sequential rack names hand over the entire fleet in one string. Free, and an afternoon of work.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Generate plausible varied names, not a numbered series",
+      "Apply across the fleet",
+      "Verify with one capture"
+    ]
+  },
+  {
+    "id": "c5",
+    "col": "fix",
+    "pri": 1,
+    "title": "Make locale, timezone and GMT offset agree with the exit country",
+    "note": "Read 2,607 times a session, the most-asked question in the whole capture. Timezone, locale and the proxy exit country have to agree, and on the audit phone they did not.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Define the intended country per phone or per cohort",
+      "Set locale, timezone and GMT offset to match",
+      "Pin the proxy exit to the same country"
+    ]
+  },
+  {
+    "id": "c6",
+    "col": "fix",
+    "pri": 1,
+    "title": "Keyboards and preferred languages",
+    "note": "359 reads a session. The installed keyboard set is a strong fingerprint on its own. Identical keyboards across every phone is a cluster, and a set that contradicts the claimed country is worse. The audit phone reads en-GB, lt-LT, ru-RU, emoji.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Vary the keyboard set per phone",
+      "Make each set consistent with that phone's claimed country"
+    ]
+  },
+  {
+    "id": "c7",
+    "col": "fix",
+    "pri": 1,
+    "title": "No SIM, and never once on cellular",
+    "note": "Carrier, mobile country code and mobile network code all read as no SIM present. iOS 16 mostly retired CTCarrier so the field itself is weak, but a whole fleet of SIM-less Wi-Fi-only phones is not, and the cellular-or-Wi-Fi question is asked deliberately 15 to 54 times a session. An account that has never been on cellular across months is not a phone anyone carries.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Price data SIMs for at least part of the fleet",
+      "If SIMs are out, decide whether Wi-Fi-only is acceptable and document why",
+      "Consider periodic cellular sessions for the accounts that matter most"
+    ]
+  },
+  {
+    "id": "c8",
+    "col": "fix",
+    "pri": 2,
+    "title": "Give each phone a plausible, varied app set",
+    "note": "A small probe at launch, then a 19 to 21 scheme burst the moment you publish. Only 13 get a real answer: the other 6 are not declared in the app's own LSApplicationQueriesSchemes, so iOS refuses them and TikTok learns nothing. Installing apps only helps for the 13 it can actually see.",
+    "tags": [
+      "link"
+    ],
+    "steps": [
+      "List the 13 schemes that returned a real answer",
+      "Pick a different believable subset per phone",
+      "Install and verify with a publish capture"
+    ]
+  },
+  {
+    "id": "c9",
+    "col": "fix",
+    "pri": 2,
+    "title": "Break the battery pattern",
+    "note": "Read around 130 times a session, 402 reads in the longest capture. Ours is pinned at full and charging for the life of the phone. No real phone looks like that.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Add scheduled discharge windows to the rack",
+      "Stagger them so the fleet does not move together"
+    ]
+  },
+  {
+    "id": "c10",
+    "col": "fix",
+    "pri": 2,
+    "title": "Vary screen brightness",
+    "note": "145 reads a session, also used as an ambient light proxy. Fixed value forever on our phones, where a real phone drifts with auto-brightness all day.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Drive small brightness changes on a slow random schedule"
+    ]
+  },
+  {
+    "id": "c11",
+    "col": "fix",
+    "pri": 2,
+    "title": "Put motion under the rack",
+    "note": "CMMotionManager starts every run, and during publish it starts alongside the camera. A racked phone gives a frozen gravity vector and zero micro-tremor for hours, which no handheld phone ever does. Only a physical fix works.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Source a shared low-amplitude vibration platform",
+      "Verify the sensors report movement without disturbing the chips"
+    ]
+  },
+  {
+    "id": "c12",
+    "col": "fix",
+    "pri": 2,
+    "title": "Device orientation is portrait forever",
+    "note": "Never once face up, face down or landscape. Same root cause as the frozen sensors, and cheap to add once a vibration platform exists.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Introduce occasional orientation changes",
+      "Keep them plausible, a phone put down face up between sessions"
+    ]
+  },
+  {
+    "id": "c13",
+    "col": "fix",
+    "pri": 2,
+    "title": "Break up the LAN address block",
+    "note": "getifaddrs returns the Wi-Fi LAN address in full, 48 scans a session. Twenty phones handing over sequential addresses on one subnet is the single clearest statement that they are one operation.",
+    "tags": [
+      "link"
+    ],
+    "steps": [
+      "Split the fleet across subnets or VLANs",
+      "Randomise DHCP assignment within each",
+      "Confirm no two phones sit adjacent"
+    ]
+  },
+  {
+    "id": "c14",
+    "col": "fix",
+    "pri": 2,
+    "title": "Audio route says AirPlay in every session",
+    "note": "Reported as AirPlay on the audit phone while mirroring was up. Our phones say the same thing every session, which pairs with the capture flag rather than excusing it.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Check whether the route can read as built-in speaker while mirroring",
+      "If not, accept that it corroborates the capture flag"
+    ]
+  },
+  {
+    "id": "c15",
+    "col": "fix",
+    "pri": 2,
+    "title": "The camera opens even when posting from the library",
+    "note": "A capture session starts and Back Dual Camera is opened on every run regardless of where the clip came from, with device motion starting alongside it. On a racked phone that is a live camera feed of nothing, every session.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Check whether the composer can be entered without the camera step",
+      "Consider what the camera actually sees on the rack"
+    ]
+  },
+  {
+    "id": "c16",
+    "col": "fix",
+    "pri": 2,
+    "title": "Exit IP and its ASN",
+    "note": "Recorded at their end, invisible to the phone and to this capture. Nothing we change on the device touches it, so it is purely a proxy-quality question, and it is the one signal that no on-device work can improve.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Audit the current pool for datacenter ASNs and reputation",
+      "Match exit country to each phone's claimed locale",
+      "Re-check after any provider change"
+    ]
+  },
+  {
+    "id": "c17",
+    "col": "fix",
+    "pri": 2,
+    "title": "Audio is uploaded to be transcribed",
+    "note": "POST /upload/v1/lab-speech-video-caption-no/, caught in plaintext before encryption. Automatic captions work by sending the audio off the device. Anything audible in the background of a posted clip becomes text on their side.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Audit source clips for background speech",
+      "Decide whether captions stay on at all",
+      "Run the captions-off comparison to see if the upload stops"
+    ]
+  },
+  {
+    "id": "c18",
+    "col": "fix",
+    "pri": 3,
+    "title": "Loosen the swipe signature",
+    "note": "57 reads a session. Ours never swipes down, sits in a fixed 30 to 80ms band, and has a hard 1.9s dwell floor with zero mass below it. Entirely behaviour, entirely ours to change.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Widen the velocity distribution and add a long tail",
+      "Add occasional upward scrolls and overscroll",
+      "Remove the hard dwell floor"
+    ]
+  },
+  {
+    "id": "c19",
+    "col": "fix",
+    "pri": 3,
+    "title": "Capture dates on posted clips are all minutes old",
+    "note": "PHAsset.creationDate is read 14 times per post, from the library rather than the file. Every clip created a few minutes before it is posted is a pattern, and one that survives any metadata stripping done to the file itself.",
+    "tags": [
+      "link"
+    ],
+    "steps": [
+      "Age the library so clips are not all created just before posting",
+      "Vary creation dates across the fleet"
+    ]
+  },
+  {
+    "id": "c20",
+    "col": "gray",
+    "pri": 1,
+    "title": "Screen capture flag is true 100% of the time",
+    "note": "UIScreen.isCaptured is true the moment anything mirrors or records, read from 0.3s. No software fix on stock iOS. The mitigation is the shape: AirPlay reports 2 screens which Apple tells developers to read as ordinary casting, where ReplayKit reports 1 screen captured, the shape apps are told to block. The audit phone read checked, not captured, which is the baseline we differ from.",
+    "tags": [
+      "hard"
+    ],
+    "steps": [
+      "Keep AirPlay, never ReplayKit",
+      "Re-verify the 2-screen shape after any iOS update"
+    ]
+  },
+  {
+    "id": "c21",
+    "col": "gray",
+    "pri": 1,
+    "title": "AssistiveTouch must be on",
+    "note": "Permission free, and necessarily true on any phone a chip can point at. No software fix on stock iOS. Mitigating: real disabled users set it too, so it scores risk rather than blocking outright.",
+    "tags": [
+      "hard"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c22",
+    "col": "gray",
+    "pri": 1,
+    "title": "Apple device attestation",
+    "note": "DCDevice.generateToken hands TikTok signed per-device bits from Apple that survive uninstall and a factory erase. A phone marked once stays markable for its whole life, and no resigned or emulated build passes it.",
+    "tags": [
+      "hard"
+    ],
+    "steps": [
+      "Treat a burned phone as burned, not as recoverable by wiping"
+    ]
+  },
+  {
+    "id": "c23",
+    "col": "gray",
+    "pri": 2,
+    "title": "Fingertip contact width never measured with the chip driving",
+    "note": "UITouch.majorRadius: a thumb reads about 35pt wide, a synthetic event reads zero. The strongest touch tell that survived verification, and we have never measured what our pointer produces.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Run one capture on a rack phone with the chip driving",
+      "Compare against the finger-driven baseline"
+    ]
+  },
+  {
+    "id": "c24",
+    "col": "gray",
+    "pri": 2,
+    "title": "Hardware micro-samples per move",
+    "note": "coalescedTouches: a real drag arrives with 1 to 5 sub-samples per frame that only the digitizer fills. A pointer stream probably gives exactly one every time. Measure it before deciding whether it is fixable.",
+    "tags": [
+      "exp"
+    ],
+    "steps": [
+      "Measure on a rack phone in the same run as majorRadius"
+    ]
+  },
+  {
+    "id": "c25",
+    "col": "gray",
+    "pri": 2,
+    "title": "Seven hashed MobileGestalt keys",
+    "note": "Names Apple does not publish, read up to 8 times each, alongside main-screen-scale, main-screen-pitch and apple-internal-install. 22 gestalt keys are read in total. We do not know what the hashed ones return or whether a rack phone answers differently.",
+    "tags": [
+      "link"
+    ],
+    "steps": [
+      "Dump the values on a rack phone and a control phone, then diff them"
+    ]
+  },
+  {
+    "id": "c26",
+    "col": "gray",
+    "pri": 2,
+    "title": "Region routing versus claimed country",
+    "note": "Uploads went to no1a, useast2a, useast5, alisg and maliva across single sessions, via tos-no1a16-up.tiktokcdn-eu.com. Which region you are assigned is a server-side opinion about where you are, and it is comparable across a fleet. We do not know how much weight it carries.",
+    "tags": [
+      "link"
+    ],
+    "steps": [
+      "Record the assigned region per post per phone",
+      "Check whether it tracks the proxy exit or something else"
+    ]
+  },
+  {
+    "id": "c27",
+    "col": "gray",
+    "pri": 2,
+    "title": "The library is read without Apple's picker ever opening",
+    "note": "Photo permission reads limited, PHAsset is read directly, and neither PHPickerViewController nor UIImagePickerController ever fires, with both hooks verified attached on three runs. TikTok enumerates the permitted set through its own gallery, so the out-of-process picker that would hand it one file and no library access is not in the path.",
+    "tags": [
+      "link"
+    ],
+    "steps": [
+      "Decide whether limited access is worth narrowing further",
+      "Check what else is visible in the permitted set"
+    ]
+  },
+  {
+    "id": "c28",
+    "col": "gray",
+    "pri": 2,
+    "title": "A third-party SDK is told every time you post",
+    "note": "AppsFlyer in-app event, roughly 1,800 byte body, fired within a second of the confirmation buzz on every run. The post event leaves TikTok's own ID space and enters an attribution vendor's.",
+    "tags": [
+      "link"
+    ],
+    "steps": [
+      "Accept it as unavoidable inside the stock client, or reconsider posting cadence"
+    ]
+  },
+  {
+    "id": "c29",
+    "col": "gray",
+    "pri": 2,
+    "title": "Bundled third-party SDKs",
+    "note": "AppsFlyer, Snap Kit, Firebase, Meta and a LINE token store each report the install in their own ID space and keep their own keychain entries. 33 requests inside the first second. More linkage surface than TikTok alone.",
+    "tags": [
+      "link"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c30",
+    "col": "gray",
+    "pri": 3,
+    "title": "Keychain items, 21 of them",
+    "note": "Login tokens, account history, a cloud UUID, a bundle seed, com.tiktok.keychainItem.common and an AppsFlyer entry, all persisting across deleting the app. Reinstalling is not a reset, only erasing the device is.",
+    "tags": [
+      "link"
+    ],
+    "steps": [
+      "Treat device erase, not app reinstall, as the only real reset"
+    ]
+  },
+  {
+    "id": "c31",
+    "col": "gray",
+    "pri": 3,
+    "title": "Vendor install ID",
+    "note": "identifierForVendor is stable per phone until every ByteDance app is removed. Two accounts used on one phone are the same device to them, full stop.",
+    "tags": [
+      "link"
+    ],
+    "steps": [
+      "One account per phone, or accept the link"
+    ]
+  },
+  {
+    "id": "c32",
+    "col": "gray",
+    "pri": 3,
+    "title": "Stored cookies",
+    "note": "168 on the audit phone, counted repeatedly through the session. Same continuity story as the keychain, lower stakes.",
+    "tags": [
+      "link"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c33",
+    "col": "gray",
+    "pri": 3,
+    "title": "Identical hardware fingerprint across the fleet",
+    "note": "Model, board, CPU features, RAM and screen size, about 40 separate reads resolving to one fixed answer, roughly 2,500 reads a session. An identical-hardware fleet answers identically, so only the per-install IDs separate us. Not fixable without mixed hardware.",
+    "tags": [
+      "link"
+    ],
+    "steps": [
+      "Consider mixing device models on the next hardware buy"
+    ]
+  },
+  {
+    "id": "c34",
+    "col": "gray",
+    "pri": 3,
+    "title": "Boot session ID and uptime",
+    "note": "A per-boot UUID plus a live uptime counter, 363 reads a session. Phones that never reboot carry one long-lived signature, and phones rebooted together announce that they were.",
+    "tags": [
+      "link"
+    ],
+    "steps": [
+      "Stagger reboots rather than doing the fleet at once"
+    ]
+  },
+  {
+    "id": "c35",
+    "col": "gray",
+    "pri": 3,
+    "title": "Permission posture is identical on every phone",
+    "note": "Contacts, photos, notifications, camera and location states are all read without prompting. An identical posture across the fleet is another weak cluster line.",
+    "tags": [
+      "link"
+    ],
+    "steps": [
+      "Vary the posture where it does not break the workflow"
+    ]
+  },
+  {
+    "id": "c36",
+    "col": "gray",
+    "pri": 3,
+    "title": "What they do with the transcription",
+    "note": "We know the audio is uploaded to a speech-to-text endpoint. We do not know whether the text is used for anything beyond captions, and this capture cannot tell us.",
+    "tags": [
+      "exp"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c37",
+    "col": "good",
+    "pri": 1,
+    "title": "No jailbreak or injection on production phones",
+    "note": "The dyld scan runs from 0.0s and walks every loaded library looking for injected code, 426 reads, plus the DYLD environment variables. Our production phones pass because we never touch them. This is the standing rule that must not slip.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c38",
+    "col": "good",
+    "pri": 1,
+    "title": "Stock signed client, no debugger",
+    "note": "csops and kern.proc read whether the binary is a development build and whether a debugger is attached, at launch and again at the moment of publish. A sideloaded or resigned IPA would be visible immediately, so any modified-client plan is dead on arrival.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c39",
+    "col": "good",
+    "pri": 1,
+    "title": "Real hardware, no emulator",
+    "note": "kern.hv_vmm_present, IsSimulator and kernel-integrity checks all pass on real phones. This is what rules out any emulator route, and it is why the rack exists in the first place.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c40",
+    "col": "good",
+    "pri": 2,
+    "title": "AirPlay shape beats ReplayKit",
+    "note": "2 screens attached with casting is the reading Apple tells developers to treat as ordinary, where 1 screen captured is the shape apps are told to block. This choice is already correct and is the single reason the capture flag is survivable.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c41",
+    "col": "good",
+    "pri": 2,
+    "title": "Ad ID zeroed and tracking denied",
+    "note": "advertisingIdentifier is all zeros and tracking permission reads denied, which is exactly what most real users look like now. Nothing to do.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c42",
+    "col": "good",
+    "pri": 2,
+    "title": "Accessibility flags otherwise clean",
+    "note": "VoiceOver, Switch Control and Guided Access all off, as on a normal phone. Only AssistiveTouch differs, and that one is unavoidable.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c43",
+    "col": "good",
+    "pri": 2,
+    "title": "Clipboard never read",
+    "note": "UIPasteboard untouched across all three publish captures, including while typing captions.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c44",
+    "col": "good",
+    "pri": 2,
+    "title": "Location never asked of the OS",
+    "note": "Zero CLLocationManager calls across every run, and permission reads denied or not determined. The permission system is genuinely not involved, which is exactly why the file-metadata route matters instead.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c45",
+    "col": "good",
+    "pri": 2,
+    "title": "Tamper sweep at publish also passes",
+    "note": "dynamic-codesigning, webinspector.allow-remote-inspection, csops and kern.proc all fire again as the post goes live, not just at launch. Publishing is a moment they re-check you are not instrumented, and stock phones pass.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c46",
+    "col": "good",
+    "pri": 3,
+    "title": "Touch force is a dead field",
+    "note": "UITouch.force is dead on any phone since the XS, no 3D Touch hardware. A real finger reports zero too, so it separates nothing. Do not spend work here.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c47",
+    "col": "good",
+    "pri": 3,
+    "title": "Free disk, memory, thermal state, low power mode",
+    "note": "Roughly 300 reads a session of ordinary telemetry and real performance tuning. Nothing here separates a rack phone from a desk phone.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c48",
+    "col": "good",
+    "pri": 3,
+    "title": "Entitlement sweep, about 25 keys",
+    "note": "Mostly the OS answering capability questions about codecs, fonts and camera access, roughly 80 reads. Bulk without signal for us.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  },
+  {
+    "id": "c49",
+    "col": "good",
+    "pri": 3,
+    "title": "Encode path",
+    "note": "AVAssetWriter and AVAssetExportSession, ordinary system encoding during a post. Carries no signal about who is holding the phone.",
+    "tags": [
+      "clean"
+    ],
+    "steps": []
+  }
+]
