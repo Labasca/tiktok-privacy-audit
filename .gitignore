@@ -4,9 +4,15 @@ node_modules/
 # runtime output
 session.log
 audit.json
+tags.json
 discovery.json
 audit.heartbeat
 *.log
+
+# per-run capture output. bodies/ holds RAW request payloads, which carry the
+# session's auth headers and account state, so this must never be committed.
+runs/
+bodies/
 
 # raw third-party app-bundle files pulled from the phone (TikTok's own manifests).
 # the derived analysis in coverage/ is committed, the raw bundle files are not.
@@ -19,3 +25,6 @@ __pycache__/
 
 # os
 .DS_Store
+
+# assembled run archive (contains raw capture output)
+audit-archive/

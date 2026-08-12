@@ -1,6 +1,12 @@
 # TikTok privacy audit, read-only. Windows launcher + supervisor.
 #
-# Usage:  .\tiktok-audit.ps1 [seconds] [-Full]        (default 40)
+# Usage:  .\tiktok-audit.ps1 [seconds] [-Full] [-Deep] [-Touch] [-Attach]
+#                                      [-Quiet] [-Stream] [-Run NAME]  (default 40)
+#
+# -Run NAME writes this run's artifacts to runs\NAME\ instead of overwriting the
+# ones in the project root. Use it for every run that will be compared against
+# another, which is every run of a stamping test: compare_runs.py names each
+# column after the directory, so the name given here is the name in the matrix.
 #
 # Runs the audit as a SEPARATE child process and supervises it from a loop that
 # never touches USB, so even if the phone-side Frida wedges the USB link, this
@@ -23,7 +29,7 @@
 # Requires: the project venv (.venv) with the pinned Frida client, and Apple's
 # usbmux layer (iTunes or the Apple Devices app) so Frida can see the iPhone.
 param([int]$Duration = 40, [switch]$Full, [switch]$Touch, [switch]$Deep,
-      [switch]$Attach, [switch]$Stream)
+      [switch]$Attach, [switch]$Stream, [switch]$Quiet, [string]$Run = "")
 
 Set-Location -Path $PSScriptRoot
 
@@ -83,8 +89,14 @@ $env:TIKTOK_AUDIT_FULL = if ($Full) { "1" } else { "" }
 $env:TIKTOK_AUDIT_TOUCH = if ($Touch) { "1" } else { "" }
 $env:TIKTOK_AUDIT_DEEP = if ($Deep) { "1" } else { "" }
 $env:TIKTOK_AUDIT_ATTACH = if ($Attach) { "1" } else { "" }
-# -Stream brings back the live per-event stream during the run. Off by default:
-# the boxed report at the end is the product. The full stream is always in session.log.
+# A named run redirects every artifact into runs\NAME\ so a second run
+# cannot overwrite the evidence from the first. Empty means the project root.
+$env:TIKTOK_AUDIT_RUN = $Run
+# The live per-event stream is on by default, so the first seconds show the
+# identifier reads as they land instead of an empty progress bar. -Quiet mutes it.
+# -Stream additionally prints the probe arm/disarm log, which is rig diagnostics.
+# The full stream is always in session.log either way.
+$env:TIKTOK_AUDIT_QUIET = if ($Quiet) { "1" } else { "" }
 $env:TIKTOK_AUDIT_VERBOSE = if ($Stream) { "1" } else { "" }
 
 # The probe schedule needs settle time plus a slot per group. Warn rather than
@@ -142,6 +154,8 @@ finally {
     $env:TIKTOK_AUDIT_TOUCH = ""
     $env:TIKTOK_AUDIT_DEEP = ""
     $env:TIKTOK_AUDIT_ATTACH = ""
+    $env:TIKTOK_AUDIT_RUN = ""
     $env:TIKTOK_AUDIT_VERBOSE = ""
+    $env:TIKTOK_AUDIT_QUIET = ""
 }
 exit 0

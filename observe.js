@@ -42,7 +42,11 @@ import ObjC from 'frida-objc-bridge';
  * grow without bound, and the report says it was truncated.
  * ------------------------------------------------------------------------- */
 var FLUSH_MS = 400;
-var MAX_DISTINCT = 3000;      // distinct cat+key+value combinations
+// Distinct cat+key+value combinations. Raised for the tag inventory: a full
+// dump of eight media files is several hundred rows on its own, and the old
+// ceiling would have been spent by exactly the data the post path exists to
+// collect. These are strings in a Map, so the cost of the headroom is nothing.
+var MAX_DISTINCT = 8000;
 var MAX_EVENTS = 2000000;     // total observed calls before we stop counting
 
 /* ---------------------------------------------------------------------------
@@ -127,6 +131,57 @@ var _probes = [];         // every registered probe, attached or not
 var _live = [];           // probes currently attached
 var _detachQueue = [];    // listeners that spent their sample, swept on flush
 var _startedAt = 0;       // set by rpc start(), the moment the app is resumed
+
+/* ---------------------------------------------------------------------------
+ * THE POST-PATH TAG INVENTORY.
+ *
+ * The rest of this file answers "what did TikTok read". The three pieces below
+ * answer the harder question the metadata work needs: "what was actually IN the
+ * file, field by field, and what came out the other side".
+ *
+ * _selfRead is the reason the other two are safe. Introspecting a media file
+ * means opening it with the same frameworks TikTok uses, which re-enters the
+ * very hooks doing the observing. Without a guard, our own reads are logged as
+ * the app's and every count in the report is inflated by our own curiosity.
+ * Every media hook checks it first.
+ *
+ * _pendingFiles is a work queue, not a hook. Parsing a file is far too slow to
+ * do on the app's thread inside an interceptor, so hooks only RECORD the paths
+ * they see and the flush timer drains one per tick on the script thread, where
+ * blocking costs the app nothing.
+ *
+ * _blobs carries request bodies out whole. emit() cannot: it is a counter keyed
+ * by string, so a 40 KB JSON body would either blow the distinct-key ceiling or
+ * arrive truncated. Bodies ride beside the batch instead and the driver writes
+ * them to disk.
+ * ------------------------------------------------------------------------- */
+var _selfRead = false;
+var _pendingFiles = [];   // [path, container-label], drained by flush()
+var _seenFiles = {};      // path -> 1, so a file is only ever parsed once
+var _fileBudget = 8;      // total files this run will parse, hard stop
+var _blobs = [];          // [{n: name, b: base64}], shipped and cleared on flush
+var _blobBytes = 0;
+var MAX_BLOB = 262144;        // per body
+var MAX_BLOB_TOTAL = 4194304; // per run
+
+function queueFile(path, label) {
+  if (!path || _fileBudget <= 0) return;
+  if (_seenFiles[path]) return;
+  _seenFiles[path] = 1;
+  _fileBudget--;
+  _pendingFiles.push([path, label, 0]);
+}
+
+// Assigned once the ObjC bridge is up. flush() cannot reach into that scope, so
+// the drain worker registers itself here instead.
+var _drainFiles = null;
+
+function captureBlob(name, b64, nbytes) {
+  if (_blobBytes + nbytes > MAX_BLOB_TOTAL) return false;
+  _blobBytes += nbytes;
+  _blobs.push({ n: name, b: b64 });
+  return true;
+}
 
 function probe(group, target, limit, label, handlers) {
   if (!target) return;
@@ -229,7 +284,13 @@ function flush() {
       detachProbe(p);
     }
   });
-  // 3. ship the batch. Always send something, even an empty batch, so the driver
+  // 3. parse at most ONE queued media file per tick. This runs on the script
+  // thread with no app thread waiting on it, which is the only place in this
+  // file where blocking for tens of milliseconds is free. One per tick keeps
+  // the flush cadence itself honest.
+  if (_drainFiles) { try { _drainFiles(); } catch (e) {} }
+
+  // 4. ship the batch. Always send something, even an empty batch, so the driver
   // can tell "idle" from "the phone-side script has wedged" and abort if so.
   var batch = [];
   _tally.forEach(function (row, k) {
@@ -238,8 +299,10 @@ function flush() {
     batch.push([p[0], p[1], p[2], row[0], row[1]]);
     row[2] = row[0];
   });
+  var blobs = _blobs;
+  _blobs = [];
   send({ b: batch, dropped: _dropped, capped: _capped, events: _events,
-         live: _live.length, hb: 1 });
+         live: _live.length, hb: 1, blobs: blobs });
 }
 setInterval(flush, FLUSH_MS);
 
@@ -252,6 +315,13 @@ rpc.exports = {
     _t0 = _startedAt;
     _live.forEach(function (p) { p.dl = _startedAt + BASE_WINDOW_MS; });
     return _probes.length;
+  },
+  // Drops a boundary into the timeline so several posts in one run can still be
+  // told apart. The tally is cumulative by design, so the driver diffs counts
+  // either side of a mark rather than the script resetting anything.
+  mark: function (label) {
+    emit('MARK', String(label || 'mark'), String(Date.now() - _t0) + 'ms');
+    return true;
   },
   arm: function (group, windowMs) { return armGroup(group, windowMs); },
   disarm: function (group) { return disarmGroup(group); },
@@ -1263,29 +1333,65 @@ if (!ObjC.available) {
   // so the plaintext is arg 1 and its length is arg 2. Read only, never altered.
   const HTTP_START = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS) |^Host: /;
   const seenLines = new Set();
+  // 16 bytes is all it takes to tell a request line from a ciphertext blob, and
+  // this sniff runs on EVERY outbound buffer, so it reads the smallest window
+  // that can decide. Only a buffer that already looks like HTTP pays for the
+  // wide read below. That ordering matters: the old code read 96 bytes of every
+  // buffer to decide, then still had too small a window to be useful.
+  const TLS_SNIFF = 16;
+  // 1200, not 400. Measured on this phone: TikTok's CDN request lines carry a
+  // signed policy blob in the query string and run past 400 bytes on their own,
+  // so a 400-byte window was entirely consumed by the request line and never
+  // reached the Host header on the next line. The cost is bounded by the probe's
+  // 60-sample limit, and only buffers already identified as HTTP pay it.
+  const TLS_WINDOW = 1200;
+
+  // Line breaks have to survive as line breaks. Mapping CR and LF to '.' along
+  // with the other unprintables is what produced "HTTP/1.1..Host: lf" and made
+  // the header on the next line unreachable.
+  function tlsAscii(buf, n) {
+    const bytes = new Uint8Array(buf.readByteArray(n));
+    let s = '';
+    for (let i = 0; i < n; i++) {
+      const ch = bytes[i];
+      if (ch === 10 || ch === 13) s += '\n';
+      else s += (ch >= 0x20 && ch <= 0x7e) ? String.fromCharCode(ch) : '.';
+    }
+    return s;
+  }
 
   function tlsWriteHandler(args) {
     const buf = args[1];
     const len = args[2].toInt32();
     if (len < 16 || len > 200000 || buf.isNull()) return;
-    const n = len < 96 ? len : 96;
-    const bytes = new Uint8Array(buf.readByteArray(n));
-    let ok = true;
-    for (let i = 0; i < 8 && i < n; i++) {
-      const ch = bytes[i];
-      if (ch < 0x20 || ch > 0x7e) { ok = false; break; }
+    if (!HTTP_START.test(tlsAscii(buf, len < TLS_SNIFF ? len : TLS_SNIFF))) return;
+
+    const lines = tlsAscii(buf, len < TLS_WINDOW ? len : TLS_WINDOW).split('\n');
+    let first = (lines[0] || '').slice(0, 160);
+    if (!first) return;
+    // Host sits on a header line after the request line. Without it a capture
+    // yields a path with no endpoint attached, which is not enough to say what
+    // a service actually is.
+    let host = '';
+    for (let i = 1; i < lines.length && i < 24; i++) {
+      if (lines[i].slice(0, 6).toLowerCase() === 'host: ') {
+        host = lines[i].slice(6).trim().slice(0, 60);
+        break;
+      }
     }
-    if (!ok) return;
-    let s = '';
-    for (let i = 0; i < n; i++) {
-      const ch = bytes[i];
-      s += (ch >= 0x20 && ch <= 0x7e) ? String.fromCharCode(ch) : '.';
+    // Fold the host in right after the method rather than appending it, so the
+    // endpoint survives the clipping the report does on long paths.
+    if (host) {
+      const sp = first.indexOf(' ');
+      if (sp > 0) {
+        first = first.slice(0, sp) + ' ' + host +
+                first.slice(sp + 1).replace(/ HTTP\/[\d.]+$/, '');
+      }
     }
-    if (!HTTP_START.test(s)) return;
-    const firstLine = s.split('\r')[0].split('\n')[0].slice(0, 80);
-    if (seenLines.has(firstLine)) return;
-    if (seenLines.size < 400) seenLines.add(firstLine);
-    emit('PLAINTEXT', firstLine, null);
+    const key = first.slice(0, 200);
+    if (seenLines.has(key)) return;
+    if (seenLines.size < 400) seenLines.add(key);
+    emit('PLAINTEXT', key, null);
   }
 
   // 60, not 400. SSLWrite carries every outbound byte of a video app, so the
@@ -1442,7 +1548,7 @@ if (!ObjC.available) {
       } catch (e) {}
 
       // A short preview of the body, enough to tell JSON from protobuf from an
-      // encrypted blob. Never the whole thing.
+      // encrypted blob, and then the whole thing on the side.
       try {
         const body = req.HTTPBody();
         if (body && !body.isNull()) {
@@ -1455,10 +1561,806 @@ if (!ObjC.available) {
           } catch (e) {}
           emit('BODY', String(h),
                len + ' bytes' + (head ? ', starts: ' + head.replace(/\s+/g, ' ') : ''));
+          // The publish call is where the metadata TikTok kept becomes visible
+          // again, and a 100 character preview shows the opening brace and
+          // nothing else. Bodies ride beside the batch, base64 so a protobuf or
+          // an encrypted payload survives the trip intact, and the driver
+          // writes them out. emit() cannot carry these: it is keyed by string,
+          // so a body would either be truncated or blow the distinct ceiling.
+          if (len > 0 && len <= MAX_BLOB) {
+            try {
+              const b64 = String(body.base64EncodedStringWithOptions_(0));
+              captureBlob(String(h) + ' ' +
+                          (req.HTTPMethod ? String(req.HTTPMethod()) : 'POST') +
+                          ' ' + String(url.path()), b64, len);
+            } catch (e) {}
+          } else if (len > MAX_BLOB) {
+            emit('BODY', String(h), 'body too large to capture, ' + len + ' bytes');
+          }
         }
       } catch (e) {}
     } catch (e) {}
   }
+
+  // --- The publish path: what a post hands over (read-only) ---
+  // Posting is the one flow that gives TikTok a file off your phone, and the
+  // interesting question is not the upload, it is what rode along inside it. A
+  // video carries a creation timestamp, a camera model and frequently GPS in
+  // its metadata container, and none of that needs a permission prompt once the
+  // file is in the app's hands. A geotag lifted out of a file is a location
+  // read that CLLocationManager never sees, which is why "no location calls"
+  // was never the same as "no location".
+  //
+  // Five questions, in the order they arise during a post:
+  //   1. which picker opened. The modern out-of-process one needs no permission
+  //      and grants no library access, the legacy in-process one does both, and
+  //      telling them apart is what makes a silent photo-library section read
+  //      as a coherent story rather than a hole in the audit.
+  //   2. whether the camera and mic were actually switched on, as opposed to
+  //      merely asked about, which is all the PERMS hooks can tell you.
+  //   3. whether anything opened the metadata container, and if so whether a
+  //      GPS block was in it.
+  //   4. what got encoded.
+  //   5. the shape of the upload: where to, how big, from a file or from memory.
+  //
+  // All of it is app-logic rate. A picker opens once, a capture session starts
+  // once, an upload task is created once. The ones that could in principle run
+  // hotter are the asset constructor, the PHAsset property reads and the image
+  // metadata reads, because a media grid or a video feed touches those per
+  // item, so those three are budgeted. If a run is ever killed after this block
+  // lands, measure those three first.
+  // Attached vs asked for. The $ownMethods guard below is strict on purpose, and
+  // a strict guard that quietly matches nothing looks exactly like an app that
+  // never posted. One line at load says which it was.
+  let mediaWanted = 0, mediaGot = 0;
+  const mediaMissed = [];
+  function mediaHook(cls, sel, handlers) {
+    mediaWanted++;
+    let why;
+    try {
+      const k = ObjC.classes[cls];
+      // Only hook a selector the class implements ITSELF. Frida happily
+      // resolves inherited methods, so asking UIImagePickerController for
+      // '- init' hands back NSObject's implementation, and hooking that traps
+      // every object the app ever allocates. That is the freeze class, reached
+      // from one careless line.
+      if (!k) why = 'class not present on this build';
+      else if (k.$ownMethods.indexOf(sel) === -1) why = 'not implemented by this class';
+      else if (!k[sel]) why = 'selector did not resolve';
+      else {
+        Interceptor.attach(k[sel].implementation, handlers);
+        mediaGot++;
+        return true;
+      }
+    } catch (e) { why = 'attach threw: ' + e; }
+    // Naming the miss is the whole point. A hook that never attached and a
+    // mechanism the app never used produce identical silence, and only one of
+    // them is a finding about TikTok.
+    mediaMissed.push(cls + ' ' + sel + ' (' + why + ')');
+    return false;
+  }
+
+  // --- The tag inventory -------------------------------------------------
+  // MEDIA_META above is a narrative: it says a GPS block was opened. MEDIA_TAG
+  // below is the inventory: it says GPSLatitudeRef was N. The first tells you
+  // TikTok went looking, the second is what you need to stamp a file and check
+  // your work, and neither substitutes for the other.
+  //
+  // VALUES are recorded here, which is a deliberate departure from the rest of
+  // this file. Everywhere else only key names are kept, because the values are
+  // the user's private data and the finding is that the app asked. On the post
+  // path the value IS the finding: "Model" tells you nothing, "Model = iPhone X"
+  // is the whole point. Scope is the safeguard, so this stays limited to media
+  // provenance containers and never widens to the rest of the report.
+  var TAG_VALUES = true;
+
+  // NOTE ON nil. The bridge hands back JS null for a nil id, and isNull() is
+  // NOT one of the builtins it defines on a wrapped object, so calling it on a
+  // live object throws and the throw is swallowed by the surrounding catch. The
+  // failure mode is silent and looks exactly like "the field was not there", so
+  // everything below tests truthiness. isNull() is used only on raw pointers,
+  // which is where it is real: interceptor return values and NativeFunction
+  // results.
+  function tagValue(v) {
+    if (!TAG_VALUES) return null;
+    try {
+      if (v === null || typeof v === 'undefined') return null;
+      var o = v;
+      var cls = String(o.$className);
+      // binary blobs are the common case in {MakerApple} and are never readable.
+      // Their SIZE is still a fingerprint, so it is kept.
+      if (cls.indexOf('NSData') !== -1 || cls.indexOf('NSConcreteData') !== -1) {
+        try { return '(' + o.length() + ' bytes of data)'; } catch (e) { return '(data)'; }
+      }
+      var s = String(o).replace(/\s+/g, ' ').trim();
+      if (s.length > 72) return s.slice(0, 69) + '...';
+      return s.length ? s : null;
+    } catch (e) { return null; }
+  }
+
+  // A CGImageProperties dictionary nests one level: top-level keys are geometry
+  // and colour, and anything wrapped in braces is a container of its own. The
+  // deep walk is gated because a feed decodes hundreds of images that carry no
+  // provenance at all, and walking those is pure cost for a guaranteed empty
+  // result. A file with a {TIFF} or {Exif} or {GPS} in it is a photo somebody
+  // took, and that is the only kind worth opening.
+  // Looked up with === 1, never for truthiness. A bare object inherits
+  // Object.prototype, so a key called 'constructor' or 'toString' would come
+  // back as a function and read as true.
+  var DEEP_BLOCKS = { '{TIFF}': 1, '{Exif}': 1, '{GPS}': 1, '{IPTC}': 1,
+                      '{MakerApple}': 1, '{ExifAux}': 1, '{XMP}': 1, '{DNG}': 1,
+                      '{Photoshop}': 1, '{HEICS}': 1 };
+
+  function walkImageTags(dict, container) {
+    try {
+      var keys = dict.allKeys();
+      var n = keys.count();
+      if (n > 96) n = 96;
+      var names = [], raw = [];
+      for (var i = 0; i < n; i++) {
+        var kobj = keys.objectAtIndex_(i);
+        raw.push(kobj);
+        names.push(String(kobj));
+      }
+      // one cheap pass decides whether this file deserves the expensive one
+      var deep = false;
+      for (var d = 0; d < names.length; d++) {
+        if (DEEP_BLOCKS[names[d]] === 1) { deep = true; break; }
+      }
+      for (var j = 0; j < names.length; j++) {
+        var k = names[j];
+        var val = null;
+        try { val = dict.objectForKey_(raw[j]); } catch (e) {}
+        if (k.charAt(0) === '{') {
+          emit('MEDIA_TAG', container + ' ' + k, deep && DEEP_BLOCKS[k] === 1
+               ? '(block, opened below)' : '(block, not opened)');
+          if (!deep || DEEP_BLOCKS[k] !== 1 || !val) continue;
+          try {
+            var sub = val;
+            if (!sub.allKeys) continue;
+            var sk = sub.allKeys(), sn = sk.count();
+            if (sn > 80) sn = 80;
+            for (var m = 0; m < sn; m++) {
+              var fk = sk.objectAtIndex_(m);
+              emit('MEDIA_TAG', container + ' ' + k + ' ' + String(fk),
+                   tagValue(sub.objectForKey_(fk)));
+            }
+          } catch (e) {}
+        } else {
+          emit('MEDIA_TAG', container + ' ' + k, tagValue(val));
+        }
+      }
+    } catch (e) {}
+  }
+
+  // AVMetadataItem the way it should have been read the first time. commonKey
+  // only resolves the handful of fields AVFoundation normalises across formats,
+  // and everything an iPhone actually writes lives outside that set under
+  // com.apple.quicktime.*, which is why 38 reads last run came back as
+  // "format-specific field, no common key" and told us nothing.
+  function walkAVTags(arr, container) {
+    // nil comes back as JS null, and an absent metadata array is a real result
+    // worth recording rather than a reason to fall through the catch in silence.
+    if (!arr) {
+      emit('MEDIA_TAG', container + ' (absent)', 'no metadata array at all');
+      return;
+    }
+    try {
+      var n = arr.count();
+      if (n > 80) n = 80;
+      for (var i = 0; i < n; i++) {
+        var it = arr.objectAtIndex_(i);
+        var name = null;
+        // identifier is the fully qualified form, 'mdta/com.apple.quicktime.make'
+        try {
+          var id = it.identifier();
+          if (id) name = String(id);
+        } catch (e) {}
+        if (!name) {
+          var ks = null, kk = null;
+          try { var x = it.keySpace(); if (x) ks = String(x); } catch (e) {}
+          try {
+            var y = it.key();
+            if (y) kk = String(y);
+          } catch (e) {}
+          name = (ks ? ks + '/' : '') + (kk || 'unnamed field');
+        }
+        var val = null;
+        try { val = tagValue(it.value()); } catch (e) {}
+        emit('MEDIA_TAG', container + ' ' + name, val);
+      }
+      if (n === 0) emit('MEDIA_TAG', container + ' (empty)', 'no metadata in this container');
+    } catch (e) {}
+  }
+
+  // 1. which picker. PHPicker runs in a separate process: no prompt, no library
+  // access, the chosen file arrives already copied into the app's sandbox.
+  mediaHook('PHPickerViewController', '- initWithConfiguration:', {
+    onEnter: function () {
+      emit('MEDIA', 'system photo picker', 'opened, runs outside the app, no permission needed');
+    }
+  });
+  // the legacy in-process one, which does need permission and does hand over
+  // library access. sourceType says whether it opened the camera or the library.
+  const PICKER_SRC = ['photo library', 'camera', 'saved photos album'];
+  mediaHook('UIImagePickerController', '- setSourceType:', {
+    onEnter: function (args) {
+      let t = -1;
+      try { t = Number(args[2].toInt32()); } catch (e) {}
+      emit('MEDIA', 'in-app camera or picker', PICKER_SRC[t] || ('source ' + t));
+    }
+  });
+
+  // 2. camera and mic actually running. AVCaptureDevice authorizationStatus,
+  // already hooked above, only says it ASKED. This says it opened the device.
+  mediaHook('AVCaptureSession', '- startRunning', {
+    onEnter: function () { emit('MEDIA', 'capture session', 'started, camera or mic is live'); }
+  });
+  mediaHook('AVCaptureSession', '- addInput:', {
+    onEnter: function (args) {
+      try {
+        const inp = new ObjC.Object(args[2]);
+        if (inp.device === undefined) return;
+        const dev = inp.device();
+        if (!dev || dev.isNull()) return;
+        emit('MEDIA', 'capture device opened', String(dev.localizedName()));
+      } catch (e) {}
+    }
+  });
+  // the audio session category is the quieter half of the same question: an app
+  // cannot record without putting the session into a Record category first.
+  // Playback categories are the common case during a feed, so they are filtered
+  // out here rather than emitted and sorted out later.
+  const audioCatBudget = budget(4000, 'audio session category sets');
+  ['- setCategory:error:', '- setCategory:withOptions:error:',
+   '- setCategory:mode:options:error:'].forEach(function (sel) {
+    mediaHook('AVAudioSession', sel, {
+      onEnter: function (args) {
+        if (!audioCatBudget()) return;
+        try {
+          const cat = String(new ObjC.Object(args[2]));
+          if (cat.indexOf('Record') === -1) return;
+          emit('MEDIA', 'audio session set to record',
+               cat.replace('AVAudioSessionCategory', ''));
+        } catch (e) {}
+      }
+    });
+  });
+  mediaHook('AVAudioSession', '- recordPermission', {
+    onLeave: function () { emit('MEDIA', 'microphone permission', 'checked'); }
+  });
+
+  // 3. the metadata container. This is the geotag question, and it is the one
+  // thing here that answers it, because a coordinate read out of a file never
+  // touches CLLocationManager and never prompts.
+  ['CGImageSourceCopyPropertiesAtIndex', 'CGImageSourceCopyProperties'].forEach(
+    function (nm) {
+      const p = dangerousExport(nm);
+      if (!p) return;
+      const b = budget(400, 'image metadata reads (' + nm + ')');
+      const tb = budget(140, 'image tag inventory (' + nm + ')');
+      Interceptor.attach(p, {
+        onLeave: function (ret) {
+          try {
+            if (ret.isNull()) return;
+            // our own introspection calls this too. Logging those would report
+            // our curiosity as the app's behaviour.
+            if (_selfRead) return;
+            // Counting is a map increment and stays UNBUDGETED, because a count
+            // that stops at the budget prints as an exact number and is read as
+            // one. Only the dictionary walk below is expensive, so only the walk
+            // is capped.
+            emit('MEDIA_META', 'image metadata block', 'opened via ' + nm);
+            if (!b()) return;
+            // CFDictionary is toll-free bridged to NSDictionary, so the keys
+            // read without a copy.
+            const d = new ObjC.Object(ret);
+            // the full inventory, field by field, on its own tighter budget
+            if (tb()) walkImageTags(d, 'image');
+            const keys = d.allKeys();
+            const n = keys.count();
+            for (let i = 0; i < n && i < 40; i++) {
+              const k = String(keys.objectAtIndex_(i));
+              if (k.indexOf('GPS') !== -1) {
+                emit('MEDIA_META', 'GPS block read out of the file',
+                     'a location read that needs no permission');
+              } else if (k.indexOf('Exif') !== -1) {
+                emit('MEDIA_META', 'EXIF block', 'capture time and camera settings');
+              } else if (k.indexOf('TIFF') !== -1) {
+                emit('MEDIA_META', 'TIFF block', 'camera make and model');
+              } else {
+                // everything else in one row, with the field name as the value.
+                // This is what separates a decoder reading pixel geometry from
+                // something going through a photo's provenance, and without it
+                // the panel shows three flagged rows and hides the context that
+                // makes them ordinary.
+                emit('MEDIA_META', 'other metadata fields', k);
+              }
+            }
+          } catch (e) {}
+        }
+      });
+    });
+
+  // the video-side equivalent. AVMetadataItem commonKey 'location' is exactly
+  // the QuickTime geotag an iPhone writes into every video it records.
+  const assetMetaBudget = budget(300, 'video metadata reads');
+  const avTagBudget = budget(120, 'video tag inventory');
+  ['AVAsset', 'AVURLAsset'].forEach(function (cls) {
+    ['- commonMetadata', '- metadata'].forEach(function (sel) {
+      mediaHook(cls, sel, {
+        onLeave: function (ret) {
+          try {
+            if (ret.isNull()) return;
+            if (_selfRead) return;
+            emit('MEDIA_META', 'video metadata block', 'read from the file');
+            if (!assetMetaBudget()) return;
+            const arr = new ObjC.Object(ret);
+            // the inventory, with real key names instead of the commonKey
+            // placeholder that discarded 38 fields last run
+            if (avTagBudget()) walkAVTags(arr, 'video ' + sel.slice(2));
+            const n = arr.count();
+            for (let i = 0; i < n && i < 40; i++) {
+              const it = arr.objectAtIndex_(i);
+              let ck = null;
+              try {
+                const c = it.commonKey();
+                if (c && !c.isNull()) ck = String(c);
+              } catch (e) {}
+              if (ck === 'location') {
+                emit('MEDIA_META', 'geotag inside the video',
+                     'a location read that needs no permission');
+              } else if (ck === 'creationDate' || ck === 'make' || ck === 'model') {
+                emit('MEDIA_META', 'video ' + ck, 'read from the file');
+              } else if (ck) {
+                emit('MEDIA_META', 'other video metadata fields', ck);
+              } else {
+                // an item with no common key is format-specific, and an empty
+                // metadata array is the most common outcome of all. Recording
+                // it is what separates "read nothing" from "was never read".
+                emit('MEDIA_META', 'other video metadata fields',
+                     'format-specific field, no common key');
+              }
+            }
+            if (n === 0) {
+              emit('MEDIA_META', 'video metadata came back empty',
+                   'the file carried no metadata to read');
+            }
+          } catch (e) {}
+        }
+      });
+    });
+  });
+  // and the library-side copy of the same facts, which PHAsset hands over
+  // without opening the file at all
+  const phAssetBudget = budget(1200, 'photo library asset reads');
+  [['- location', 'library geotag on the chosen item'],
+   ['- creationDate', 'when the chosen item was shot'],
+   ['- modificationDate', 'when the chosen item was last edited'],
+   ['- localIdentifier', 'stable library ID of the chosen item']].forEach(function (pair) {
+    mediaHook('PHAsset', pair[0], {
+      onLeave: function (ret) {
+        if (ret.isNull()) return;
+        if (_selfRead) return;
+        if (!phAssetBudget()) return;
+        emit('MEDIA_META', pair[1], 'read');
+      }
+    });
+  });
+  // localIdentifier is declared on PHObject, not PHAsset, which is why the
+  // strict $ownMethods guard reported it unattached every run so far.
+  mediaHook('PHObject', '- localIdentifier', {
+    onLeave: function (ret) {
+      if (ret.isNull() || _selfRead) return;
+      if (!phAssetBudget()) return;
+      emit('MEDIA_META', 'stable library ID of the chosen item', 'read');
+    }
+  });
+
+  // The library's own opinion of what this item IS, which is a different claim
+  // from anything in the file and cannot be written by stamping one. sourceType
+  // separates something the camera produced from something synced or shared in,
+  // and mediaSubtypes carries the Live Photo, screenshot and HDR flags. Both are
+  // plain integers, so the values are recorded: the whole question on the post
+  // path is which value came back, not that the property was touched.
+  const PH_SOURCE = { 0: 'none', 1: 'user library', 2: 'cloud shared',
+                      4: 'iTunes synced' };
+  const PH_SUBTYPE = [[1, 'panorama'], [2, 'HDR'], [4, 'screenshot'],
+                      [8, 'LIVE PHOTO'], [16, 'depth effect'],
+                      [65536, 'streamed video'], [131072, 'high frame rate'],
+                      [262144, 'timelapse'], [2097152, 'cinematic']];
+  mediaHook('PHAsset', '- sourceType', {
+    onLeave: function (ret) {
+      if (_selfRead || !phAssetBudget()) return;
+      let v = -1;
+      try { v = ret.toUInt32(); } catch (e) { return; }
+      emit('MEDIA_TAG', 'library sourceType', PH_SOURCE[v] || ('value ' + v));
+    }
+  });
+  mediaHook('PHAsset', '- mediaSubtypes', {
+    onLeave: function (ret) {
+      if (_selfRead || !phAssetBudget()) return;
+      let v = 0;
+      try { v = ret.toUInt32(); } catch (e) { return; }
+      if (v === 0) { emit('MEDIA_TAG', 'library mediaSubtypes', 'none'); return; }
+      PH_SUBTYPE.forEach(function (s) {
+        if (v & s[0]) emit('MEDIA_TAG', 'library mediaSubtypes', s[1]);
+      });
+    }
+  });
+  [['- pixelWidth', 'library pixelWidth'],
+   ['- pixelHeight', 'library pixelHeight'],
+   ['- burstIdentifier', 'library burstIdentifier'],
+   ['- playbackStyle', 'library playbackStyle']].forEach(function (pair) {
+    mediaHook('PHAsset', pair[0], {
+      onLeave: function (ret) {
+        if (_selfRead || !phAssetBudget()) return;
+        let v = null;
+        // the two integer properties come back in the return register, the
+        // object one comes back as a pointer. Telling them apart by trying the
+        // cheap read first keeps this one hook shape for all four.
+        try {
+          v = pair[0].indexOf('Identifier') !== -1
+            ? (ret.isNull() ? 'absent' : String(new ObjC.Object(ret)))
+            : String(ret.toUInt32());
+        } catch (e) { return; }
+        emit('MEDIA_TAG', pair[1], v);
+      }
+    });
+  });
+
+  // The resource behind the asset. originalFilename is the cheapest native
+  // capture tell there is: a camera writes IMG_0042.HEIC and a pipeline writes
+  // whatever it was told to.
+  [['- originalFilename', 'resource originalFilename'],
+   ['- uniformTypeIdentifier', 'resource uniformTypeIdentifier']].forEach(function (pair) {
+    mediaHook('PHAssetResource', pair[0], {
+      onLeave: function (ret) {
+        if (ret.isNull() || _selfRead) return;
+        if (!phAssetBudget()) return;
+        try { emit('MEDIA_TAG', pair[1], String(new ObjC.Object(ret))); } catch (e) {}
+      }
+    });
+  });
+
+  // 4. what got encoded. TikTok is more likely to drive VideoToolbox directly
+  // than to go through AVAssetWriter, so both are covered. Each fires once per
+  // export, which is why neither needs a budget.
+  mediaHook('AVAssetWriter', '- startWriting', {
+    onEnter: function () { emit('MEDIA', 'video encode started', 'AVAssetWriter'); }
+  });
+  mediaHook('AVAssetExportSession', '- exportAsynchronouslyWithCompletionHandler:', {
+    onEnter: function () { emit('MEDIA', 'video export started', 'AVAssetExportSession'); }
+  });
+  try {
+    const vt = dangerousExport('VTCompressionSessionCreate');
+    if (vt) {
+      const b = budget(50, 'hardware encoder sessions');
+      Interceptor.attach(vt, {
+        onEnter: function () {
+          if (b()) emit('MEDIA', 'hardware video encoder', 'compression session created');
+        }
+      });
+    }
+  } catch (e) {}
+
+  // 3b. XMP, which is a container of its own and not part of the EXIF
+  // dictionary the hook above walks. Provenance, editing history and the
+  // Content Credentials manifest all live here, so a run that never sees this
+  // called cannot say anything about whether TikTok looks for them.
+  try {
+    const mdAt = dangerousExport('CGImageSourceCopyMetadataAtIndex');
+    if (mdAt) {
+      const xb = budget(60, 'XMP metadata reads');
+      const copyTags = dangerousExport('CGImageMetadataCopyTags');
+      const tagName = dangerousExport('CGImageMetadataTagCopyName');
+      const tagPrefix = dangerousExport('CGImageMetadataTagCopyPrefix');
+      const fn = function (p) {
+        try { return p ? new NativeFunction(p, 'pointer', ['pointer']) : null; }
+        catch (e) { return null; }
+      };
+      const fTags = fn(copyTags), fName = fn(tagName), fPrefix = fn(tagPrefix);
+      Interceptor.attach(mdAt, {
+        onLeave: function (ret) {
+          try {
+            if (ret.isNull() || _selfRead) return;
+            emit('MEDIA_META', 'XMP metadata block', 'opened out of the file');
+            if (!xb() || !fTags) return;
+            // CopyTags hands back a +1 CFArray we deliberately never release.
+            // A handful of small leaked arrays per run is free, and an
+            // over-release in a read-only observer would crash the app we are
+            // trying to watch behave normally.
+            const tags = fTags(ret);
+            if (tags.isNull()) return;
+            const arr = new ObjC.Object(tags);
+            let n = arr.count();
+            if (n > 80) n = 80;
+            for (let i = 0; i < n; i++) {
+              // .handle, not the wrapper. A CGImageMetadataTagRef arrives from
+              // the array as a bridged object, and a NativeFunction declared
+              // 'pointer' wants the raw address. Passing the wrapper is the
+              // quiet kind of wrong: it does not throw here, it reads a
+              // different address inside CoreGraphics.
+              const t = arr.objectAtIndex_(i).handle;
+              let pfx = '', nm = '?';
+              try {
+                if (fPrefix) {
+                  const p = fPrefix(t);
+                  if (!p.isNull()) pfx = String(new ObjC.Object(p)) + ':';
+                }
+              } catch (e) {}
+              try {
+                if (fName) {
+                  const q = fName(t);
+                  if (!q.isNull()) nm = String(new ObjC.Object(q));
+                }
+              } catch (e) {}
+              emit('MEDIA_TAG', 'XMP ' + pfx + nm, null);
+            }
+            if (n === 0) emit('MEDIA_TAG', 'XMP (empty)', 'no XMP tags in this file');
+          } catch (e) {}
+        }
+      });
+    }
+  } catch (e) {}
+
+  // 3c. the codec, which no metadata field carries and which separates an
+  // iPhone capture from a pipeline export as reliably as any EXIF string.
+  try {
+    const gst = Module.findGlobalExportByName('CMFormatDescriptionGetMediaSubType');
+    const fSub = gst ? new NativeFunction(gst, 'uint32', ['pointer']) : null;
+    const fourcc = function (v) {
+      let s = '';
+      for (let i = 3; i >= 0; i--) {
+        const c = (v >> (i * 8)) & 0xff;
+        s += (c >= 0x20 && c <= 0x7e) ? String.fromCharCode(c) : '.';
+      }
+      return s;
+    };
+    const fdBudget = budget(60, 'track format description reads');
+    mediaHook('AVAssetTrack', '- formatDescriptions', {
+      onLeave: function (ret) {
+        try {
+          if (ret.isNull() || _selfRead || !fSub) return;
+          if (!fdBudget()) return;
+          const arr = new ObjC.Object(ret);
+          let n = arr.count();
+          if (n > 8) n = 8;
+          for (let i = 0; i < n; i++) {
+            // raw address, same reason as the XMP tag walk above
+            emit('MEDIA_TAG', 'track codec',
+                 fourcc(fSub(arr.objectAtIndex_(i).handle)));
+          }
+        } catch (e) {}
+      }
+    });
+  } catch (e) {}
+
+  // 3d. the two file URLs that bracket the whole post: what TikTok opened and
+  // what its encoder produced. Neither is parsed here. Parsing a media file
+  // takes tens of milliseconds and this is the app's own thread inside an
+  // interceptor, which is exactly the wall-clock cost that gets a process
+  // killed. The paths go on a queue and the flush timer does the work.
+  ['- initWithURL:options:'].forEach(function (sel) {
+    mediaHook('AVURLAsset', sel, {
+      onEnter: function (args) {
+        try {
+          if (_selfRead) return;
+          const u = new ObjC.Object(args[2]);
+          if (!u.isFileURL || !u.isFileURL()) return;
+          const p = String(u.path());
+          emit('MEDIA', 'opened a media file', String(u.lastPathComponent()));
+          queueFile(p, 'INPUT');
+        } catch (e) {}
+      }
+    });
+  });
+  ['AVAssetExportSession', 'AVAssetWriter'].forEach(function (cls) {
+    mediaHook(cls, '- setOutputURL:', {
+      onEnter: function (args) {
+        try {
+          if (_selfRead) return;
+          const u = new ObjC.Object(args[2]);
+          if (!u.path) return;
+          const p = String(u.path());
+          emit('MEDIA', 'encoder output file', String(u.lastPathComponent()));
+          // queued, but the encoder has not written it yet. The flush drain
+          // skips zero-length files and retries them on a later tick.
+          queueFile(p, 'OUTPUT');
+        } catch (e) {}
+      }
+    });
+  });
+  mediaHook('AVAssetWriter', '- initWithURL:fileType:error:', {
+    onEnter: function (args) {
+      try {
+        if (_selfRead) return;
+        const u = new ObjC.Object(args[2]);
+        if (!u.path) return;
+        emit('MEDIA', 'encoder output file', String(u.lastPathComponent()));
+        queueFile(String(u.path()), 'OUTPUT');
+      } catch (e) {}
+    }
+  });
+
+  // 3e. what TikTok WRITES into its own re-encode. If any harvested field is
+  // propagated into the file it uploads, this is where it happens, and an empty
+  // result here is itself the answer to whether provenance survives the export.
+  ['AVAssetExportSession', 'AVAssetWriter'].forEach(function (cls) {
+    mediaHook(cls, '- setMetadata:', {
+      onEnter: function (args) {
+        try {
+          if (_selfRead) return;
+          const arr = new ObjC.Object(args[2]);
+          if (!arr || !arr.count) return;
+          walkAVTags(arr, 'written into the export');
+        } catch (e) {}
+      }
+    });
+  });
+
+  // 3f. the sandbox copy's own attributes: size and dates that no metadata
+  // field carries. Filtered to media extensions because an app stats hundreds
+  // of files it never uploads.
+  const MEDIA_EXT = /\.(mov|mp4|m4v|heic|heif|jpg|jpeg|png|webp|gif|aae|avci)$/i;
+  const attrBudget = budget(120, 'media file attribute reads');
+  mediaHook('NSFileManager', '- attributesOfItemAtPath:error:', {
+    onEnter: function (args) {
+      this._p = null;
+      try {
+        if (_selfRead) return;
+        const p = String(new ObjC.Object(args[2]));
+        if (MEDIA_EXT.test(p)) this._p = p;
+      } catch (e) {}
+    },
+    onLeave: function (ret) {
+      try {
+        if (!this._p || ret.isNull() || !attrBudget()) return;
+        const d = new ObjC.Object(ret);
+        const name = this._p.split('/').pop();
+        try {
+          emit('MEDIA_TAG', 'file size', String(d.objectForKey_('NSFileSize')) +
+               ' bytes (' + name + ')');
+        } catch (e) {}
+        ['NSFileCreationDate', 'NSFileModificationDate'].forEach(function (k) {
+          try {
+            const v = d.objectForKey_(k);
+            if (v && !v.isNull()) {
+              emit('MEDIA_TAG', 'file ' + k.replace('NSFile', ''), String(v));
+            }
+          } catch (e) {}
+        });
+      } catch (e) {}
+    }
+  });
+
+  // 5. the upload itself. The -resume hook above already sees these, but it
+  // reports them as ordinary requests. Catching the constructor is what tells
+  // an upload apart from a fetch, and it is the only place the payload size is
+  // visible before the bytes go into the socket.
+  ['- uploadTaskWithRequest:fromData:', '- uploadTaskWithRequest:fromFile:',
+   '- uploadTaskWithRequest:fromData:completionHandler:',
+   '- uploadTaskWithRequest:fromFile:completionHandler:',
+   '- uploadTaskWithStreamedRequest:'].forEach(function (sel) {
+    mediaHook('NSURLSession', sel, {
+      onEnter: function (args) {
+        try {
+          const req = new ObjC.Object(args[2]);
+          let host = 'unknown host';
+          try {
+            // truthiness, not isNull(). See the nil note by tagValue: the
+            // bridge returns JS null for nil and isNull() is not one of its
+            // builtins, so it only resolves when something in the process has
+            // added an -isNull category. Depending on that is depending on
+            // another SDK's implementation detail.
+            const u = req.URL();
+            if (u) {
+              const h = u.host();
+              if (h) host = String(h);
+            }
+          } catch (e) {}
+          let what = 'streamed body, size not known yet';
+          if (sel.indexOf('fromData:') !== -1) {
+            try { what = new ObjC.Object(args[3]).length() + ' bytes from memory'; } catch (e) {}
+          } else if (sel.indexOf('fromFile:') !== -1) {
+            try {
+              const f = new ObjC.Object(args[3]);
+              what = 'file ' + String(f.lastPathComponent());
+              // the actual artifact leaving the phone. Queued, not parsed here.
+              if (f.path) queueFile(String(f.path()), 'UPLOADED');
+            } catch (e) {}
+          }
+          emit('MEDIA', 'upload to ' + host, what);
+          reportRequest(req);
+        } catch (e) {}
+      }
+    });
+  });
+
+  // --- The file drain ----------------------------------------------------
+  // The one place in this file that reads a file rather than watching the app
+  // read one. It answers the question no interceptor can: not "which fields did
+  // TikTok ask for" but "which fields were there to be asked for", and on the
+  // OUTPUT side, "which of them survived the re-encode". Those two dumps
+  // bracket the post, and the difference between them is the finding.
+  //
+  // It runs on the flush timer, never on an app thread, and it sets _selfRead
+  // so the hooks above ignore everything it does.
+  const IMG_EXT = /\.(heic|heif|jpg|jpeg|png|webp|gif|avci|tiff?)$/i;
+  // An encoder registers its output URL before it writes a byte, and then the
+  // file grows for as long as the export takes. Parsing on first sight would
+  // read a truncated container and report an empty or wrong tag set, which is
+  // indistinguishable from a real finding. So a file is only parsed once its
+  // size has stopped changing between two ticks.
+  const DRAIN_RETRIES = 30;      // 30 ticks at 400ms, so about 12 seconds
+  _drainFiles = function () {
+    if (!_pendingFiles.length) return;
+    const job = _pendingFiles.shift();
+    const path = job[0], label = job[1];
+    const tries = job[2] + 1;
+    const lastSize = job[3] || -1;
+    _selfRead = true;
+    const t0 = Date.now();
+    try {
+      // JS strings convert to NSString at the bridge, so no manual marshalling.
+      const fm = ObjC.classes.NSFileManager.defaultManager();
+      let size = 0;
+      try {
+        const a = fm.attributesOfItemAtPath_error_(path, NULL);
+        if (a) size = Number(a.objectForKey_('NSFileSize')) || 0;
+      } catch (e) {}
+      if (size === 0 || size !== lastSize) {
+        // not there yet, or still being written. Requeue with what we saw.
+        if (tries < DRAIN_RETRIES) _pendingFiles.push([path, label, tries, size]);
+        else emit('MEDIA_FILE', label + ' never settled',
+                  path.split('/').pop() + ', still changing after ' +
+                  DRAIN_RETRIES + ' checks');
+        return;
+      }
+      const name = path.split('/').pop();
+      emit('MEDIA_FILE', label, name + ', ' + size + ' bytes');
+
+      const url = ObjC.classes.NSURL.fileURLWithPath_(path);
+      if (IMG_EXT.test(path)) {
+        const mk = dangerousExport('CGImageSourceCreateWithURL');
+        const cp = dangerousExport('CGImageSourceCopyPropertiesAtIndex');
+        if (mk && cp) {
+          const fMk = new NativeFunction(mk, 'pointer', ['pointer', 'pointer']);
+          const fCp = new NativeFunction(cp, 'pointer',
+                                         ['pointer', 'size_t', 'pointer']);
+          const src = fMk(url.handle, NULL);
+          if (!src.isNull()) {
+            const props = fCp(src, 0, NULL);
+            if (!props.isNull()) walkImageTags(new ObjC.Object(props), label);
+          }
+        }
+      } else {
+        const asset = ObjC.classes.AVURLAsset.URLAssetWithURL_options_(url, NULL);
+        if (asset) {
+          walkAVTags(asset.commonMetadata(), label + ' common');
+          walkAVTags(asset.metadata(), label + ' format');
+          try {
+            const fmts = asset.availableMetadataFormats();
+            const nf = fmts.count();
+            for (let i = 0; i < nf; i++) {
+              const f = fmts.objectAtIndex_(i);
+              walkAVTags(asset.metadataForFormat_(f), label + ' ' + String(f));
+            }
+          } catch (e) {}
+        }
+      }
+    } catch (e) {
+      emit('MEDIA_FILE', label + ' could not be read', String(e).slice(0, 80));
+    } finally {
+      _selfRead = false;
+      const ms = Date.now() - t0;
+      // If this ever gets slow it shows up here rather than as a mystery stall.
+      if (ms > 120) emit('RIG', 'file parse was slow', ms + 'ms');
+    }
+  };
+
+  emit('RIG', 'post-path hooks', mediaGot + ' of ' + mediaWanted + ' attached');
+  mediaMissed.forEach(function (m) { emit('RIG', 'post-path hook NOT attached', m); });
 
   // =====================================================================
   // BEHAVIORAL & ANTI-AUTOMATION LAYER

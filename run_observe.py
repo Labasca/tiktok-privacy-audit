@@ -16,17 +16,39 @@ Usage:  python run_observe.py [seconds]
 import sys, os, re, time, json, shutil, threading, ipaddress, frida
 from collections import Counter
 
+import mobilegestalt_keys
+
 # run from the script's own directory so observe.compiled.js resolves anywhere
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 BUNDLE = "com.zhiliaoapp.musically"
 DURATION = int(sys.argv[1]) if len(sys.argv) > 1 else 40
-LOG_PATH = "session.log"
-JSON_PATH = "audit.json"
+# A named run keeps its artifacts in runs/<name>/ instead of overwriting the
+# ones in the project root. A comparison needs several runs side by side, and
+# the default fixed filenames mean the second post erases the evidence from the
+# first. compare_runs.py takes each run's column name from its directory, so the
+# name given here is the name that appears in the matrix.
+RUN_NAME = os.environ.get("TIKTOK_AUDIT_RUN", "").strip()
+if RUN_NAME:
+    _OUT = os.path.join("runs", re.sub(r"[^A-Za-z0-9._-]+", "-", RUN_NAME))
+    os.makedirs(_OUT, exist_ok=True)
+    _out = lambda n: os.path.join(_OUT, n)
+else:
+    # unnamed runs keep the bare filenames they always had, so nothing that
+    # already reads audit.json in the project root has to learn a new path.
+    _out = lambda n: n
+
+LOG_PATH = _out("session.log")
+JSON_PATH = _out("audit.json")
+# The two artifacts a stamping test is actually read out of. tags.json is flat
+# and sorted so two runs diff cleanly, and bodies/ holds the request payloads
+# whole, which is where the metadata TikTok kept becomes visible again.
+TAGS_PATH = _out("tags.json")
+BODY_DIR = _out("bodies")
 # Last line of defence. The script already caps what it records and batches what
 # it sends, but a bug on either side must never be able to grow this process
 # without bound. Exceeding it truncates the report rather than the machine.
-MAX_ITEMS = 4000
+MAX_ITEMS = 10000
 
 def _flag(name):
     return os.environ.get(name, "") not in ("", "0", "false", "no")
@@ -123,9 +145,13 @@ def probe_schedule(plan, duration, settle=PROBE_SETTLE_S, gap=PROBE_GAP_S,
         t += round_gap
         rounds += 1
     return out
-# The live per-event stream is noise on a repeat run. It is off by default now, the
-# boxed report at the end is the product. -Verbose brings the stream back. Either
-# way the full stream is always written to session.log.
+# The live per-event stream is back on by default. Muting it left the first ten
+# seconds looking like a hung loading bar, when in fact that window is where the
+# identifier reads land and is the most interesting part of the run. -Quiet mutes
+# it again. Either way the full stream is always written to session.log.
+LIVE = not _flag("TIKTOK_AUDIT_QUIET")
+# Separate and still off by default: the per-group probe arm/disarm log, which is
+# diagnostic detail about the rig rather than about TikTok. -Stream turns it on.
 VERBOSE = _flag("TIKTOK_AUDIT_VERBOSE")
 
 # If the phone-side script goes silent this long, the instrumentation has wedged
@@ -192,6 +218,8 @@ CAT_COLOR = {
     "NETWORK":     "1;34",
     "REQUEST":     "1;32",
     "HARDWARE":    "36",
+    "MEDIA":       "1;36",
+    "PROVENANCE":  "1;35",
 }
 
 
@@ -710,6 +738,47 @@ def classify_host(host):
     return "unrecognised", "unclassified endpoint", WATCH
 
 
+# MobileGestalt properties that are an identity, not a capability. A codec or
+# screen-geometry read is the app sizing its encoder. These are the device itself,
+# so they get FLAG rather than the WATCH every other gestalt read receives.
+# RegionCode and RegionInfo are in here for a reason that is not obvious: they are
+# the sales region burned in at manufacture, so unlike locale, language, timezone
+# or a proxy exit country, they do not move. A fleet bought in one region and
+# presented as another disagrees here permanently.
+GESTALT_IDENTITY = {
+    "UniqueDeviceID", "UniqueDeviceIDData", "UniqueChipID", "InverseDeviceID",
+    "SerialNumber", "MLBSerialNumber", "SysCfg",
+    "InternationalMobileEquipmentIdentity", "InternationalMobileEquipmentIdentity2",
+    "MobileEquipmentIdentifier", "BasebandSerialNumber", "BasebandChipId",
+    "WifiAddress", "WifiAddressData", "BluetoothAddress", "BluetoothAddressData",
+    "EthernetMacAddress", "EthernetMacAddressData",
+    "DieId", "BoardId", "ChipID",
+    "RegionCode", "RegionInfo",
+    "DeviceName", "UserAssignedDeviceName",
+    "apple-internal-install",
+}
+
+
+def gestalt_name(key):
+    """Resolve an obfuscated MobileGestalt key to its property name.
+
+    MGCopyAnswer is usually handed base64(md5("MGCopyAnswer" + name))[:22] rather
+    than the name, so the raw stream is full of 22-character tokens that say
+    nothing. Resolving host-side rather than in observe.js is deliberate: the
+    hooks run on a single script thread against a 10 second launch watchdog, and
+    a table lookup per read is cost the phone should never pay.
+
+    Returns the key unchanged when it is already plaintext, and marks a token we
+    cannot name so an unresolved key is never mistaken for a real property.
+    """
+    hit = mobilegestalt_keys.resolve(key)
+    if hit:
+        return hit
+    if re.fullmatch(r"[A-Za-z0-9+/]{22}", key):
+        return "unnamed key " + key
+    return key
+
+
 def describe(cat, key):
     """Return (label, tier) for a raw event key."""
     if cat == "FINGERPRINT":
@@ -778,7 +847,20 @@ def describe(cat, key):
         hot = key in ("AssistiveTouch", "VoiceOver", "Switch Control", "Guided Access")
         return (key, FLAG if hot else WATCH)
     if cat == "GESTALT":
-        return ("MobileGestalt: " + key, WATCH)
+        # key arrives already resolved from apply(), so this only has to decide
+        # whether the property is an identity or a capability.
+        if key.startswith("unnamed key "):
+            raw = key[len("unnamed key "):]
+            if raw in mobilegestalt_keys.UNRECOVERED_ON_THIS_BUILD:
+                # confirmed a real property in this phone's own libMobileGestalt,
+                # just one nobody has recovered the name of. Worth a mark: TikTok
+                # reaching for a key this obscure is not incidental.
+                return ("MobileGestalt: real key on this build, name not "
+                        "publicly recovered", FLAG)
+            return ("MobileGestalt: unrecognised token, not a key in this "
+                    "build's dylib", WATCH)
+        return ("MobileGestalt: " + key,
+                FLAG if key in GESTALT_IDENTITY else WATCH)
     if cat == "CAPTURE":
         return (key, FLAG)
     if cat == "PERIPHERAL":
@@ -795,7 +877,56 @@ def describe(cat, key):
         return (key, FLAG)
     if cat == "SENSOR_VALUE":
         return (key, WATCH)
+    if cat == "MEDIA":
+        # opening a picker or an encoder is what a post does. Turning the camera
+        # on, or putting bytes on the wire, is the part worth a mark.
+        return (key, WATCH if key in MEDIA_ROUTINE else FLAG)
+    if cat == "MEDIA_TAG":
+        # a tag is evidence, not a verdict. Only the fields that place a person
+        # or name a device carry a mark, so a 60 row dump still reads.
+        return (key, FLAG if TAG_IS_IDENTIFYING(key) else WATCH)
+    if cat == "MEDIA_FILE":
+        return (key, WATCH)
+    if cat == "MEDIA_META":
+        # opening a metadata container is routine, an image decoder does it
+        # constantly. Pulling a coordinate, a capture time or a camera out of
+        # one is the finding, so only those carry the mark.
+        return (key, WATCH if key in MEDIA_META_ROUTINE else FLAG)
     return (key, INFO)
+
+
+# Tags that either place the person or name the device. Everything else in a
+# provenance dump is exposure settings and pixel geometry, which is noise until
+# you are comparing two files field by field.
+TAG_IDENTIFYING = (
+    "GPS", "Latitude", "Longitude", "Altitude", "location", "ISO6709",
+    "Make", "Model", "LensMake", "LensModel", "Software", "HostComputer",
+    "SerialNumber", "ImageUniqueID", "ContentIdentifier", "content.identifier",
+    "camera.identifier", "DateTimeOriginal", "CreationDate", "creationdate",
+    "OffsetTime", "mediaSubtypes", "sourceType", "originalFilename",
+)
+
+
+def TAG_IS_IDENTIFYING(key):
+    return any(t in key for t in TAG_IDENTIFYING)
+
+
+# the mechanical steps of a post, as opposed to the reads that ride along with it
+MEDIA_ROUTINE = ("system photo picker", "video encode started", "video export started",
+                 "hardware video encoder", "audio session set to record",
+                 "microphone permission")
+
+
+# opening the container and reading pixel geometry is what a decoder does on
+# every image it draws. Only what identifies you or where you were is marked.
+MEDIA_META_ROUTINE = ("image metadata block", "video metadata block",
+                      "other metadata fields", "other video metadata fields",
+                      "video metadata came back empty")
+
+
+def is_geotag(key):
+    """A coordinate read out of a file rather than asked of the OS."""
+    return "geotag" in key or "GPS" in key
 
 
 # families of near-identical keys that are only meaningful in aggregate. The
@@ -848,7 +979,15 @@ def display_cat(cat, key):
             "SENSOR_VALUE": "SENSOR",
             "TOUCH": "INTERACTION",
             "SCROLL": "INTERACTION",
-            "HAPTIC": "INTERACTION"}.get(cat, cat)
+            "HAPTIC": "INTERACTION",
+            "MEDIA": "MEDIA",
+            "MEDIA_META": "MEDIA",
+            # the tag inventory is a different KIND of fact from the rest of the
+            # report. Everything else records that the app asked a question.
+            # These record what the answer was, field by field, which is what a
+            # stamping test has to diff between runs.
+            "MEDIA_TAG": "PROVENANCE",
+            "MEDIA_FILE": "PROVENANCE"}.get(cat, cat)
 
 
 # the raw integer is meaningless, what it tells the app is not
@@ -905,7 +1044,27 @@ class Recorder:
         self.groups_seen = set()
         self.truncated = False
         self.dropped = 0
+        self.marks = []          # operator boundaries between posts in one run
+        self.blob_n = 0
+        self.blob_index = []     # [(filename, description, bytes)]
         self.caps = {}           # hook label -> the limit it stopped at
+
+    def write_blob(self, name, b64):
+        """Write one captured request body to disk. Names are derived from the
+        host and path, numbered, so two calls to the same endpoint do not
+        overwrite each other and the order is recoverable from the listing."""
+        import base64 as _b64
+        os.makedirs(BODY_DIR, exist_ok=True)
+        self.blob_n += 1
+        safe = re.sub(r"[^A-Za-z0-9._-]+", "_", name)[:80].strip("_") or "body"
+        fn = "%03d-%s.bin" % (self.blob_n, safe)
+        try:
+            raw = _b64.b64decode(b64)
+        except Exception:
+            return
+        with open(os.path.join(BODY_DIR, fn), "wb") as f:
+            f.write(raw)
+        self.blob_index.append((fn, name, len(raw)))
 
     @property
     def total(self):
@@ -915,6 +1074,11 @@ class Recorder:
     def apply(self, cat, key, value, count, first_s):
         """Counts arrive as absolute totals from the script, not increments, so
         a dropped or duplicated batch cannot skew the numbers."""
+        # Resolve here, before anything keys off it, so the plain name reaches the
+        # live stream, the report, the dedup key and audit.json alike. The mapping
+        # is one-to-one, so two hashes can never collapse into one row.
+        if cat == "GESTALT":
+            key = gestalt_name(key)
         dcat = display_cat(cat, key)
         label, tier = describe(cat, key)
         if cat == "INTERFACE" and value:
@@ -1013,7 +1177,7 @@ class Recorder:
             "%-*s" % (LIVE_KEY_COL, key),
             c(DIM, detail),
         )
-        if VERBOSE:
+        if LIVE:
             self.console.line(pretty, plain)
         else:
             self.console.log_only(plain)
@@ -1341,9 +1505,53 @@ def intro_gestalt(rows, items):
             "probes. This records the questions, never the answers."]
 
 
+def intro_media(rows, items):
+    keys = {r["key"] for r in rows}
+    out = ["Posting is the one thing you do that hands over a file. What matters is "
+           "not the upload, it is what was already inside the file. A video shot on "
+           "an iPhone carries the time it was taken, the camera that took it and, "
+           "unless you turned that off, the coordinates. Reading those out of a file "
+           "the app is already holding needs no permission and produces no prompt."]
+    geo = [k for k in keys if "GPS" in k or "geotag" in k]
+    if geo:
+        out.append("This run it DID read location out of the file itself. That is a "
+                   "position fix obtained without CLLocationManager, so it would not "
+                   "appear anywhere else in this report.")
+    elif any(r["cat"] == "MEDIA" and r["src"] == "MEDIA_META" for r in rows):
+        out.append("It opened the metadata container but no location block came back, "
+                   "which means either the file carried no coordinates or it read only "
+                   "the parts listed here.")
+    if "system photo picker" in keys and "in-app camera or picker" not in keys:
+        out.append("The picker it used runs outside the app, so it got the one file you "
+                   "chose and no access to the rest of your library. That is also why "
+                   "the permission section shows no photo-library grant.")
+    if "capture session" in keys:
+        out.append("The camera or microphone was not merely asked about, it was opened.")
+    return out
+
+
+def intro_provenance(rows, items):
+    out = ["Every metadata field seen on the post path this run, with its value. "
+           "The rest of this report records that TikTok asked a question. This "
+           "records what the answer was, which is the only form the data can take "
+           "if you intend to diff one posted file against another."]
+    have = {tag_bucket(r["key"]) for r in rows if r.get("src") == "MEDIA_TAG"}
+    if "INPUT" in have and ("UPLOADED" in have or "OUTPUT" in have):
+        out.append("Both ends were captured. The fields present under INPUT and "
+                   "absent under OUTPUT or UPLOADED are the ones the re-encode "
+                   "dropped, which is the list worth stamping against.")
+    if "written into the export" in have:
+        out.append("TikTok wrote metadata into its own export. Those fields are "
+                   "the ones it chose to carry forward, and they are listed "
+                   "separately below.")
+    return out
+
+
 SECTION_SPECS = [
     ("IDENTITY",    "WHO YOU ARE",                      intro_identity,   "kv"),
     ("PERMS",       "WHAT IT CHECKED YOU HAD ALLOWED",  intro_perms,      "kv"),
+    ("MEDIA",       "WHAT YOUR POST HANDED OVER",       intro_media,      "media"),
+    ("PROVENANCE",  "EVERY TAG ON THE POST PATH",       intro_provenance, "tags"),
     ("INTERACTION", "HOW YOU TOUCH THE SCREEN",         intro_interaction, "kv"),
     ("ACCESSIBILITY", "ASSISTIVE AND ACCESSIBILITY STATE", intro_accessibility, "kv"),
     ("ENVIRONMENT", "WHAT IS AROUND YOUR PHONE",        intro_environment, "kv"),
@@ -1464,6 +1672,253 @@ def rows_kv(p, rows, cat):
             c(DIM, "%4dx" % r["count"])))
         if len(val) > val_w:
             p("      " + val)
+
+
+# A raw request line off the wire says nothing on its own. These are the paths
+# worth recognising by name, so a run can be compared against another one
+# (captions on versus off, say) without re-reading the path every time.
+PLAINTEXT_PATHS = [
+    ("lab-speech-video-caption", "speech to text: your audio, uploaded to be transcribed"),
+    ("/upload/v1/", "an upload, not a fetch"),
+    ("speedtest", "upload bandwidth measurement, a property of your connection"),
+    ("ies.fe.effect", "editor effect assets"),
+    ("/video/tos/", "video object storage, the region is in the path"),
+]
+
+
+def plaintext_meaning(line):
+    for needle, meaning in PLAINTEXT_PATHS:
+        if needle in line:
+            return meaning
+    return ""
+
+
+# The containers a tag can come from, in the order a post touches them. The
+# first three are what TikTok read live. The next three are the file dumps that
+# bracket the post, and the difference between INPUT and UPLOADED is the whole
+# question of what survives an upload.
+TAG_CONTAINERS = [
+    ("INPUT",   "the file TikTok opened"),
+    ("OUTPUT",  "what its encoder wrote"),
+    ("UPLOADED", "the artifact that left the phone"),
+    ("image",   "read live out of an image"),
+    ("video",   "read live out of a video"),
+    ("XMP",     "XMP tags in the file"),
+    ("track",   "codec"),
+    ("library", "what the Photos database said"),
+    ("resource", "the asset's backing file"),
+    ("file",    "filesystem attributes"),
+    ("written into the export", "TikTok wrote this into its own re-encode"),
+]
+
+
+def tag_bucket(key):
+    for prefix, _ in TAG_CONTAINERS:
+        if key == prefix or key.startswith(prefix + " "):
+            return prefix
+    return "other"
+
+
+def render_provenance(p, rows, items):
+    """Every media tag observed this run, grouped by where it came from. This is
+    the section a stamping test is read out of, so it prints values and never
+    collapses two fields into one row: the point is to diff it against the next
+    run, not to summarise it."""
+    files = [r for r in rows if r.get("src") == "MEDIA_FILE"]
+    tags = [r for r in rows if r.get("src") == "MEDIA_TAG"]
+
+    if files:
+        p("")
+        p("  " + c(BOLD, "files opened end to end"))
+        for r in sorted(files, key=lambda r: r["first"]):
+            for v, _n in r["values"].most_common(4):
+                p("    %-12s %s" % (r["key"], c(DIM, v)))
+
+    if not tags:
+        p("")
+        for ln in wrap("No media tags were seen. Either nothing was posted this run "
+                       "or the post path never opened a file with provenance in it. "
+                       "A run intended as a stamping test that prints this line "
+                       "produced no data, whatever else it recorded.", W - 6):
+            p("  " + c(DIM, ln))
+        return
+
+    # QuickTime keys are long ('mdta/com.apple.quicktime.content.identifier'),
+    # so this section gives the name more room than the others. The untruncated
+    # pair always survives in tags.json, which is what a diff reads anyway.
+    name_w = max(34, int(W * 0.54))
+    val_w = max(14, W - name_w - 14)
+    buckets = {}
+    for r in tags:
+        buckets.setdefault(tag_bucket(r["key"]), []).append(r)
+
+    order = [b[0] for b in TAG_CONTAINERS] + ["other"]
+    titles = dict(TAG_CONTAINERS)
+    for b in order:
+        rs = buckets.get(b)
+        if not rs:
+            continue
+        p("")
+        p("  " + c(BOLD, b) + c(DIM, "  " + titles.get(b, "")))
+        for r in sorted(rs, key=lambda r: r["key"]):
+            # strip the container off the front, it is already the heading
+            short = r["key"][len(b):].strip() if r["key"].startswith(b) else r["key"]
+            mark = c("1;31", "!") if r["tier"] == FLAG else " "
+            vals = r["values"].most_common(3)
+            val = ", ".join(v for v, _ in vals) if vals else c(DIM, "(no value)")
+            p("  %s %-*s %s %s" % (mark, name_w, clip(short or b, name_w),
+                                   clip(val, val_w),
+                                   c(DIM, "%dx" % r["count"])))
+
+    # the one comparison the section exists to make. Section intros are not
+    # rendered by the panel loop, so the guidance that decides whether this run
+    # is usable has to live here or it is never seen.
+    have = {b for b in buckets}
+    p("")
+    if "INPUT" in have and (have & {"UPLOADED", "OUTPUT"}):
+        for ln in wrap("Both ends were captured. Fields listed under INPUT and "
+                       "absent under OUTPUT or UPLOADED are the ones the "
+                       "re-encode dropped, and that difference is the list worth "
+                       "stamping against. Diff this run against another with "
+                       "compare_runs.py.", W - 6):
+            p("  " + c(DIM, ln))
+    else:
+        for ln in wrap("Only one end was captured, so nothing here says what "
+                       "survives a post. Run compare_runs.py against a second "
+                       "run to get a comparison.", W - 6):
+            p("  " + c(DIM, ln))
+    if "INPUT" in have and "UPLOADED" not in have and "OUTPUT" not in have:
+        p("")
+        for ln in wrap("The input file was dumped but no encoder output or upload "
+                       "file was. TikTok either had not finished the post when the "
+                       "run ended or it uploaded through a path that never named a "
+                       "file. Extend the run past the export before reading this as "
+                       "nothing having been uploaded.", W - 6):
+            p("  " + c(DIM, ln))
+
+
+def render_media(p, rows, items):
+    """The post path, split by what it did: switched something on, read something
+    out of a file, put something on the wire. The steps that produced NOTHING are
+    then named with what that means and what to do about it, because in this
+    section an absence is a finding and a missing row looks like no finding."""
+    name_w = max(26, int(W * 0.42))
+    val_w = max(16, W - name_w - 12)
+
+    def line(r):
+        mark = c("1;31", "!") if r["tier"] == FLAG else " "
+        top = r["values"].most_common(1)
+        val = top[0][0] if top else r["label"]
+        # several distinct field names under one row, so say how many
+        extra = ""
+        if len(r["values"]) > 1:
+            extra = " (+%d more)" % (len(r["values"]) - 1)
+        p("  %s %-*s %s %s" % (mark, name_w, clip(human(r["key"]), name_w),
+                               "%-*s" % (val_w, clip(val + extra, val_w)),
+                               c(DIM, "%4dx" % r["count"])))
+
+    def block(title, rs):
+        if not rs:
+            return
+        p("  " + c(DIM, title))
+        for r in sorted(rs, key=lambda r: (0 if r["tier"] == FLAG else 1, -r["count"])):
+            line(r)
+        p("")
+
+    # Which post-path hooks never attached. A hook that failed and a mechanism
+    # the app never used produce identical silence, so every conclusion drawn
+    # from an absence below has to know the difference.
+    unattached = set()
+    for r in items:
+        if r["cat"] == "RIG" and r["key"] == "post-path hook NOT attached":
+            for v in r["values"]:
+                unattached.add(v.split(" ", 1)[0])
+
+    def blind(*classes):
+        return sorted(c for c in classes if c in unattached)
+
+    keys = {r["key"] for r in rows}
+    reads = [r for r in rows if r.get("src") == "MEDIA_META"]
+    ups = [r for r in rows if r["key"].startswith("upload to ")]
+    upkeys = {r["key"] for r in ups}
+    steps = [r for r in rows if r.get("src") == "MEDIA" and r["key"] not in upkeys]
+
+    block("what it switched on:", steps)
+    block("what it read out of the files themselves:", reads)
+    block("what left the phone:", ups)
+
+    # --- the absences, which is the actionable half --------------------------
+    geo = [r for r in reads if is_geotag(r["key"])]
+    img = sum(r["count"] for r in reads if r["key"] == "image metadata block")
+    vid = sum(r["count"] for r in reads if r["key"] == "video metadata block")
+    notes = []
+
+    if reads and not geo:
+        # image field names only. The video side reports "format-specific field"
+        # placeholders, which would read as nonsense in a list of EXIF keys.
+        fields = set()
+        for r in reads:
+            if r["key"] == "other metadata fields":
+                fields |= set(r["values"])
+        detail = (", ".join(sorted(fields)[:6]) + (", ..." if len(fields) > 6 else "")
+                  if fields else "")
+        notes.append(
+            "%d metadata reads and NO location block in any of them. Either these files "
+            "carry no coordinates or these were decode-time reads, which look the same "
+            "from here. The tell is which fields came back%s: orientation, pixel geometry "
+            "and camera model are what a decoder wants, a GPS or a full EXIF block is what "
+            "a harvester wants."
+            % (img + vid, (" (" + detail + ")") if detail else ""))
+    if not (keys & {"system photo picker", "in-app camera or picker"}):
+        deaf = blind("PHPickerViewController", "UIImagePickerController")
+        if deaf:
+            notes.append(
+                "No picker row, but %s never attached this run, so this is a gap in the "
+                "rig and NOT a finding about the app. Fix the hook before reading anything "
+                "into the silence." % " and ".join(deaf))
+        elif "capture session" in keys:
+            notes.append(
+                "No picker of either kind opened, but a capture session did, so the media "
+                "came from the in-app camera rather than from your library.")
+        else:
+            notes.append(
+                "No picker of either kind opened, so nothing was chosen through a system "
+                "UI in this window. If you did pick something, TikTok used its own gallery "
+                "and reached the library directly, which is worth a separate look.")
+    if not (keys & {"video encode started", "video export started",
+                    "hardware video encoder"}):
+        deaf = blind("AVAssetWriter", "AVAssetExportSession")
+        if deaf:
+            notes.append(
+                "No encoder row, but %s never attached, so the silence is the rig's, not "
+                "the app's." % " and ".join(deaf))
+        else:
+            notes.append(
+                "No encoder started. AVAssetWriter, AVAssetExportSession and VideoToolbox "
+                "all stayed quiet, so the encode either happened outside this window or "
+                "runs through a bundled encoder that never calls the system one.")
+    if not ups:
+        if blind("NSURLSession"):
+            notes.append(
+                "No upload row, but the NSURLSession upload hooks never attached, so this "
+                "says nothing about how the file left.")
+        else:
+            notes.append(
+                "No upload task was created, so nothing left through Apple's networking. "
+                "TikTok publishes through its own uploader, and the only hook that can see "
+                "those bytes is the tls probe, which samples for 600ms at a time. Run with "
+                "-Full and publish while a probe window is live, or treat the upload "
+                "itself as out of reach.")
+    if unattached:
+        notes.append(
+            "%d post-path %s did not attach at all: %s. Everything above is blind to those."
+            % (len(unattached), "hook" if len(unattached) == 1 else "hooks",
+               ", ".join(sorted(unattached))))
+    if notes:
+        p("  " + c(DIM, "what did NOT happen, and what that means:"))
+        for n in notes:
+            for i, ln in enumerate(wrap(n, W - 8)):
+                p("    " + ("  " if i else c(DIM, MARK + " ")) + c(DIM, ln))
 
 
 def render_applist(p, rows):
@@ -1616,6 +2071,9 @@ def render_destinations(p, rows, all_items):
           "request lines captured BEFORE encryption, straight off TikTok's own TLS:"))
         for r in sorted(plain, key=lambda r: -r["count"]):
             p("      " + clip(r["key"], W - 8) + c(DIM, "  %dx" % r["count"]))
+            what = plaintext_meaning(r["key"])
+            if what:
+                p("        " + c(DIM, what))
 
     resp = [r for r in rows if r.get("src") == "RESPONSE"]
     if resp:
@@ -1680,7 +2138,11 @@ def _capture(mode, rows, cat, items):
     buf = []
     cap = lambda coloured="", plain=None: buf.append(coloured)
     try:
-        if mode == "net":
+        if mode == "media":
+            render_media(cap, rows, items)
+        elif mode == "tags":
+            render_provenance(cap, rows, items)
+        elif mode == "net":
             render_exposure(cap, rows, items)
         elif mode == "dest":
             render_destinations(cap, rows, items)
@@ -1737,6 +2199,25 @@ def report(rec, console, meta):
             bits.append("no public address exposed")
         if bits:
             panel_row(p, c(DIM, "network   ") + "   ".join(bits), BOLD)
+        # The post line only appears when a post actually happened. A coordinate
+        # read out of the file is the one finding that belongs at the very top,
+        # because it is a location fix that never touches CLLocationManager and
+        # so contradicts the location section sitting empty further down.
+        media = [r for r in items if r["cat"] == "MEDIA"]
+        if media:
+            mbits = []
+            if any(is_geotag(r["key"]) for r in media):
+                mbits.append(c("1;31", "location read out of the file itself"))
+            elif any(r.get("src") == "MEDIA_META" for r in media):
+                mbits.append("file metadata read, no location in it")
+            if any(r["key"] == "capture session" for r in media):
+                mbits.append(c("1;31", "camera or mic opened"))
+            ups = [r for r in media if r["key"].startswith("upload to ")]
+            if ups:
+                mbits.append("%d upload %s"
+                             % (len(ups), "target" if len(ups) == 1 else "targets"))
+            if mbits:
+                panel_row(p, c(DIM, "post      ") + "   ".join(mbits), BOLD)
         panel_bottom(p, BOLD)
     else:
         panel_top(p, "TIKTOK AUDIT", "nothing", BOLD)
@@ -1837,6 +2318,13 @@ def caveats(items, rec=None):
                        "than to a call limit, so their counts are what happened in that "
                        "slice and imply nothing about the rest of the run."
                        % (len(windowed), "hook" if len(windowed) == 1 else "hooks"))
+    missed = sorted(v for r in items if r["cat"] == "RIG"
+                    and r["key"] == "post-path hook NOT attached" for v in r["values"])
+    if missed:
+        out.append("Anything these post-path hooks would have caught, because they never "
+                   "attached: " + ", ".join(missed) + ". A hook that failed and a mechanism "
+                   "the app never used look identical from here, and only one of them is a "
+                   "finding.")
     if rec is not None and rec.truncated:
         out.append("Some kinds of event beyond the safety ceiling. The capture stops "
                    "recording new ones rather than growing without bound.")
@@ -1857,16 +2345,30 @@ def caveats(items, rec=None):
                    "the phone the app connects to a stand-in address and the client "
                    "forwards it, so the far end is not visible from inside the app.")
     if not any(r["cat"] == "LOCATION" for r in items):
-        out.append("Location. The app made no location calls this run, which is not proof "
-                   "it never asks, only that it did not while being watched.")
+        if any(r["cat"] == "MEDIA" and is_geotag(r["key"]) for r in items):
+            # saying "no location" here while the post section reports a
+            # coordinate read out of the file would be the report contradicting
+            # itself, and the file route is the one that needs no permission
+            out.append("Location asked of the OS. The app made no CLLocationManager calls, "
+                       "but it DID read a position out of a media file, which is listed "
+                       "above and needs no permission. Absence here is not absence of "
+                       "location.")
+        else:
+            out.append("Location. The app made no location calls this run, which is not "
+                       "proof it never asks, only that it did not while being watched.")
+    if not any(r["cat"] == "MEDIA" for r in items):
+        out.append("Anything about a post. The picker, capture-session, encoder, file "
+                   "metadata and upload hooks are live in every run and not one of them "
+                   "fired, so nothing was recorded, picked or uploaded while being "
+                   "watched. Post something during the window to exercise that path.")
     out.append("Which of the values above rode along in which request. Reads and "
                "connections are both captured, but nothing ties a specific identifier to "
                "a specific outbound packet.")
     out.append("Anything past the safety caps. The script stops recording new kinds of "
                "event once it hits its ceiling, so a runaway hook truncates this report "
                "instead of exhausting the machine running it.")
-    out.append("Anything the app never got round to. This is a launch sequence. Watching, "
-               "posting, messaging or paying each open behaviour that never ran here.")
+    out.append("Anything the app never got round to. Watching, messaging or paying each "
+               "open behaviour that never ran here.")
     out.append("Full transcript in %s, machine-readable in %s." % (LOG_PATH, JSON_PATH))
     return out
 
@@ -1889,6 +2391,35 @@ def dump_json(rec, meta):
     }
     with open(JSON_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+    write_tags(rec, meta)
+
+
+def write_tags(rec, meta):
+    """The diffable sidecar. audit.json is the whole run and is shaped for a
+    human to read once. This is one flat sorted mapping of tag to value, which
+    is the only shape that survives being compared against five other runs
+    without the comparison drowning in structure."""
+    tags, files = {}, {}
+    for r in rec.items.values():
+        if r["src"] == "MEDIA_TAG":
+            vals = sorted(r["values"])
+            tags[r["key"]] = {
+                "value": vals[0] if len(vals) == 1 else (vals or None),
+                "reads": r["count"],
+                "first_seen_s": round(r["first"], 3),
+            }
+        elif r["src"] == "MEDIA_FILE":
+            files[r["key"]] = sorted(r["values"])
+    data = {
+        "run": meta,
+        "marks": [{"label": k, "at": v} for k, v in rec.marks],
+        "files": files,
+        "bodies": [{"file": f, "from": n, "bytes": b} for f, n, b in rec.blob_index],
+        "tag_count": len(tags),
+        "tags": {k: tags[k] for k in sorted(tags)},
+    }
+    with open(TAGS_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 # --------------------------------------------------------------------------
@@ -1910,6 +2441,15 @@ def main():
             last_beat[0] = time.time()
             armed[0] = True
             pl = msg.get("payload") or {}
+            # Request bodies ride beside the batch rather than through the tally,
+            # because the tally is a counter keyed by string and a body is
+            # neither short nor repeated. Written out whole so the publish call
+            # can be read after the fact.
+            for blob in pl.get("blobs") or []:
+                try:
+                    rec.write_blob(blob.get("n") or "body", blob.get("b") or "")
+                except Exception as e:
+                    errors.append("blob: %s" % e)
             if "b" not in pl:
                 return
             if pl.get("capped"):
@@ -1944,6 +2484,13 @@ def main():
                             pass
                     continue
                 if cat == "NOTE":
+                    continue
+                if cat == "MARK":
+                    # a boundary the operator dropped between two posts in one
+                    # run. Not a finding, but it is what lets the counts either
+                    # side of it be told apart.
+                    rec.marks.append((key, value))
+                    console.line(c(BOLD, "  -- mark: %s (%s)" % (key, value)))
                     continue
                 rec.apply(cat, key or "?", value or None, count, first_ms / 1000.0)
         elif t == "error":
@@ -2080,7 +2627,7 @@ def main():
     if ATTACH_ON:
         console.line("  " + c(DIM, "%-9s" % "") + c(DIM, "attached to the running app, launch not observed"))
     console.line("")
-    if VERBOSE:
+    if LIVE:
         console.line("  " + c(DIM, RULE * (W - 2)))
         console.line("  " + c(DIM, "one line per NEW thing TikTok touches. repeats are counted, not printed."))
         console.line("  " + c(DIM, "scroll the feed on the phone to exercise more of the app."))

@@ -13,6 +13,8 @@ fake device IDs, no VPN-status tampering).
 | `observe.js` | The read-only hooks (identifiers, fingerprint sysctls, keychain, interface scans, requests). They emit structured events, no formatting. |
 | `observe.compiled.js` | Generated bundle Frida actually runs (contains the ObjC bridge). Regenerate after editing `observe.js`. |
 | `run_observe.py` | The driver and the report: spawns TikTok, deduplicates the event stream, explains it, writes the artifacts. |
+| `dump_tags.py` | Reads a media file directly with exiftool into the same shape `tags.json` uses. The denominator for a coverage check. |
+| `compare_runs.py` | Diffs the tag inventory across several runs, or a file dump against a run. This is what a stamping test is read out of. |
 | `requirements.txt` | Pinned Frida client versions (must match the phone). |
 | `package.json` / `bun.lock` | The one build dependency, `frida-objc-bridge` (only needed to recompile hooks). |
 
@@ -22,6 +24,57 @@ Written on each run, both gitignored:
 |----------|----------|
 | `session.log` | Everything printed to the terminal, minus the colour codes. |
 | `audit.json` | Every distinct thing read, with counts, first/last timestamps and the values returned. Keeps the per-item detail that the terminal report rolls up. |
+| `tags.json` | Flat, sorted tag-to-value map for the post path only. Shaped to be diffed against another run rather than read once. |
+| `bodies/` | Captured request bodies, whole, one file each. **Carries session auth headers and account state.** Never commit it. |
+
+Pass `-Run NAME` (or `--run NAME`) and all four go to `runs/NAME/` instead of the
+project root. Use it for every run that will be compared against another,
+because the default fixed filenames mean the second post erases the first.
+
+## Measuring the post path
+
+The rest of this tool records that TikTok asked a question. The post path also
+records **what the answer was**, field by field, because a metadata question is
+comparative: what a native capture carries that a generated file does not, and
+which of it survives the re-encode.
+
+Three things bracket a post:
+
+| Container | What it is |
+|-----------|------------|
+| `INPUT` | The file TikTok opened, dumped in full by the rig |
+| `OUTPUT` / `UPLOADED` | What its encoder wrote and what left the phone |
+| `image` / `video` / `library` | What it read live, as it read it |
+
+A file is parsed on the flush timer, never on an app thread, and only once its
+size has stopped changing between ticks, so a growing export is not read
+half-written. While the rig parses a file it sets an internal flag that makes
+every hook ignore its own reads, otherwise the tool's curiosity is logged as the
+app's behaviour and every count is inflated.
+
+### A stamping test, end to end
+
+One post per run. The tally is cumulative, so two posts in one run produce a
+blended count that cannot be attributed to either file.
+
+```bash
+# 1. the denominator: every tag actually in the file, before it is posted
+./dump_tags.py testfiles/01-native.mov
+
+# 2. the run. Post exactly one video during the window.
+./tiktok-audit.sh 90 --run 01-native
+
+# 3. coverage: what was in the file vs what the rig saw cross
+./compare_runs.py testfiles/01-native.tags.json runs/01-native/tags.json     --normalize --diff-only
+
+# 4. once several arms exist, the comparison the work actually asks
+./compare_runs.py runs/*/tags.json --diff-only --csv matrix.csv
+```
+
+A tag `dump_tags.py` finds that the rig never names is either a tag TikTok did
+not touch or a hook that does not exist. Those two look identical until the
+coverage check is run, which is the whole reason to run it before trusting an
+absence.
 
 ## Prerequisites (both platforms)
 
@@ -171,7 +224,12 @@ Exercise the app during the window.
 .\tiktok-audit.ps1 40 -Full              # adds the net / tls / sys probes
 .\tiktok-audit.ps1 25 -Full -Attach      # probe an app you already have open
 .\tiktok-audit.ps1 40 -Full -Deep        # adds stat / access / statfs
+.\tiktok-audit.ps1 40 -Quiet             # progress bar only, no live stream
 ```
+
+The live stream runs by default, so the first seconds show each identifier as it is
+read rather than an empty progress bar. `-Quiet` mutes it and leaves only the bar and
+the report. `session.log` holds the full stream either way.
 
 `-Full` needs about 17s of window for one probe pass, so give it 25 or more. The launcher
 warns if the window is too short instead of silently skipping groups.
@@ -255,6 +313,84 @@ watchdog floor and cannot be sampled safely. So:
   is genuinely busy. It cannot see the launch.
 
 Either way, scroll the feed while the probes run. The footer shows which group is live.
+
+### The post path
+
+Posting is the one flow that hands TikTok a file off your phone, and the file is the
+finding, not the upload. A video shot on an iPhone carries its capture time, the camera
+model and, unless you turned that off, the coordinates. Reading those out of a file the
+app already holds needs no permission, produces no prompt, and never touches
+`CLLocationManager`, so "no location calls" was never the same as "no location".
+
+These hooks are always on, because a post happens once and a timed probe would miss it:
+
+| Question | Hook |
+|----------|------|
+| Which picker opened | `PHPickerViewController -initWithConfiguration:` (out of process, no permission, no library access) vs `UIImagePickerController -setSourceType:` (in process, needs both) |
+| Was the camera actually on | `AVCaptureSession -startRunning` and `-addInput:`, which names the device. The permission section only ever tells you it *asked* |
+| Was the mic armed | `AVAudioSession -setCategory:` filtered to the Record categories |
+| Was file metadata opened | `CGImageSourceCopyProperties(AtIndex)` for images, `AVAsset -commonMetadata` / `-metadata` for video. Key names only, and a GPS block or a `location` metadata item is called out by name |
+| What the library knew | `PHAsset -location`, `-creationDate`, `-localIdentifier` |
+| What got encoded | `AVAssetWriter`, `AVAssetExportSession`, `VTCompressionSessionCreate` |
+| The upload | `NSURLSession -uploadTaskWithRequest:...`, which is the only place the payload size is visible before the bytes reach the socket |
+
+A geotag found this way is promoted to the summary panel at the top and rewrites the
+location caveat at the bottom, so the report cannot report an empty location section and
+a coordinate read in the same breath. If nothing fires, the closing notes say so
+explicitly rather than leaving the silence to be read as proof.
+
+The panel itself is split three ways, *what it switched on*, *what it read out of the
+files themselves*, *what left the phone*, and then closes with **what did NOT happen**.
+That last block is the point. In this section an absence is a finding and a missing row
+looks like no finding, so every step of a post that produced nothing is named along with
+what its silence means: no picker but a live capture session means the media came from
+the in-app camera, no upload task means the file went out through TikTok's own uploader
+where only the `tls` probe could ever see it. Metadata reads with no location block are
+reported with the field names that *did* come back, because orientation and pixel
+geometry are what an image decoder wants, while a GPS or full EXIF block is what a
+harvester wants, and the two are indistinguishable without that list.
+
+Counting is deliberately unbudgeted while the dictionary walks are capped. A count that
+stops at its budget prints as an exact number and gets read as one, which is how a run
+came back reporting exactly 60 metadata reads when the budget was 60.
+
+Three of these could in principle run hotter than app-logic rate, because a media grid or
+a video feed touches them per item: the image metadata reads, the asset metadata reads and
+the `PHAsset` property reads. All three are budgeted. If a run is ever killed after this,
+measure those three first.
+
+One trap worth knowing about if you extend this block: `ObjC.classes.X['- init']` happily
+resolves an *inherited* method, so asking `UIImagePickerController` for `- init` hands back
+`NSObject`'s and hooking it traps every object the app ever allocates. `mediaHook()` refuses
+any selector that is not in the class's own `$ownMethods` for exactly that reason.
+
+Because that guard is strict, every miss is **named**, with why: `class not present on this
+build`, `not implemented by this class`, `selector did not resolve`, or the exception. A
+hook that failed and a mechanism the app never used produce identical silence, so the
+report will not draw a conclusion from an absence whose hook never attached. It says the
+gap is the rig's instead, and lists the misses in the closing notes.
+
+### Reading a request off the wire
+
+The `tls` probe captures request lines before encryption. It reads **16 bytes** to decide
+whether a buffer is HTTP at all, which is the cheap guard that runs on every outbound
+buffer, then **400 bytes** only for the ones that already look like a request. That second
+window is what reaches the `Host:` header on the line after the request line, and the host
+is folded in right after the method so it survives the clipping the report does on long
+paths:
+
+```
+POST lab-va.tiktokv.com/upload/v1/lab-speech-video-caption-no/oQAobegf9qib...
+  speech to text: your audio, uploaded to be transcribed
+```
+
+The second line comes from `PLAINTEXT_PATHS` in `run_observe.py`, a small table of paths
+worth recognising by name. It exists so two runs can be compared (captions on versus off,
+say) without re-reading a raw path every time. Add to it as you learn what a path is.
+
+CR and LF are preserved as line breaks rather than mapped to `.` with the other
+unprintables. Mapping them is what used to produce `HTTP/1.1..Host: lf` and put the
+endpoint permanently out of reach.
 
 ## Safety rules for adding hooks
 

@@ -1,7 +1,13 @@
 #!/bin/bash
 # TikTok privacy audit, read-only. macOS / Linux launcher.
 #
-# Usage: ./tiktok-audit.sh [seconds] [--full] [--attach] [--deep] [--touch] [--stream]
+# Usage: ./tiktok-audit.sh [seconds] [--full] [--attach] [--deep] [--touch]
+#                                    [--quiet] [--stream] [--run NAME]
+#
+# --run NAME writes this run's artifacts to runs/NAME/ instead of overwriting
+# the ones in the project root. Use it whenever more than one run is going to be
+# compared, which is every run of a stamping test: compare_runs.py names each
+# column after the directory, so the name given here is the name in the matrix.
 #
 # --full adds the net / tls / sys probe groups. They are not switched on at load:
 # they attach one group at a time, for well under a second, starting at 11s, which
@@ -11,12 +17,23 @@ set -e
 cd "$(dirname "$0")"
 
 DURATION=40
+want_run=0
 for arg in "$@"; do
+  # --run takes a value, so the next loop pass has to be treated as that value
+  # rather than as a flag of its own.
+  if [ "$want_run" = "1" ]; then
+    export TIKTOK_AUDIT_RUN="$arg"
+    want_run=0
+    continue
+  fi
   case "$arg" in
+    --run)    want_run=1 ;;
+    --run=*)  export TIKTOK_AUDIT_RUN="${arg#--run=}" ;;
     --full)   export TIKTOK_AUDIT_FULL=1 ;;
     --attach) export TIKTOK_AUDIT_ATTACH=1 ;;
     --deep)   export TIKTOK_AUDIT_DEEP=1 ;;
     --touch)  export TIKTOK_AUDIT_TOUCH=1 ;;
+    --quiet)  export TIKTOK_AUDIT_QUIET=1 ;;
     --stream) export TIKTOK_AUDIT_VERBOSE=1 ;;
     ''|*[!0-9]*) echo "  ignoring unrecognised argument: $arg" ;;
     *) DURATION="$arg" ;;
