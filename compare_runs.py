@@ -91,6 +91,8 @@ SYNONYM = {
     "exif.pixelydimension": "image.pixelheight",
     "quicktime.creationdate": "quicktime.creationdate",
     "quicktime.gpscoordinates": "quicktime.locationiso6709",
+    # exiftool shortened this one; CoreGraphics still uses the EXIF 2.2 name
+    "exif.iso": "exif.isospeedratings",
 }
 
 
@@ -134,6 +136,18 @@ def canon(key):
         if k.startswith(noise + " "):
             k = k[len(noise) + 1:].strip()
 
+    # metadataForFormat_ names the format itself, so the row arrives as
+    # "com.apple.quicktime.mdta mdta/com.apple.quicktime.make". Without this the
+    # format name is treated as part of the field and the two halves are
+    # concatenated into an unreadable key that matches nothing on either side.
+    if " " in k:
+        head, rest = k.split(" ", 1)
+        # a format label is a reverse-DNS name and never contains a slash; the
+        # field that follows it is either a slash-qualified identifier or a
+        # plain name. Either way the label belongs to the container, not the key.
+        if "/" not in head and ("/" in rest or "." in head):
+            k = rest.strip()
+
     # QuickTime identifiers: "mdta/com.apple.quicktime.make", "udta/©mak"
     if "/" in k.split(" ")[0]:
         ident = k.split(" ")[0]
@@ -164,24 +178,69 @@ def canon(key):
     return SYNONYM.get(n, n)
 
 
-def load(path, normalize=False):
+# The containers that describe a WHOLE FILE, as opposed to the live reads that
+# describe what the app pulled out of one. Normalising strips the container off
+# the front of a key, which is what lets exiftool and the rig agree on a name -
+# and which also makes every one of these collapse onto the same key.
+FILE_CONTAINERS = ("SOURCE", "INPUT", "OUTPUT", "UPLOADED")
+
+
+def raw_container(key):
+    """The container a rig key belongs to, before normalising erases it."""
+    for cont in RIG_CONTAINERS:
+        if key == cont or key.startswith(cont + " "):
+            return cont
+    return None
+
+
+def load(path, normalize=False, container=None):
+    """container:
+         None    - no filtering (the right thing for run-vs-run diffs)
+         'live'  - only what the app read during the post, no file dumps
+         a name  - only that container
+
+    Filtering has to happen BEFORE normalising. INPUT, OUTPUT and UPLOADED all
+    reduce to the same names by design, so normalising first would merge three
+    descriptions of three different files into one column and hide the exact
+    thing a stamping test is looking for, which is a field that was in the
+    input and is not in the upload."""
     with open(path, encoding="utf-8") as f:
         d = json.load(f)
-    tags = {}
-    for k, v in (d.get("tags") or {}).items():
+    raw = d.get("tags") or {}
+    # An exiftool dump has no rig containers at all: it IS one file, described
+    # once. Filtering it by container would empty it and silently turn the
+    # coverage check into a comparison against nothing.
+    has_file_dumps = any(raw_container(k) in FILE_CONTAINERS for k in raw)
+    tags, collapsed = {}, []
+    for k, v in raw.items():
+        cont = raw_container(k)
+        if has_file_dumps and container == "live":
+            if cont in FILE_CONTAINERS:
+                continue
+        elif has_file_dumps and container is not None:
+            if cont != container:
+                continue
         val = v.get("value") if isinstance(v, dict) else v
         if isinstance(val, list):
             val = ", ".join(str(x) for x in val)
         val = "(present)" if val in (None, "") else str(val)
         name = canon(k) if normalize else k
-        # two raw keys can normalise onto one name (the same field read out of
-        # the input file and live during the post). Keep the first value and
-        # note the collapse rather than letting the later one silently win.
+        # Two raw keys can still normalise onto one name even inside a single
+        # container, because the same field appears in several AV metadata
+        # formats. Identical values are the normal case and merge silently; a
+        # genuine disagreement is recorded and reported rather than hidden.
         if name in tags and tags[name] != val:
+            collapsed.append(name)
             tags[name] = tags[name] + " | " + val
         else:
             tags[name] = val
-    return tags, d
+    return tags, d, sorted(set(collapsed))
+
+
+def available_containers(path):
+    with open(path, encoding="utf-8") as f:
+        d = json.load(f)
+    return {raw_container(k) for k in (d.get("tags") or {})} - {None}
 
 
 def arm_name(path):
@@ -215,22 +274,73 @@ def main():
                     help="reduce both tools' names to one 'block.field' form. "
                          "Use this to compare a dump_tags.py file dump against "
                          "a rig run. Run-vs-run diffs do not need it.")
+    ap.add_argument("--container",
+                    help="which file the rig's rows should describe: INPUT, "
+                         "OUTPUT, UPLOADED, SOURCE, or 'live' for what the app "
+                         "read rather than a file dump. Defaults to INPUT under "
+                         "--normalize, and to no filter otherwise.")
     ap.add_argument("--width", type=int, default=26, help="column width")
     ap.add_argument("--csv", help="also write the matrix to a CSV file")
     args = ap.parse_args()
 
-    arms, metas = [], []
     for p in args.runs:
         if not os.path.exists(p):
             sys.exit("no such file: %s" % p)
-        tags, meta = load(p, args.normalize)
+
+    # Normalising erases the container, so without a filter INPUT, OUTPUT and
+    # UPLOADED would pile into one column and a field dropped by the re-encode
+    # would still read as present. Pick one, and say which one out loud.
+    container = args.container
+    if container is None and args.normalize:
+        present = set()
+        for p in args.runs:
+            present |= available_containers(p)
+        for pref in ("INPUT", "SOURCE"):
+            if pref in present:
+                container = pref
+                break
+        else:
+            container = "live"
+        print("--normalize: comparing the %s view. Other containers are hidden "
+              "because normalising merges them.\n"
+              "             Override with --container OUTPUT / UPLOADED / live.\n"
+              % container)
+
+    # A container nobody has is the worst possible input: every rig row is
+    # filtered away, every value reads as absent, and the summary reports a
+    # catastrophic coverage failure that is really just a typo in a flag.
+    if container is not None and container != "live":
+        present = set()
+        for p in args.runs:
+            present |= available_containers(p)
+        if present and container not in present:
+            sys.exit("no run here has a %r container. Available: %s\n"
+                     "(or pass --container live for what the app read rather "
+                     "than a file dump)"
+                     % (container, ", ".join(sorted(present)) or "none"))
+
+    arms, metas, collapses = [], [], []
+    for p in args.runs:
+        tags, meta, collapsed = load(p, args.normalize, container)
         arms.append((arm_name(p), tags))
         metas.append(meta)
+        if collapsed:
+            collapses.append((arm_name(p), collapsed))
+
+    for name, keys_ in collapses:
+        print("NOTE: in %s, %d name(s) came from more than one raw tag with "
+              "different values, shown joined by '|': %s"
+              % (name, len(keys_), ", ".join(keys_[:6])), file=sys.stderr)
 
     names = [a for a, _ in arms]
     if len(set(names)) != len(names):
         print("WARNING: two runs resolved to the same column name. Put each run "
               "in its own directory named after the arm.\n", file=sys.stderr)
+
+    if all(not t for _, t in arms):
+        sys.exit("Every arm is empty after filtering to container %r. "
+                 "Available: %s" % (container,
+                                    ", ".join(sorted(available_containers(args.runs[0]))) or "none"))
 
     keys = set()
     for _, t in arms:

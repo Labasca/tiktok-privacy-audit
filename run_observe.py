@@ -30,7 +30,16 @@ DURATION = int(sys.argv[1]) if len(sys.argv) > 1 else 40
 # name given here is the name that appears in the matrix.
 RUN_NAME = os.environ.get("TIKTOK_AUDIT_RUN", "").strip()
 if RUN_NAME:
-    _OUT = os.path.join("runs", re.sub(r"[^A-Za-z0-9._-]+", "-", RUN_NAME))
+    # Two passes, and both are load-bearing. The first keeps the name to
+    # characters a filesystem is happy with. The second stops the result from
+    # being a traversal: a name of ".." would otherwise resolve to the project
+    # root and quietly overwrite the very artifacts a named run exists to keep
+    # apart. Leading dots go, and a name that was nothing but dots and
+    # separators falls back rather than resolving anywhere surprising.
+    _safe = re.sub(r"[^A-Za-z0-9._-]+", "-", RUN_NAME).lstrip(".-")
+    if not _safe.strip("._-"):
+        _safe = "run"
+    _OUT = os.path.join("runs", _safe)
     os.makedirs(_OUT, exist_ok=True)
     _out = lambda n: os.path.join(_OUT, n)
 else:
@@ -2426,14 +2435,14 @@ def write_tags(rec, meta):
 # main
 # --------------------------------------------------------------------------
 
-def main():
-    console = Console(LOG_PATH)
-    rec = Recorder(console)
-    errors = []
-    last_beat = [time.time()]   # wall time of the last message from the phone
-    armed = [False]             # watchdog waits for the first message before judging
-    probe_log = []              # which groups actually attached, for the footer
-    probe_calls = {}            # group -> calls its hooks actually saw
+def make_message_handler(rec, console, errors, last_beat, armed, probe_log, probe_calls):
+    """Build the frida message callback.
+
+    This is a factory rather than a closure inside main() for one reason: main()
+    opens a USB device on its second line, so anything nested in it can only be
+    exercised with a phone attached. Every decision about what a row MEANS lives
+    in here, which makes it the part most worth testing on a laptop. selftest.py
+    replays a recorded batch through this exact function."""
 
     def on_message(msg, data):
         t = msg.get("type")
@@ -2497,6 +2506,20 @@ def main():
             errors.append(msg.get("stack", msg.get("description", "?")))
         elif t == "log":
             console.line(c(DIM, "  " + str(msg.get("payload", ""))))
+
+    return on_message
+
+
+def main():
+    console = Console(LOG_PATH)
+    rec = Recorder(console)
+    errors = []
+    last_beat = [time.time()]   # wall time of the last message from the phone
+    armed = [False]             # watchdog waits for the first message before judging
+    probe_log = []              # which groups actually attached, for the footer
+    probe_calls = {}            # group -> calls its hooks actually saw
+    on_message = make_message_handler(rec, console, errors, last_beat, armed,
+                                      probe_log, probe_calls)
 
     dev = frida.get_usb_device(timeout=8)
     with open("observe.compiled.js", "r", encoding="utf-8") as f:

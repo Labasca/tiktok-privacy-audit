@@ -58,14 +58,20 @@ One post per run. The tally is cumulative, so two posts in one run produce a
 blended count that cannot be attributed to either file.
 
 ```bash
+# 0. prove the rig works before spending a post on it. No phone needed.
+python selftest.py
+
 # 1. the denominator: every tag actually in the file, before it is posted
 ./dump_tags.py testfiles/01-native.mov
 
 # 2. the run. Post exactly one video during the window.
 ./tiktok-audit.sh 90 --run 01-native
 
-# 3. coverage: what was in the file vs what the rig saw cross
-./compare_runs.py testfiles/01-native.tags.json runs/01-native/tags.json     --normalize --diff-only
+# 3. coverage: what was in the file vs what the rig saw cross.
+#    --container picks WHICH file the rig's rows should describe. INPUT is the
+#    file TikTok opened, which is the one dump_tags.py just measured.
+./compare_runs.py testfiles/01-native.tags.json runs/01-native/tags.json \
+    --normalize --container INPUT
 
 # 4. once several arms exist, the comparison the work actually asks
 ./compare_runs.py runs/*/tags.json --diff-only --csv matrix.csv
@@ -75,6 +81,30 @@ A tag `dump_tags.py` finds that the rig never names is either a tag TikTok did
 not touch or a hook that does not exist. Those two look identical until the
 coverage check is run, which is the whole reason to run it before trusting an
 absence.
+
+`--normalize` erases the container from every key so that exiftool's `IFD0:Make`
+and CoreGraphics' `{TIFF} Make` land on the same name. That is what makes the
+coverage fraction computable, and it is also why `--container` is not optional
+in spirit: without it `INPUT`, `OUTPUT` and `UPLOADED` collapse into one column
+and a field the re-encode dropped still reads as present. Run-vs-run diffs
+(step 4) need neither flag, because both sides already speak the rig's names.
+
+### Checking the rig itself
+
+`python selftest.py` runs the whole pipeline with no phone, no USB and no
+network: `observe.js` is executed against a stubbed Objective-C bridge, and the
+batch it produces is replayed through the real driver, the real report renderer
+and the real comparison tooling.
+
+Run it after cloning onto a new machine and after any change to `observe.js` or
+`run_observe.py`. It catches the failures that are otherwise invisible until a
+post has already been spent — a stale `observe.compiled.js`, a tag walk that
+throws on the first nil, the re-entrancy guard breaking so the rig records its
+own reads as TikTok's.
+
+It cannot tell you whether the selectors exist on TikTok's build, whether the
+real frameworks return what the stubs return, or anything about how TikTok's
+servers treat what they receive. Those need the phone.
 
 ## Prerequisites (both platforms)
 
