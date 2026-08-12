@@ -1,0 +1,37 @@
+{
+  "_comment": [
+    "HAND-WRITTEN, not produced by exiftool. It stands in for `dump_tags.py",
+    "01-native.MOV` so the NAME RECONCILIATION in compare_runs.py --normalize",
+    "can be checked on a machine with no exiftool installed. Group spellings",
+    "follow exiftool -G1 output for an iPhone-recorded QuickTime file.",
+    "",
+    "Values match the video fixture in selftest/observe_test.js, so the same",
+    "capture is described by both tools and every field should line up. Compare",
+    "against the rig's INPUT container, which is the file TikTok opened:",
+    "",
+    "  python compare_runs.py selftest/fixture-mov.tags.json \\",
+    "      runs/<arm>/tags.json --normalize --container INPUT",
+    "",
+    "This does NOT prove coverage of a real file. That needs exiftool and a real",
+    "capture, and it is the first thing to run on the VPS."
+  ],
+  "run": {
+    "source": "/fixtures/01-native.MOV",
+    "tool": "exiftool (fixture, not a real invocation)",
+    "bytes": 8412331
+  },
+  "marks": [],
+  "files": { "SOURCE": ["01-native.MOV"] },
+  "bodies": [],
+  "tag_count": 8,
+  "tags": {
+    "Keys:ContentIdentifier": { "value": "B8C1E0F2-3A4D-4E5F-9A0B-1C2D3E4F5A6B", "reads": null, "first_seen_s": null },
+    "Keys:CreationDate": { "value": "2026-08-11T14:02:31+0300", "reads": null, "first_seen_s": null },
+    "Keys:LivePhotoAuto": { "value": "1", "reads": null, "first_seen_s": null },
+    "Keys:LocationISO6709": { "value": "+54.6872+025.2797+096.500/", "reads": null, "first_seen_s": null },
+    "Keys:Make": { "value": "Apple", "reads": null, "first_seen_s": null },
+    "Keys:MakerData": { "value": "(4096 bytes of data)", "reads": null, "first_seen_s": null },
+    "Keys:Model": { "value": "iPhone X", "reads": null, "first_seen_s": null },
+    "Keys:Software": { "value": "16.7.16", "reads": null, "first_seen_s": null }
+  }
+}

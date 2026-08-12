@@ -1,0 +1,42 @@
+{
+  "_comment": [
+    "HAND-WRITTEN, not produced by exiftool. The still-image counterpart to",
+    "fixture-mov.tags.json, standing in for `dump_tags.py 01-native.HEIC`.",
+    "Group spellings follow exiftool -G1 output for an iPhone HEIC.",
+    "",
+    "Values match the EXIF_DICT fixture in selftest/observe_test.js. Compare",
+    "against the rig's LIVE reads, which is what TikTok pulled out of the photo",
+    "as opposed to a dump of a file:",
+    "",
+    "  python compare_runs.py selftest/fixture-heic.tags.json \\",
+    "      runs/<arm>/tags.json --normalize --container live",
+    "",
+    "Two families are expected NOT to reconcile and are documented in",
+    "compare_runs.py: Apple maker-note keys, which CoreGraphics numbers and",
+    "exiftool names, and ISO, which the two tools spell differently."
+  ],
+  "run": {
+    "source": "/fixtures/01-native.HEIC",
+    "tool": "exiftool (fixture, not a real invocation)",
+    "bytes": 2118004
+  },
+  "marks": [],
+  "files": { "SOURCE": ["01-native.HEIC"] },
+  "bodies": [],
+  "tag_count": 13,
+  "tags": {
+    "ExifIFD:DateTimeOriginal": { "value": "2026:08:11 14:02:31", "reads": null, "first_seen_s": null },
+    "ExifIFD:ISO": { "value": "25", "reads": null, "first_seen_s": null },
+    "ExifIFD:LensModel": { "value": "iPhone X back dual camera 4mm f/1.8", "reads": null, "first_seen_s": null },
+    "ExifIFD:OffsetTime": { "value": "+03:00", "reads": null, "first_seen_s": null },
+    "ExifIFD:PixelXDimension": { "value": "4032", "reads": null, "first_seen_s": null },
+    "ExifIFD:PixelYDimension": { "value": "3024", "reads": null, "first_seen_s": null },
+    "GPS:GPSLatitude": { "value": "54.6872", "reads": null, "first_seen_s": null },
+    "GPS:GPSLatitudeRef": { "value": "N", "reads": null, "first_seen_s": null },
+    "GPS:GPSLongitude": { "value": "25.2797", "reads": null, "first_seen_s": null },
+    "IFD0:DateTime": { "value": "2026:08:11 14:02:31", "reads": null, "first_seen_s": null },
+    "IFD0:Make": { "value": "Apple", "reads": null, "first_seen_s": null },
+    "IFD0:Model": { "value": "iPhone X", "reads": null, "first_seen_s": null },
+    "IFD0:Software": { "value": "16.7.16", "reads": null, "first_seen_s": null }
+  }
+}

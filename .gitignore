@@ -18,6 +18,11 @@ bodies/
 # the derived analysis in coverage/ is committed, the raw bundle files are not.
 manifests/
 
+# selftest scratch. batch.json is regenerated from the live observe.js on every
+# run and is deliberately not committed: a stale copy would keep the driver
+# suite green after the hook script had already drifted away from it.
+selftest/batch.json
+
 # python
 __pycache__/
 *.pyc
