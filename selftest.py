@@ -236,18 +236,72 @@ def t_compare_normalized():
 # ---------------------------------------------------------------------------
 # 4. tooling around the edges
 # ---------------------------------------------------------------------------
+# An 8x8 JPEG, embedded so this test needs neither Pillow nor a checked-in
+# binary. exiftool writes real tags into it and dump_tags.py reads them back,
+# which is the only way to test that path for real rather than against a
+# hand-written guess at exiftool's output.
+TINY_JPEG_B64 = (
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEyAVExISEyccHhcgLikxMC4p"
+    "LSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBDAQ4ODhMREyYVFSZPNS01T09PT09P"
+    "T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0//wAARCAAIAAgDASIAAhEB"
+    "AxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9"
+    "AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6"
+    "Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ip"
+    "qrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEB"
+    "AQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJB"
+    "UQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RV"
+    "VldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6"
+    "wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDLooorkOo/"
+    "/9k=")
+
+
 def t_dump_tags():
-    have = shutil.which("exiftool")
-    r = run([sys.executable, "dump_tags.py", "selftest/fixture-mov.tags.json"])
-    if not have:
+    if not shutil.which("exiftool"):
+        # Never point dump_tags.py at a file inside the repo: it writes its
+        # output beside the input, and a stray <name>.tags.tags.json in the
+        # working tree is how this test used to litter.
+        r = run([sys.executable, "dump_tags.py", "selftest/fixture-mov.tags.json"])
         assert r.returncode != 0, "dump_tags.py should refuse to run without exiftool"
         assert "exiftool" in (r.stdout + r.stderr).lower(), \
             "the missing-exiftool message does not mention exiftool"
         assert "Traceback" not in (r.stdout + r.stderr), \
             "dump_tags.py crashed instead of explaining that exiftool is missing"
         return "exiftool absent, preflight message is clean"
-    assert r.returncode == 0, r.stderr
-    return "exiftool present, dump ran"
+
+    import base64
+    with tempfile.TemporaryDirectory() as d:
+        img = os.path.join(d, "01-native.jpg")
+        with open(img, "wb") as f:
+            f.write(base64.b64decode(TINY_JPEG_B64))
+        w = run(["exiftool", "-overwrite_original", "-q",
+                 "-Make=Apple", "-Model=iPhone X", "-Software=16.7.16",
+                 "-DateTimeOriginal=2026:08:11 14:02:31",
+                 "-GPSLatitude=54.6872", "-GPSLatitudeRef=N",
+                 "-GPSLongitude=25.2797", "-GPSLongitudeRef=E", img])
+        assert w.returncode == 0, "exiftool could not write tags: " + w.stderr
+
+        r = run([sys.executable, "dump_tags.py", img])
+        assert r.returncode == 0, r.stderr
+        out = os.path.join(d, "01-native.tags.json")
+        assert os.path.exists(out), "dump_tags.py wrote no sidecar"
+        got = json.load(open(out, encoding="utf-8"))["tags"]
+
+        # the fields a stamping test actually turns on, read back off a real file
+        for key, want in (("IFD0:Make", "Apple"),
+                          ("IFD0:Model", "iPhone X"),
+                          ("IFD0:Software", "16.7.16"),
+                          ("GPS:GPSLatitude", "54.6872"),
+                          ("GPS:GPSLatitudeRef", "N"),
+                          ("ExifIFD:DateTimeOriginal", "2026:08:11 14:02:31")):
+            assert key in got, "dump_tags.py lost %s" % key
+            assert got[key]["value"] == want, \
+                "%s came back as %r, wanted %r" % (key, got[key]["value"], want)
+
+        # -n matters: a coordinate has to arrive as a number the rig can be
+        # compared against, not as "54 deg 41' 13.92\""
+        assert "deg" not in got["GPS:GPSLatitude"]["value"], \
+            "GPS came back formatted rather than numeric; the -n flag is not working"
+    return "real exiftool round-trip, 6 fields verified numeric"
 
 
 def t_launcher_sh():

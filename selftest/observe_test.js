@@ -125,9 +125,13 @@ function httpurl(scheme, host, p) {
     isFileURL: () => false,
   };
 }
+let _reqN = 0;
 function nsrequest(url, method, headers, body) {
   return {
     $className: 'NSMutableURLRequest', isNull: () => false,
+    // reportRequest dedupes on the request's address, so the fake needs a
+    // stable identity per object: same object means same request.
+    handle: { __req: ++_reqN, toString() { return '0x' + (0x2800 + this.__req).toString(16); } },
     URL: () => url,
     HTTPMethod: () => nsstr(method),
     allHTTPHeaderFields: () => nsdict(headers.map((h) => [h, nsstr('x')])),
@@ -191,7 +195,11 @@ const hooks = new Map();          // 'Class|selector' or 'sym:name' -> [handlers
 const sent = [];                  // everything send() was given
 let flushFn = null;               // whatever setInterval was handed
 
-function tok(cls, sel) { return { __tok: cls + '|' + sel, isNull: () => false }; }
+function tok(cls, sel) {
+  const key = cls + '|' + sel;
+  return { __tok: SHARED_IMPL[key] || key, isNull: () => false,
+           toString() { return '0x' + (SHARED_IMPL[key] || key); } };
+}
 function sym(name) { return { __sym: name, isNull: () => false }; }
 
 function fire(key, phase, arg) {
@@ -229,7 +237,20 @@ function reentrant(key, ret) {
 // Only these selectors exist. mediaHook checks $ownMethods, so a selector left
 // out here is reported as "not implemented by this class", which is the same
 // path a missing selector takes on a real build.
+// -resume is implemented once on the base class and inherited, so Frida hands
+// back the SAME implementation address for all three names. That is what caused
+// three listeners on one function and tripled every request count, and a stub
+// that gave each class its own address could never have shown it.
+const SHARED_IMPL = {
+  '__NSCFLocalSessionTask|- resume': 'sharedResume',
+  '__NSCFURLSessionTask|- resume': 'sharedResume',
+  'NSURLSessionTask|- resume': 'sharedResume',
+};
+
 const MOCK_METHODS = {
+  __NSCFLocalSessionTask: ['- resume'],
+  __NSCFURLSessionTask: ['- resume'],
+  NSURLSessionTask: ['- resume'],
   AVURLAsset: ['- initWithURL:options:', '- commonMetadata', '- metadata'],
   AVAsset: ['- commonMetadata', '- metadata'],
   AVAssetTrack: ['- formatDescriptions'],
@@ -499,13 +520,18 @@ fire(fmHook, 'onLeave', nsdict([['NSFileSize', 99]]));
 const upKeys = [...hooks.keys()].filter((k) => k.indexOf('uploadTaskWith') !== -1);
 ok(upKeys.length > 0, 'an upload task selector was hooked');
 
-ok(fire('NSURLSession|- uploadTaskWithRequest:fromFile:', 'onEnter', [
-  null, null,
-  nsrequest(httpurl('https', 'api16-normal-c-useast1a.tiktokv.com', '/aweme/v1/aweme/post/'),
-            'POST', ['Cookie', 'X-Argus', 'X-Gorgon', 'Content-Type'],
-            nsbody(PUBLISH_BODY)),
-  nsurl(TMP + 'upload.mp4'),
-]), 'NSURLSession uploadTaskWithRequest:fromFile: was hooked');
+// ONE request object, submitted twice below. That is what a device does: the
+// factory hook sees the request being built and the -resume hook sees the task
+// carrying it, both wanted, because either alone misses traffic. Counting it
+// once per hook made every REQUEST, HEADER and BODY number about double the
+// truth, and a 30s smoke run wrote 6 body files holding 2 distinct payloads.
+const PUBLISH_REQ = nsrequest(
+  httpurl('https', 'api16-normal-c-useast1a.tiktokv.com', '/aweme/v1/aweme/post/'),
+  'POST', ['Cookie', 'X-Argus', 'X-Gorgon', 'Content-Type'], nsbody(PUBLISH_BODY));
+
+ok(fire('NSURLSession|- uploadTaskWithRequest:fromFile:', 'onEnter',
+        [null, null, PUBLISH_REQ, nsurl(TMP + 'upload.mp4')]),
+   'NSURLSession uploadTaskWithRequest:fromFile: was hooked');
 
 // a slideshow post uploads images, which is what sends the drain down its
 // image branch rather than the AVAsset one
@@ -515,6 +541,19 @@ fire('NSURLSession|- uploadTaskWithRequest:fromFile:', 'onEnter', [
             'POST', ['Content-Type'], null),
   nsurl(TMP + 'slide1.HEIC'),
 ]);
+
+// the second sighting of the SAME request, standing in for -resume
+fire('NSURLSession|- uploadTaskWithRequest:fromFile:', 'onEnter',
+     [null, null, PUBLISH_REQ, nsurl(TMP + 'upload.mp4')]);
+
+// A RETRY: a brand new request object carrying byte-identical content. The
+// request-address dedupe cannot catch this one, which is why the body store
+// keeps its own content check.
+const RETRY_REQ = nsrequest(
+  httpurl('https', 'api16-normal-c-useast1a.tiktokv.com', '/aweme/v1/aweme/post/'),
+  'POST', ['Cookie', 'X-Argus'], nsbody(PUBLISH_BODY));
+fire('NSURLSession|- uploadTaskWithRequest:fromFile:', 'onEnter',
+     [null, null, RETRY_REQ, nsurl(TMP + 'upload.mp4')]);
 
 // a body over the per-body ceiling must be refused loudly, not truncated
 fire('NSURLSession|- uploadTaskWithRequest:fromData:', 'onEnter', [
@@ -560,6 +599,13 @@ function tagVal(name) {
   const t = tag(name);
   return t ? t[2] : undefined;
 }
+
+// only ONE listener may sit on the shared -resume implementation, however many
+// class names resolve to it
+eq((hooks.get('sharedResume') || []).length, 1,
+   'three task classes sharing one -resume implementation are hooked once');
+ok((byCat.RIG || []).some((r) => /shared -resume implementation/.test(r[1] || '')),
+   'the shared implementation is reported rather than silently skipped');
 
 ok(rows.length > 0, 'the flush produced a batch');
 ok((byCat.MEDIA_TAG || []).length > 0, 'MEDIA_TAG rows were produced');
@@ -671,6 +717,30 @@ for (const p of sent) for (const b of (p.blobs || [])) blobs.push(b);
 ok(blobs.length >= 1, 'a request body was captured whole');
 const publish = blobs.find((b) => b.n.indexOf('/aweme/v1/aweme/post/') !== -1);
 ok(publish, 'the publish call body was captured');
+
+// the publish body was submitted twice above and must be stored once
+const publishCopies = blobs.filter((b) => b.n.indexOf('/aweme/v1/aweme/post/') !== -1);
+eq(publishCopies.length, 1,
+   'an identical body arriving twice is stored once, not once per code path');
+const uniq = new Set(blobs.map((b) => b.b));
+eq(uniq.size, blobs.length, 'every stored body is a distinct payload');
+
+// and the same request seen twice must be COUNTED once, which is the part that
+// decides whether the report's request numbers mean anything
+const publishReqRows = (byCat.REQUEST || [])
+  .filter((r) => (r[2] || '').indexOf('/aweme/v1/aweme/post/') !== -1);
+eq(publishReqRows.length, 1, 'the publish request produced exactly one REQUEST row');
+// the original was seen twice (deduped to 1) and the retry is a genuinely
+// separate request, so the row must count 2 rather than 3
+eq(publishReqRows[0] && publishReqRows[0][3], 2,
+   'one request seen by two hooks counts once, but a real retry still counts');
+ok((byCat.BODY || []).some((r) => /identical body seen again/.test(r[2] || '')),
+   'the retry\'s identical body is reported rather than stored a second time');
+
+// two DIFFERENT requests to the same endpoint must still count as two
+const imageReqRows = (byCat.REQUEST || [])
+  .filter((r) => (r[2] || '').indexOf('/aweme/v1/upload/image/') !== -1);
+eq(imageReqRows.length, 1, 'the image upload is its own request row');
 if (publish) {
   eq(Buffer.from(publish.b, 'base64').toString('utf8'), PUBLISH_BODY,
      'the captured body round-trips byte for byte through base64');

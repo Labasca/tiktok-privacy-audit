@@ -176,8 +176,28 @@ function queueFile(path, label) {
 // the drain worker registers itself here instead.
 var _drainFiles = null;
 
+// A request can legitimately reach reportRequest down two different paths: the
+// task constructor and -resume on the task it produced. Deduping the hook
+// addresses fixes the triple-attach, but not that, so the same bytes can still
+// arrive twice. Storing them twice wastes a budget that exists to make room for
+// the one body that matters, the publish call.
+//
+// The fingerprint samples rather than hashes. A quarter-megabyte body would
+// otherwise be walked end to end on the app's own thread, and length plus both
+// ends is already far more discriminating than anything two distinct request
+// bodies to the same endpoint would collide on.
+var _blobSeen = {};
+
 function captureBlob(name, b64, nbytes) {
+  var fp = nbytes + ':' + b64.length + ':' + b64.slice(0, 48) + ':' + b64.slice(-48);
+  if (_blobSeen[fp]) {
+    // The repeat is still a fact worth keeping, just not worth another copy.
+    _blobSeen[fp]++;
+    emit('BODY', name, 'identical body seen again, not stored twice');
+    return false;
+  }
   if (_blobBytes + nbytes > MAX_BLOB_TOTAL) return false;
+  _blobSeen[fp] = 1;
   _blobBytes += nbytes;
   _blobs.push({ n: name, b: b64 });
   return true;
@@ -1503,24 +1523,68 @@ if (!ObjC.available) {
   } catch (e) { emit('ERROR', 'request-hook', String(e)); }
 
   try {
+    // These three classes are a hierarchy, not three separate targets, and
+    // -resume is implemented once and inherited. Frida resolves an inherited
+    // selector to the SAME implementation address for each of them, so
+    // attaching per class name attached three listeners to one function and
+    // every request was reported three times: counts inflated 3x, and the
+    // body budget spent at triple rate on identical copies.
+    //
+    // Dedupe on the address, which is the thing actually being hooked. The
+    // class list stays as it is because which of them owns -resume differs by
+    // iOS version, and the first one that resolves is the right one.
+    const seenImpl = {};
     ['__NSCFLocalSessionTask', '__NSCFURLSessionTask', 'NSURLSessionTask'].forEach(function (cn) {
       const klass = ObjC.classes[cn];
       if (!klass || !klass['- resume']) return;
-      Interceptor.attach(klass['- resume'].implementation, {
+      const impl = klass['- resume'].implementation;
+      const addr = String(impl);
+      if (seenImpl[addr]) {
+        emit('RIG', 'shared -resume implementation, hooked once',
+             cn + ' inherits it from ' + seenImpl[addr]);
+        return;
+      }
+      seenImpl[addr] = cn;
+      Interceptor.attach(impl, {
         onEnter: function (args) {
           try {
             const task = new ObjC.Object(args[0]);
             if (task.originalRequest === undefined) return;
             const req = task.originalRequest();
-            if (req && !req.isNull()) reportRequest(req);
+            // truthiness, not isNull(). The bridge returns JS null for nil and
+            // isNull() is not one of its builtins, so calling it here would
+            // throw into the catch and silently disable the whole resume path.
+            if (req) reportRequest(req);
           } catch (e) {}
         }
       });
     });
   } catch (e) {}
 
+  // One request reaches this function twice by design: the factory hook sees it
+  // being built and the -resume hook sees the task carrying it. Both hooks are
+  // wanted, because either alone misses traffic, but counting the request once
+  // per hook makes every REQUEST, HEADER and BODY number about twice the truth.
+  //
+  // Keyed on the request's own address, so two genuinely separate calls to the
+  // same endpoint still count as two. The table is bounded rather than cleared
+  // on a timer: clearing would let a request built just before a flush and
+  // resumed just after it through as two, which is the exact case being fixed.
+  const _reqSeen = {};
+  let _reqSeenN = 0;
+
   function reportRequest(req) {
     try {
+      let addr = null;
+      try { addr = String(req.handle); } catch (e) {}
+      if (addr) {
+        if (_reqSeen[addr]) return;
+        // An address can be reused once the original request is freed. Dropping
+        // the whole table costs at most a few double counts and cannot grow.
+        if (_reqSeenN > 4096) { for (const k in _reqSeen) delete _reqSeen[k]; _reqSeenN = 0; }
+        _reqSeen[addr] = 1;
+        _reqSeenN++;
+      }
       const url = req.URL();
       if (!url || url.isNull()) return;
       // inline data: URLs are embedded images, not traffic, and have no host
