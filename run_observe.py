@@ -85,20 +85,9 @@ DEEP_ON = _flag("TIKTOK_AUDIT_DEEP")
 # scene-create watchdog from the picture entirely, at the cost of the launch
 # sequence, which is where most of the identifier reads happen.
 ATTACH_ON = _flag("TIKTOK_AUDIT_ATTACH")
-
-# (group, how long that group may stay attached, in ms). One group is armed at
-# a time. Sub-second windows are the point: the sample limits are spent in the
-# first few milliseconds anyway, and everything after that was only trap cost.
-# Order matters: net and tls carry the signal that decays fastest, so they go
-# first and land inside the launch traffic burst. sys reads (numeric sysctl,
-# csops) are available whenever, so they take the later slot.
-PROBE_PLAN = []
-if _FULL:
-    PROBE_PLAN += [("net", 800), ("tls", 600), ("sys", 800)]
-if DEEP_ON:
-    PROBE_PLAN += [("fs", 700)]
-if TOUCH_ON:
-    PROBE_PLAN += [("touch", 700)]
+# One SSL_write hook for the publish body. Not -Full: that carousel is what
+# killed TikTok on Post. Armed once and left up. Use with -Attach on compose.
+PUBLISH_ON = _flag("TIKTOK_AUDIT_PUBLISH")
 
 # 11s, and the number is not arbitrary: scene-create's allowance is 10.00 seconds
 # measured from launch. Arming strictly after it means a probe can never
@@ -116,6 +105,19 @@ PROBE_SETTLE_S = 11.0   # after resume, before the first group is armed
 PROBE_GAP_S = 0.8       # idle between groups, so the app's run loop catches up
 PROBE_ROUND_GAP_S = 1.5     # idle between complete passes over the plan
 PROBE_MAX_ROUNDS = 12
+
+PROBE_PLAN = []
+if PUBLISH_ON:
+    _pub_settle = 2.0 if ATTACH_ON else PROBE_SETTLE_S
+    _pub_ms = max(8000, int((DURATION - _pub_settle - 1.0) * 1000))
+    PROBE_PLAN += [("publish", _pub_ms)]
+elif _FULL:
+    PROBE_PLAN += [("net", 800), ("tls", 600), ("sys", 800)]
+if not PUBLISH_ON:
+    if DEEP_ON:
+        PROBE_PLAN += [("fs", 700)]
+    if TOUCH_ON:
+        PROBE_PLAN += [("touch", 700)]
 
 
 def probe_min_duration(plan, settle=PROBE_SETTLE_S, gap=PROBE_GAP_S):
@@ -141,6 +143,13 @@ def probe_schedule(plan, duration, settle=PROBE_SETTLE_S, gap=PROBE_GAP_S,
     cutoffs are what actually end a sample; this is only tidy-up, and it must
     never be the thing the safety depends on, because it travels over USB.
     """
+    if PUBLISH_ON and plan and plan[0][0] == "publish":
+        t = 2.0 if ATTACH_ON else settle
+        win = plan[0][1]
+        down = min(duration - 0.4, t + win / 1000.0 + 0.35)
+        if down <= t:
+            return []
+        return [(t, down, "publish", win)]
     out, t, rounds = [], settle, 0
     if not plan:
         return out
@@ -1689,6 +1698,8 @@ def rows_kv(p, rows, cat):
 PLAINTEXT_PATHS = [
     ("lab-speech-video-caption", "speech to text: your audio, uploaded to be transcribed"),
     ("/upload/v1/", "an upload, not a fetch"),
+    ("aweme", "publish / aweme API"),
+    ("CANARY", "injected canary string on the wire"),
     ("speedtest", "upload bandwidth measurement, a property of your connection"),
     ("ies.fe.effect", "editor effect assets"),
     ("/video/tos/", "video object storage, the region is in the path"),
@@ -2641,7 +2652,9 @@ def main():
     console.line("  " + c(DIM, "%-9s" % "target") + BUNDLE + c(DIM, "  pid %d" % pid))
     console.line("  " + c(DIM, "%-9s" % "device") + str(dev.name))
     console.line("  " + c(DIM, "%-9s" % "window") + "%ds" % DURATION)
-    if PROBE_PLAN:
+    if PUBLISH_ON:
+        mode = c("1;33", "PUBLISH") + c(DIM, "  (one SSL_write hook, left up for the window)")
+    elif PROBE_PLAN:
         mode = c("1;31", "FULL") + c(DIM, "  (%s, armed one at a time after launch)"
                                      % ", ".join(g for g, _ in PROBE_PLAN))
     else:

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TikTok Audit · Poster</title>
+<style>
+  :root {
+    --paper: #ECEDE8;
+    --paper-2: #E3E4DE;
+    --card: #F5F6F2;
+    --ink: #15171C;
+    --ink-2: #3B3F47;
+    --ink-3: #6A6F78;
+    --line: #D2D4CC;
+    --accent: #1F6F6A;
+    --accent-soft: #DCEAE8;
+    --good: #3E7C4C;
+    --good-soft: #DEEBDE;
+    --warn: #B0741A;
+    --warn-soft: #F0E6D2;
+    --gap: #B23B29;
+    --gap-soft: #F1DDD8;
+    --mono: 'Cascadia Code', 'SF Mono', ui-monospace, Consolas, monospace;
+    --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #101216; --paper-2: #0B0D10; --card: #181B21; --ink: #E9EAE4;
+      --ink-2: #B7BAB4; --ink-3: #7E838C; --line: #262A31; --accent: #4FB2AA;
+      --accent-soft: #16302E; --good: #6FBF7A; --good-soft: #16271A; --warn: #DBA24A;
+      --warn-soft: #2C2413; --gap: #E17361; --gap-soft: #2E1712;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px 96px; }
+  header.mast {
+    border-bottom: 2px solid var(--ink); padding: 44px 0 24px; margin-bottom: 28px;
+  }
+  .eyebrow {
+    font-size: 12px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(28px, 5vw, 44px); line-height: 1.02; letter-spacing: -.02em;
+    margin: 0 0 12px; font-weight: 720;
+  }
+  .dek { font-size: 16px; color: var(--ink-2); max-width: 64ch; margin: 0; }
+  .band {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--line); border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden; margin-top: 28px;
+  }
+  .stat { background: var(--card); padding: 16px 18px; }
+  .stat .n { font-size: 18px; font-weight: 720; letter-spacing: -.01em; }
+  .stat .l { font-size: 12px; color: var(--ink-3); letter-spacing: .04em; text-transform: uppercase; margin-top: 4px; }
+  .stat.good .n { color: var(--good); }
+  .stat.warn .n { color: var(--warn); }
+  .stat.gap .n { color: var(--gap); }
+  .stage {
+    display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; margin-top: 28px;
+  }
+  .glass {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden; position: relative; min-height: 320px;
+  }
+  .glass img {
+    display: block; width: 100%; height: auto; cursor: crosshair;
+    background: var(--paper-2);
+  }
+  .glass .empty {
+    padding: 48px 24px; color: var(--ink-3); font-size: 14px; text-align: center;
+  }
+  .side { display: grid; gap: 12px; align-content: start; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px;
+  }
+  .card h2 {
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-3); margin: 0 0 10px;
+  }
+  button, .btn {
+    font: inherit; font-size: 13px; font-weight: 650; border: 0; border-radius: 8px;
+    padding: 9px 12px; background: var(--accent); color: var(--paper); cursor: pointer;
+    width: 100%;
+  }
+  button.ghost { background: var(--paper-2); color: var(--ink); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .log {
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink-2);
+    white-space: pre-wrap; max-height: 220px; overflow: auto;
+  }
+  .chip {
+    font-size: 12px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--paper); color: var(--ink-2); display: inline-block; margin: 0 4px 4px 0;
+  }
+  .chip.good { color: var(--good); background: var(--good-soft); border-color: transparent; }
+  .chip.gap { color: var(--gap); background: var(--gap-soft); border-color: transparent; }
+  .chip.warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
+  footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); }
+  footer a { color: var(--accent); }
+  @media (max-width: 760px) {
+    .band, .stage { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <p class="eyebrow">Poster · SpringBoard HID · never TikTok</p>
+    <h1>Drive the glass from here</h1>
+    <p class="dek">Same tokens as the coverage dossier. Taps go to ZXTouch on SpringBoard. Click the screenshot to press. This process never attaches to TikTok.</p>
+    <div class="band">
+      <div class="stat" id="s-usb"><div class="n">—</div><div class="l">USB</div></div>
+      <div class="stat" id="s-ssh"><div class="n">—</div><div class="l">SSH</div></div>
+      <div class="stat" id="s-zx"><div class="n">—</div><div class="l">ZXTouch</div></div>
+      <div class="stat" id="s-size"><div class="n">—</div><div class="l">Screen</div></div>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="glass" id="glass">
+      <div class="empty" id="empty">Waiting for a frame. Plug the phone in, then Refresh.</div>
+    </div>
+    <div class="side">
+      <div class="card">
+        <h2>Actions</h2>
+        <div style="display:grid;gap:8px">
+          <button id="btn-refresh" type="button">Refresh status + screen</button>
+          <button class="ghost" id="btn-toast" type="button">Toast on device</button>
+          <button class="ghost" id="btn-seed" type="button">Seed digitizer ID</button>
+        </div>
+        <p style="font-size:12.5px;color:var(--ink-3);margin:12px 0 0">Click the picture to tap that point. Bottom-center swipe-home is a later step.</p>
+      </div>
+      <div class="card">
+        <h2>Last</h2>
+        <div class="log" id="log">idle</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Tokens copied from <a href="../coverage/coverage-report.html">coverage-report.html</a>.
+    HID is ZXTouch <code>pccontrol.dylib</code> in SpringBoard, port 6000.
+  </footer>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+function setStat(id, text, kind) {
+  const el = $(id);
+  el.querySelector('.n').textContent = text;
+  el.classList.remove('good', 'warn', 'gap');
+  if (kind) el.classList.add(kind);
+}
+function log(obj) {
+  $('log').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+}
+async function api(path, opt) {
+  const r = await fetch(path, opt);
+  const ct = r.headers.get('content-type') || '';
+  if (ct.includes('application/json')) return r.json();
+  if (!r.ok) throw new Error(await r.text());
+  return r;
+}
+async function refresh() {
+  $('btn-refresh').disabled = true;
+  try {
+    const s = await api('/api/status');
+    const usb = (s.usb || []).length;
+    setStat('s-usb', usb ? 'yes' : 'no', usb ? 'good' : 'gap');
+    setStat('s-ssh', s.ssh && s.ssh.ok ? 'root' : 'down', s.ssh && s.ssh.ok ? 'good' : 'gap');
+    setStat('s-zx', s.zxtouch && s.zxtouch.ok ? '6000' : 'down', s.zxtouch && s.zxtouch.ok ? 'good' : 'gap');
+    const sc = s.zxtouch && s.zxtouch.screen;
+    setStat('s-size', sc ? Math.round(sc.width) + '×' + Math.round(sc.height) : '—', sc ? 'good' : '');
+    log(s);
+    if (s.screenshot) {
+      $('empty').style.display = 'none';
+      let img = $('frame');
+      if (!img) {
+        img = document.createElement('img');
+        img.id = 'frame';
+        img.alt = 'device screen';
+        img.addEventListener('click', onTap);
+        $('glass').appendChild(img);
+      }
+      img.src = '/api/screen.png?t=' + Date.now();
+    }
+  } catch (e) {
+    log(String(e));
+  } finally {
+    $('btn-refresh').disabled = false;
+  }
+}
+async function onTap(ev) {
+  const img = ev.currentTarget;
+  const r = img.getBoundingClientRect();
+  const nx = (ev.clientX - r.left) / r.width;
+  const ny = (ev.clientY - r.top) / r.height;
+  log({ tap: [nx, ny] });
+  try {
+    const rec = await api('/api/tap', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ nx, ny }),
+    });
+    log(rec);
+    setTimeout(refresh, 700);
+  } catch (e) {
+    log(String(e));
+  }
+}
+$('btn-refresh').addEventListener('click', refresh);
+$('btn-toast').addEventListener('click', async () => {
+  try { log(await api('/api/toast', { method: 'POST' })); } catch (e) { log(String(e)); }
+});
+$('btn-seed').addEventListener('click', async () => {
+  try { log(await api('/api/seed', { method: 'POST' })); } catch (e) { log(String(e)); }
+});
+refresh();
+setInterval(refresh, 8000);
+</script>
+</body>
+</html>

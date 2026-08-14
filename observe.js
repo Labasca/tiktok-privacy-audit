@@ -1422,6 +1422,59 @@ if (!ObjC.available) {
           { onEnter: tlsWriteHandler });
   });
 
+  // --- Publish-only TLS write (OFF unless the driver arms 'publish') ---
+  //
+  // -Full's tls group attaches four hooks for 600ms at a time and is what
+  // killed TikTok on Post. This group is one symbol, stays up for the window,
+  // and only pays for a wide read when the sniff already looks like HTTP/1.1
+  // or a small buffer carries a canary / aweme needle. Read only.
+  const PUB_NEEDLE = /aweme|CANARY|11\.1111|22\.2222|GPSCoordinates|ISO6709/i;
+  // Stay on SSL_write only long enough to catch the media POST. Leaving it
+  // up through the success-scene transition is what killed TikTok at ~51s.
+  var _pubHits = 0;
+  var PUB_DETACH_AFTER = 2;
+
+  function b64ptr(ptr, n) {
+    try {
+      const d = ObjC.classes.NSData.dataWithBytesNoCopy_length_freeWhenDone_(
+        ptr, n, false);
+      if (!d || d.isNull()) return null;
+      return String(d.base64EncodedStringWithOptions_(0));
+    } catch (e) { return null; }
+  }
+
+  function publishWriteHandler(args) {
+    const buf = args[1];
+    const len = args[2].toInt32();
+    if (len < 16 || len > 200000 || buf.isNull()) return;
+    const sniff = tlsAscii(buf, len < TLS_SNIFF ? len : TLS_SNIFF);
+    const http = HTTP_START.test(sniff);
+    if (!http && len > 65536) return;
+    const n = len < TLS_WINDOW ? len : TLS_WINDOW;
+    const text = http || len <= 65536 ? tlsAscii(buf, n) : sniff;
+    if (!http && !PUB_NEEDLE.test(text)) return;
+    if (http) tlsWriteHandler(args);
+    if (PUB_NEEDLE.test(text)) {
+      emit('PLAINTEXT', 'publish needle in SSL_write',
+           text.replace(/\s+/g, ' ').slice(0, 160));
+    }
+    if (http || PUB_NEEDLE.test(text)) {
+      const take = len < MAX_BLOB ? len : MAX_BLOB;
+      const b64 = b64ptr(buf, take);
+      if (b64 && captureBlob('SSL_write ' + (http ? (text.split('\n')[0] || 'POST')
+                                                 : 'needle'), b64, take)) {
+        _pubHits++;
+        if (_pubHits >= PUB_DETACH_AFTER) {
+          emit('RIG', 'publish hook', 'self-detached after ' + _pubHits + ' bodies');
+          try { disarmGroup('publish'); } catch (e) {}
+        }
+      }
+    }
+  }
+
+  probe('publish', dangerousExport('SSL_write'), 20000, 'publish TLS write',
+        { onEnter: publishWriteHandler });
+
   // --- Response bodies after decryption (read-only) ---
   //
   // The mirror of the write hook, with one trap: a read FILLS its buffer on the

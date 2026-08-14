@@ -1,7 +1,7 @@
 # TikTok privacy audit, read-only. Windows launcher + supervisor.
 #
 # Usage:  .\tiktok-audit.ps1 [seconds] [-Full] [-Deep] [-Touch] [-Attach]
-#                                      [-Quiet] [-Stream] [-Run NAME]  (default 40)
+#                                      [-Publish] [-Quiet] [-Stream] [-Run NAME]  (default 40)
 #
 # -Run NAME writes this run's artifacts to runs\NAME\ instead of overwriting the
 # ones in the project root. Use it for every run that will be compared against
@@ -23,13 +23,16 @@
 #
 # -Full needs room for the schedule, about 19s, so give it 25 or more.
 # -Attach instruments an app you have already opened, which skips the launch
-# watchdog entirely. -Deep adds the stat/access/statfs probes, which are the
+# watchdog entirely. -Publish is the slim publish-body catch: one SSL_write
+# hook, no -Full carousel. Use it on the compose screen with -Attach.
+# -Deep adds the stat/access/statfs probes, which are the
 # highest volume and lowest value in the set.
 #
 # Requires: the project venv (.venv) with the pinned Frida client, and Apple's
 # usbmux layer (iTunes or the Apple Devices app) so Frida can see the iPhone.
 param([int]$Duration = 40, [switch]$Full, [switch]$Touch, [switch]$Deep,
-      [switch]$Attach, [switch]$Stream, [switch]$Quiet, [string]$Run = "")
+      [switch]$Attach, [switch]$Publish, [switch]$Stream, [switch]$Quiet,
+      [string]$Run = "")
 
 Set-Location -Path $PSScriptRoot
 
@@ -89,6 +92,7 @@ $env:TIKTOK_AUDIT_FULL = if ($Full) { "1" } else { "" }
 $env:TIKTOK_AUDIT_TOUCH = if ($Touch) { "1" } else { "" }
 $env:TIKTOK_AUDIT_DEEP = if ($Deep) { "1" } else { "" }
 $env:TIKTOK_AUDIT_ATTACH = if ($Attach) { "1" } else { "" }
+$env:TIKTOK_AUDIT_PUBLISH = if ($Publish) { "1" } else { "" }
 # A named run redirects every artifact into runs\NAME\ so a second run
 # cannot overwrite the evidence from the first. Empty means the project root.
 $env:TIKTOK_AUDIT_RUN = $Run
@@ -114,6 +118,10 @@ if ($Attach) {
     Write-Host ""
     Write-Host "  -Attach: open TikTok on the phone first and wait for the feed." -ForegroundColor Yellow
     Write-Host "  Nothing is spawned, so the launch sequence is not observed." -ForegroundColor DarkGray
+}
+if ($Publish) {
+    Write-Host ""
+    Write-Host "  -Publish: one SSL_write hook, no net/sys carousel. Sit on Post, then tap." -ForegroundColor Yellow
 }
 
 # clear any stale heartbeat so a leftover file cannot look "fresh"
@@ -154,6 +162,7 @@ finally {
     $env:TIKTOK_AUDIT_TOUCH = ""
     $env:TIKTOK_AUDIT_DEEP = ""
     $env:TIKTOK_AUDIT_ATTACH = ""
+    $env:TIKTOK_AUDIT_PUBLISH = ""
     $env:TIKTOK_AUDIT_RUN = ""
     $env:TIKTOK_AUDIT_VERBOSE = ""
     $env:TIKTOK_AUDIT_QUIET = ""

@@ -10,6 +10,7 @@ fake device IDs, no VPN-status tampering).
 | File | Purpose |
 |------|---------|
 | `tiktok-audit.ps1` / `tiktok-audit.sh` | **The command.** Preflights the phone, rebuilds the hooks, runs the audit. |
+| `automation/poster.py` | **The other half.** Imports a test file and drives the post from outside TikTok, while the launcher above observes. |
 | `observe.js` | The read-only hooks (identifiers, fingerprint sysctls, keychain, interface scans, requests). They emit structured events, no formatting. |
 | `observe.compiled.js` | Generated bundle Frida actually runs (contains the ObjC bridge). Regenerate after editing `observe.js`. |
 | `run_observe.py` | The driver and the report: spawns TikTok, deduplicates the event stream, explains it, writes the artifacts. |
@@ -76,6 +77,34 @@ python selftest.py
 # 4. once several arms exist, the comparison the work actually asks
 ./compare_runs.py runs/*/tags.json --diff-only --csv matrix.csv
 ```
+
+### Driving a post without entering TikTok
+
+TikTok's launch sweep reads `DYLD_INSERT_LIBRARIES`, `_dyld_image_count`,
+entitlements and `kern.secure_kernel`. That is why the poster is a separate
+process and why it never attaches to `com.zhiliaoapp.musically`.
+
+```powershell
+.\.venv\Scripts\python.exe automation\poster.py preflight
+.\.venv\Scripts\python.exe automation\poster.py setup-ssh
+.\.venv\Scripts\python.exe automation\poster.py import testfiles\01-native.mov --run 01-native
+.\.venv\Scripts\python.exe automation\poster.py run-arm 01-native --file testfiles\01-native.mov
+```
+
+WebDriverAgent / Appium would be the robust tapper. They inject, and TikTok
+obfuscates the view tree they would read, so the poster does not inspect it.
+Taps are per-screen coordinate maps (`feed.create`, `picker.next`,
+`editor.next` — those two Next buttons are different taps). `--post` is opt-in
+and refuses any screen in the flow that is still marked uncalibrated.
+
+HID goes through SpringBoard; PhotoKit import goes through Photos.app; the
+shell is OpenSSH key-only over USB (`iproxy 2222 22`, implemented in-process).
+The existing `tiktok-audit.ps1` is started as a sibling and is the only thing
+that is allowed to enter TikTok. One post per `runs/NAME/` window — the tally
+is cumulative. `--post` stops for your OK and requires `--burner`. Every file
+arm is an import: `PHAsset.sourceType` cannot be stamped via EXIF. If import
+rewrites the file, `imported.tags.json` is the denominator for
+`compare_runs.py --normalize --container INPUT`, not the laptop dump.
 
 A tag `dump_tags.py` finds that the rig never names is either a tag TikTok did
 not touch or a hook that does not exist. Those two look identical until the

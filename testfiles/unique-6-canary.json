@@ -1,0 +1,13 @@
+{
+  "id": "7F3A",
+  "make": "CANARYMK-7F3A",
+  "model": "CANARYMD-7F3A",
+  "software": "CANARYSW-7F3A",
+  "title": "CANARY-TITLE-7F3A",
+  "comment": "CANARY-CMT-7F3A",
+  "created": "2025:01:02 03:04:05+00:00",
+  "gps_lat": "11.1111",
+  "gps_lon": "22.2222",
+  "gps_alt": "33.3",
+  "gps_acc": "12.0"
+}

@@ -19,6 +19,7 @@ What it covers:
      rendered report, tags.json and the request-body files.
   3. Run isolation, and both comparison modes over two arms that really differ.
   4. The launchers' argument handling, and dump_tags.py's exiftool preflight.
+  5. The poster (denylist, usbmux packet, layout, key-only sshd, no-phone CLI).
 
 What it CANNOT cover, and what the first phone run is therefore still for:
 
@@ -352,6 +353,17 @@ def t_launcher_ps1():
     return "-Run is set before spawn and cleared after"
 
 
+def t_poster():
+    """The posting half must be testable with no phone, the same way the
+    observation half is. A denylist that does not fire, or a layout that
+    will happily tap Post uncalibrated, is how you spend an account."""
+    r = run([sys.executable, os.path.join("automation", "tests", "test_poster.py")])
+    show("poster", r.stdout + r.stderr)
+    p, f = counts(r.stdout)
+    assert r.returncode == 0 and f == 0, r.stdout + r.stderr
+    return "%d checks, no phone" % p
+
+
 def t_compiled_bundle():
     """The driver loads observe.compiled.js, not observe.js. A bundle that has
     drifted behind the source is the quietest possible failure: the run works,
@@ -365,6 +377,7 @@ def t_compiled_bundle():
         "block, not opened", "written into the export", "library sourceType",
         "library mediaSubtypes", "resource originalFilename", "track codec",
         "file parse was slow", "body too large to capture",
+        "publish TLS write",
     ]
     missing = [m for m in markers if m in src and m not in bundle]
     assert not missing, (
@@ -391,6 +404,7 @@ def main():
     suite("dump_tags.py preflight", t_dump_tags)
     suite("launcher arguments (sh)", t_launcher_sh)
     suite("launcher arguments (ps1)", t_launcher_ps1)
+    suite("poster (no phone)", t_poster)
 
     print()
     width = max(len(n) for _, n, _ in RESULTS)

@@ -1,0 +1,22 @@
+{
+  "note": "Six files, six windows, one post each. The poster imports and drives; tiktok-audit.ps1 -Run NAME is the observer, unchanged. compare_runs.py --normalize --container INPUT is the readout.",
+  "landmines": {
+    "sourceType": "Every file arm is library=import. PHAsset.sourceType is the library's claim. EXIF stamping cannot make Photos call an import a camera original. 01-native as a laptop file that we import is a native-looking import, not a camera original.",
+    "fidelity": "If import rewrites, the laptop dump is fiction. dump_tags on the pulled DCIM file is then the denominator for INPUT.",
+    "one_post": "A second post in the same runs/NAME/ blends the tally. Spent windows are refused.",
+    "burner": "Test on a burner. Semi-tethered: a reboot drops Frida and sshd until palera1n is re-applied."
+  },
+  "observer": {
+    "duration": 90,
+    "touch": true,
+    "attach": false
+  },
+  "arms": [
+    {"name": "01-native",            "file": "testfiles/01-native.mov",            "library": "import"},
+    {"name": "02-stripped",          "file": "testfiles/02-stripped.mov",          "library": "import"},
+    {"name": "03-scraped",           "file": "testfiles/03-scraped.mov",           "library": "import"},
+    {"name": "04-scraped-stamped",   "file": "testfiles/04-scraped-stamped.mov",   "library": "import"},
+    {"name": "05-generated",         "file": "testfiles/05-generated.mov",         "library": "import"},
+    {"name": "06-generated-stamped", "file": "testfiles/06-generated-stamped.mov", "library": "import"}
+  ]
+}

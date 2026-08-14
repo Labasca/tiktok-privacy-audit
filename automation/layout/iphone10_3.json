@@ -1,0 +1,55 @@
+{
+  "device": "iPhone10,3",
+  "name": "iPhone X",
+  "ios": "16.7.16",
+  "logical": [375, 812],
+  "scale": 3,
+  "why_not_wda": "WebDriverAgent / Appium would read this as a view tree. TikTok obfuscates that tree and the runner injects. These are per-screen coordinate maps, calibrated by eye, tapped via SpringBoard HID.",
+  "screens": {
+    "feed": {
+      "uncalibrated": true,
+      "note": "For You / Following. The + sits in the tab bar, above the home indicator.",
+      "points": {
+        "create": [187.5, 778]
+      }
+    },
+    "camera": {
+      "uncalibrated": true,
+      "note": "In-app camera after +. Upload is the control that opens the library; the shutter is the one we must not hit.",
+      "points": {
+        "upload": [330, 760],
+        "close": [28, 58]
+      }
+    },
+    "picker": {
+      "uncalibrated": true,
+      "note": "Recents grid. first_asset is the most-recent import; PhotoKit / UIKit save puts the new file first. next is this screen's Next, not the editor's.",
+      "points": {
+        "first_asset": [62, 210],
+        "next": [340, 58]
+      }
+    },
+    "editor": {
+      "uncalibrated": true,
+      "note": "Trim / effects. next here is a different tap from picker.next even when the numbers look the same.",
+      "points": {
+        "next": [340, 58]
+      }
+    },
+    "composer": {
+      "uncalibrated": true,
+      "note": "Caption + Post. This is the tap that spends the upload. Do not mark calibrated until you have watched it land on Post, not Next.",
+      "points": {
+        "post": [340, 58]
+      }
+    }
+  },
+  "flow": [
+    {"on": "feed",     "do": "tap", "at": "create",      "then": "camera",   "wait": 1.4, "why": "open the in-app camera, not a view-tree 'create' node"},
+    {"on": "camera",   "do": "tap", "at": "upload",      "then": "picker",   "wait": 1.8, "why": "library, not the shutter"},
+    {"on": "picker",   "do": "tap", "at": "first_asset", "then": "picker",   "wait": 1.0, "why": "most-recent import"},
+    {"on": "picker",   "do": "tap", "at": "next",        "then": "editor",   "wait": 2.2, "why": "picker.next, not editor.next"},
+    {"on": "editor",   "do": "tap", "at": "next",        "then": "composer", "wait": 2.2, "why": "editor.next, not picker.next"},
+    {"on": "composer", "do": "tap", "at": "post",        "then": null,       "wait": 8.0, "why": "send. the observer is what confirms it left"}
+  ]
+}

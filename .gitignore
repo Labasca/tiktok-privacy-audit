@@ -33,3 +33,34 @@ __pycache__/
 
 # assembled run archive (contains raw capture output)
 audit-archive/
+
+# poster control-plane secrets and per-arm import measurements
+automation/keys/
+automation/.cache/
+
+# arm media. drop 01-native / 03-scraped locally; prepare-arms derives the rest.
+testfiles/*.mov
+testfiles/*.mp4
+testfiles/*.jpg
+testfiles/*.jpeg
+testfiles/*.heic
+testfiles/*.png
+testfiles/*.tags.json
+testfiles/*.ttf
+
+# device pulls: Photos DBs, DCIM copies, personal camera files, screenshots
+gallery-id/*.MOV
+gallery-id/*.mov
+gallery-id/*.mp4
+gallery-id/*.jpg
+gallery-id/*.png
+gallery-id/*.sqlite
+gallery-id/*.sqlite-shm
+gallery-id/*.sqlite-wal
+gallery-id/*.tags.json
+gallery-id/photos-db/
+gallery-id/photos-db-edit/
+gallery-id/photos-db-now/
+gallery-id/photos-db-rebuilt/
+gallery-id/accounts/
+gallery-id/accounts-edit/
