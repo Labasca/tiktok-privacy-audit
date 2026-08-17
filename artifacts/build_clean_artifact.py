@@ -142,8 +142,8 @@ IMAGE_GLOSS = {
     "{TIFF} XResolution": "stored resolution",
     "{TIFF} YResolution": "stored resolution",
     "{TIFF} ResolutionUnit": "resolution unit",
-    "{TIFF} TileWidth": "HEIC tile size",
-    "{TIFF} TileLength": "HEIC tile size",
+    "{TIFF} TileWidth": "HEIC tile size — computed on read, not stored in the file",
+    "{TIFF} TileLength": "HEIC tile size — computed on read, not stored in the file",
     "{Exif} DateTimeOriginal": "shutter time",
     "{Exif} DateTimeDigitized": "digitised time",
     "{Exif} OffsetTime": "timezone — places you geographically on its own",
@@ -219,6 +219,23 @@ IMAGE_BLOCKS = [
      "Read for every bitmap the app renders, so this group mixes your photos "
      "with interface chrome and cannot be attributed to a file."),
 ]
+
+# CGImageSource and exiftool disagree on some spellings. Everything else
+# resolves by matching the last path component, and the build reports any field
+# that resolves to nothing on every arm, so this list cannot silently rot.
+IMAGE_EXIF_ALIAS = {
+    "{Exif} DateTimeDigitized": "CreateDate",
+    "{Exif} ExposureBiasValue": "ExposureCompensation",
+    "{Exif} FocalLenIn35mmFilm": "FocalLengthIn35mmFormat",
+    "{Exif} ISOSpeedRatings": "ISO",
+    "{Exif} LensSpecification": "LensInfo",
+    "{Exif} PixelXDimension": "ExifImageWidth",
+    "{Exif} PixelYDimension": "ExifImageHeight",
+    "{Exif} SubsecTimeDigitized": "SubSecTimeDigitized",
+    "{Exif} SubsecTimeOriginal": "SubSecTimeOriginal",
+    "{GPS} GPSVersion": "GPSVersionID",
+    "{TIFF} DateTime": "ModifyDate",
+}
 
 # Time keys live in {Exif} but read as provenance, so they lead their group.
 IMAGE_TIME_KEYS = ("DateTimeOriginal", "DateTimeDigitized", "OffsetTime",
@@ -1045,6 +1062,44 @@ def ivals(tags, key):
     return [str(x) for x in (v if isinstance(v, list) else [v])]
 
 
+def exif_field(dump, short):
+    """What one photo actually carries for a field TikTok read.
+
+    The run files pool values per tag key with no file handle attached, so the
+    only way to say which photo held which value is to go back to the files
+    themselves. Returns None when that photo does not carry the field at all.
+    """
+    block, _, name = short.partition("} ")
+    block = block.lstrip("{")
+    if not name or block == "MakerApple" or dump is None:
+        return None
+    name = IMAGE_EXIF_ALIAS.get(short, name)
+    if block == "GPS" and not name.startswith("GPS"):
+        name = "GPS" + name
+    for k, v in dump.items():
+        if k.split(":")[-1] == name:
+            return v
+    return None
+
+
+def apple_field(dump, key, iruns):
+    """What a photo holds in Apple's numbered block.
+
+    These tags have no names to match on and some are binary blobs, so exact
+    lookup is not possible. It does not need to be: exactly one arm carries an
+    Apple block at all, so every maker-note value the rig saw came off that
+    file and the others genuinely have nothing. Showing a dash for a blob we
+    simply failed to match would claim the opposite.
+    """
+    if dump is None or not any(k.startswith("Apple:") for k in dump):
+        return None
+    for run in iruns.values():
+        vals = ivals(run["tags"], key)
+        if vals:
+            return " · ".join(vals)
+    return None
+
+
 def image_keys(iruns):
     """Every image field any stills run saw, grouped by CGImageSource dict.
 
@@ -1197,86 +1252,67 @@ def images_section(iruns, idumps):
         a('<tr><td class="fld">%s</td><td>%s</td><td>%s</td></tr>' % (lbl, vid, still))
     a('</tbody></table></div></div>')  # mtx-wrap, then panel
 
-    # ----------------------------------------------------- the inventory table
-    a('<h3>What each photo carried</h3>')
-    a('<p>The denominator, straight from exiftool. A dash means the field was not on that '
-      'file. The badge on each value names the container it came out of.</p>')
-    a('<div class="mtx-wrap wide"><table class="mtx"><thead>')
-    a('<tr><th class="cnr" rowspan="2">Field</th>')
+    # ------------------------------------------- what the five files are
+    a('<h3>The five photos</h3>')
+    a('<p>What went into the roll. Arms 2 and 3 are the same picture: 3 is that photo with '
+      'its identity stripped off and a fake one written back on.</p>')
+    a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr><th class="cnr">&nbsp;</th>')
     for c in cols:
         a('<th class="%s"><em>%s</em><b>%d</b> %s</th>'
           % (c["cls"], esc(c["origin"]), c["n"], esc(c["label"])))
-    a('</tr><tr>')
+    a('</tr><tr><th class="cnr sub">how it was made</th>')
     for c in cols:
         a('<th class="sub">%s</th>' % esc(c["note"]))
     a('</tr></thead><tbody>')
-    for gname, gcls, fields in IMAGE_FIELDS:
-        a('<tr class="grp %s"><td colspan="%d">%s</td></tr>' % (gcls, len(cols) + 1, esc(gname)))
-        for label, keys in fields:
-            a('<tr><td class="fld">%s</td>' % esc(label))
-            for c in cols:
-                d = idumps.get(c["key"])
-                if d is None:
-                    a('<td class="off"><i>not in repo</i></td>')
-                    continue
-                cell = None
-                for k in keys:
-                    if k in d:
-                        cell = (k.split(":")[0], d[k])
-                        break
-                if cell is None:
-                    a('<td class="off">&mdash;</td>')
-                else:
-                    grp, val = cell
-                    badge = "XMP" if grp.startswith("XMP") else \
-                            ("EXIF" if grp in ("IFD0", "ExifIFD", "GPS") else grp)
-                    a('<td class="on">%s<i>%s</i></td>'
-                      % (esc(str(val)[:34]), esc(badge)))
-            a('</tr>')
-    # maker note is a count, not a value
-    a('<tr class="grp is-new"><td colspan="%d">Apple maker note</td></tr>' % (len(cols) + 1))
-    a('<tr><td class="fld">private Apple tags</td>')
-    for c in cols:
-        d = idumps.get(c["key"])
-        if d is None:
-            a('<td class="off"><i>not in repo</i></td>')
-            continue
-        n = len([k for k in d if k.startswith("Apple:")])
-        a('<td class="%s">%s</td>' % ("cnt" if n else "off", n if n else "&mdash;"))
-    a('</tr>')
-    a('<tr class="grp is-new"><td colspan="%d">Outcome</td></tr>' % (len(cols) + 1))
+    summary = [
+        ("container", lambda d: d.get("File:FileType")),
+        ("stored size", lambda d: ("%s x %s" % (d["File:ImageWidth"], d["File:ImageHeight"]))
+         if "File:ImageWidth" in d else None),
+        ("colour profile", lambda d: d.get("ICC_Profile:ProfileDescription")),
+        ("identity written in", lambda d: "XMP" if "XMP-tiff:Make" in d
+         else ("EXIF / TIFF" if "IFD0:Make" in d else None)),
+        ("Apple maker note",
+         lambda d: ("%d tags" % len([k for k in d if k.startswith("Apple:")]))
+         if any(k.startswith("Apple:") for k in d) else None),
+    ]
+    for label, fn in summary:
+        a('<tr><td class="fld">%s</td>' % esc(label))
+        for c in cols:
+            d = idumps.get(c["key"])
+            v = fn(d) if d else None
+            a('<td class="on">%s</td>' % esc(str(v)) if v is not None
+              else '<td class="off">&mdash;</td>')
+        a('</tr>')
     a('<tr><td class="fld">survived PhotoKit import</td>')
     for c in cols:
-        a('<td class="on">byte-identical</td>')
+        a('<td class="zero">byte-identical</td>')
     a('</tr>')
     a('</tbody></table></div>')
     a('<div class="keyline">')
-    for cls, txt in [("is-good", "Shot on the phone — the real thing"),
-                     ("is-new", "Injected by us — fake values, read verbatim"),
-                     ("is-warn", "Injected into XMP only — and read anyway"),
-                     ("is-dim", "Generated — nothing to take")]:
+    for cls, txt in [("is-good", "Shot on the phone &mdash; the real thing"),
+                     ("is-new", "Injected by us &mdash; fake values, read verbatim"),
+                     ("is-warn", "Injected into XMP only &mdash; and read anyway"),
+                     ("is-dim", "Generated &mdash; nothing to take")]:
         a('<span class="%s"><i></i>%s</span>' % (cls, txt))
     a('</div>')
 
-    # ------------------------------------------------------------ read counts
-    # ------------------------------------- every field, built from the data
-    keys, gloss_missing = image_keys(iruns), []
+    # ------------------------------------- every field, with the real values
+    keys, gloss_missing, unmapped = image_keys(iruns), [], []
     total = sum(len(v) for v in keys.values())
-    a('<h3>Every field it read off a photo</h3>')
-    a('<p>Not a selection &mdash; this is the complete list, generated from the run files, so it '
-      'cannot quietly go out of date. <b>%d distinct fields</b>, in the five dictionaries '
-      '<code>CGImageSource</code> hands back. Counts are reads per session; a dash means that '
-      'session never saw the field.</p>' % total)
+    a('<h3>Every field it read, and what each photo said</h3>')
+    a('<p>The complete list, generated from the run files so it cannot go out of date: '
+      '<b>%d distinct fields</b> across the five dictionaries <code>CGImageSource</code> hands '
+      'back. Each column shows <b>the value that photo actually carries</b>, read back off the '
+      'file with exiftool. A dash means that photo does not have the field at all.</p>' % total)
     a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr>')
-    a('<th class="cnr">Field</th><th class="cnr">What it is</th><th class="cnr">Values seen</th>')
+    a('<th class="cnr">Field</th><th class="cnr">What it is</th>')
     for c in cols:
-        a('<th class="%s"><em>posted</em><b>%d</b> %s</th>' % (c["cls"], c["n"], esc(c["label"])))
-    a('</tr></thead><tbody>')
+        a('<th class="%s"><b>%d</b> %s</th>' % (c["cls"], c["n"], esc(c["label"])))
+    a('<th class="cnr">Times read<span class="gd"> per session</span></th></tr></thead><tbody>')
     for block, gname, gcls, gdesc in IMAGE_BLOCKS:
         rows = keys.get(block, [])
         if not rows:
             continue
-        # a count in the prose has to come from the rows, or it drifts
         a('<tr class="grp %s"><td colspan="%d">%s &nbsp;<span class="gd">%s</span></td></tr>'
           % (gcls, len(cols) + 3, esc(gname),
              esc(gdesc % len(rows) if "%d" in gdesc else gdesc)))
@@ -1284,42 +1320,66 @@ def images_section(iruns, idumps):
             g = IMAGE_GLOSS.get(short, "")
             if not g and block != "{MakerApple}":
                 gloss_missing.append(short)
-            vals = sorted({v for c in cols for v in ivals(iruns[c["id"]]["tags"], key)})
-            shown = " · ".join(vals)
-            a('<tr><td class="fld">%s</td><td class="gl">%s</td><td class="on">%s</td>'
-              % (esc(short), esc(g), esc(shown[:64] + ("…" if len(shown) > 64 else ""))))
-            for c in cols:
-                m = iruns[c["id"]]["tags"].get(key)
-                a('<td class="%s">%s</td>' % ("cnt", "%s&times;" % (m.get("reads") or 0))
-                  if m else '<td class="off">&mdash;</td>')
+            a('<tr><td class="fld">%s</td><td class="gl">%s</td>' % (esc(short), esc(g)))
+            if block == "(top level)":
+                # computed by the framework for every bitmap it draws, including
+                # interface chrome, so no cell here belongs to a single photo
+                pooled = sorted({v for c in cols for v in ivals(iruns[c["id"]]["tags"], key)})
+                txt = " \u00b7 ".join(pooled)
+                a('<td class="on murky" colspan="%d">%s<i>not attributable to a file</i></td>'
+                  % (len(cols), esc(txt[:70] + ("\u2026" if len(txt) > 70 else ""))))
+            else:
+                found = False
+                for c in cols:
+                    d = idumps.get(c["key"])
+                    v = (apple_field(d, key, iruns) if block == "{MakerApple}"
+                         else exif_field(d, short))
+                    if v is None:
+                        a('<td class="off">&mdash;</td>')
+                        continue
+                    found = True
+                    txt = str(v)
+                    a('<td class="on">%s</td>'
+                      % esc(txt[:30] + ("\u2026" if len(txt) > 30 else "")))
+                if not found and block != "{MakerApple}":
+                    unmapped.append(short)
+            reads = [m.get("reads") or 0 for m in
+                     (iruns[c["id"]]["tags"].get(key) for c in cols) if m]
+            a('<td class="cnt">%s&times;</td>'
+              % ("%d&ndash;%d" % (min(reads), max(reads))
+                 if reads and min(reads) != max(reads) else (reads[0] if reads else 0)))
             a('</tr>')
     a('<tr class="grp is-dim"><td colspan="%d">Timing</td></tr>' % (len(cols) + 3))
-    a('<tr><td class="fld">first GPS read at</td><td class="gl">how long after launch</td>'
-      '<td class="on">before anything was selected</td>')
+    a('<tr><td class="fld">first GPS read</td><td class="gl">seconds after launch, '
+      'before anything was selected</td>')
     for c in cols:
         m = iruns[c["id"]]["tags"].get("image {GPS} Latitude")
         t = m.get("first_seen_s") if m else None
         a('<td class="%s">%s</td>' % ("on" if t else "off",
                                       ("%.1f s" % t) if t else "&mdash;"))
-    a('</tr>')
+    a('<td class="cnt">&nbsp;</td></tr>')
     a('</tbody></table></div>')
     if gloss_missing:
         print("  ! stills fields with no plain-English gloss: %s"
               % ", ".join(sorted(set(gloss_missing))))
-    a('<p class="cap"><b>Photo 4 reads late (35 s) because the operator took longer to open the '
-      'picker in that session</b>, not because the app behaved differently &mdash; the pattern '
-      'itself is identical across all five.</p>')
+    if unmapped:
+        print("  ! stills fields that resolved to no value on any arm: %s"
+              % ", ".join(sorted(set(unmapped))))
+    a('<p class="cap"><b>Photo 2 is the only column with a full house</b>, because it is the '
+      'only genuine capture &mdash; lens, exposure, sub-second timing, compass bearing and the '
+      'Apple block are things a camera writes and a forgery has to reproduce. Photo 3 is that '
+      'same image stripped and refaked: it keeps the container and the colour profile but the '
+      'whole camera-settings group is empty, which is exactly the gap that gives it away.</p>')
     a('<p class="cap"><b>The three UUIDs in the Apple block are the sharpest thing in this '
-      'table.</b> A coordinate can be faked and a timestamp can be moved, but '
-      '<code>ContentIdentifier</code> and <code>PhotoIdentifier</code> are values that exist to '
-      'be unique to one shot. Anyone copying a real maker note onto other files &mdash; the '
-      'obvious way to make a photo look camera-shot &mdash; carries those identifiers along with '
-      'it, and stamps every one of those files with the same supposedly-unique id.</p>')
-    a('<p class="cap"><b>Bitmap geometry is the one group that is not evidence about your '
-      'photos.</b> Those keys are read for every image the app draws, interface chrome included '
-      '&mdash; which is why <code>{TIFF} Software</code> lists <code>Figma</code> alongside the '
-      'real values, and why the pixel dimensions run from 28&nbsp;px icons to 4032&nbsp;px '
-      'captures. It is listed for completeness, not attribution.</p>')
+      'table.</b> A coordinate can be faked and a timestamp moved, but '
+      '<code>ContentIdentifier</code> and <code>PhotoIdentifier</code> exist to be unique to '
+      'one shot. Copying a real maker note onto other files &mdash; the obvious way to make a '
+      'photo look camera-shot &mdash; stamps every one of them with the same supposedly-unique '
+      'id.</p>')
+    a('<p class="cap"><b>Read counts are a range across the five sessions</b>, since every '
+      'session read every photo. Bitmap geometry is the one group with no per-photo values: '
+      'those keys are read for every image the app draws, interface chrome included, which is '
+      'why <code>{TIFF} Software</code> reports <code>Figma</code> next to the real values.</p>')
 
     # ------------------------------------------------------------------ limits
     a('<div class="panel is-dim"><h3>What the stills runs do not show</h3><ul>')
