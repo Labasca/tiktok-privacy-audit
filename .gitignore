@@ -68,3 +68,9 @@ gallery-id/accounts-edit/
 # conversation exports from /export
 test.txt
 *.export.txt
+
+# real captures: personal pixels, home GPS, maker-note UUIDs
+testfiles/reference-*
+testfiles/image-arms/img-2-camera.*
+testfiles/image-arms/img-3-canary.*
+testfiles/image-arms-pulled/
