@@ -539,25 +539,40 @@ def main():
     # ---------------------------------------------------------------- head
     w('<header class="masthead">')
     w('<p class="eyebrow">TikTok post-path capture · jailbroken iPhone X · %s</p>' % esc(AS_OF))
-    w('<h1>Everything TikTok reads off a video when you post it</h1>')
-    w('<p>We hooked the app with Frida and posted nine clips, one per session, each with a '
-      'deliberately different history: generated, downloaded, filmed on the phone, injected with '
+    w('<h1>Everything TikTok reads when you post</h1>')
+    w('<p>We hooked the app with Frida and posted fourteen files, one per session, each with a '
+      'deliberately different history. Two separate investigations came out of it &mdash; one '
+      'for video, one for photos &mdash; and they do not reach the same conclusion, so they are '
+      'kept apart here.</p>')
+    w('</header>')
+
+    # ------------------------------------------------------------- the tabs
+    ikeys = image_keys(iruns)
+    w('<nav class="tabs" role="tablist" aria-label="Which investigation">')
+    for pid, name, sub, on in [("pg-video", "Video", "9 clips · 898 reads", True),
+                               ("pg-photos", "Photos", "5 stills · %d fields"
+                                % sum(len(v) for v in ikeys.values()), False)]:
+        w('<button class="tab%s" role="tab" data-page="%s" aria-controls="%s" '
+          'aria-selected="%s"><b>%s</b><span>%s</span></button>'
+          % (" is-on" if on else "", pid, pid, "true" if on else "false", name, sub))
+    w('</nav>')
+
+    # =========================================================== page: video
+    w('<div class="page" id="pg-video" role="tabpanel">')
+    w('<p class="lede">Nine clips: generated, downloaded, filmed on the phone, injected with '
       'fake metadata, and AI-generated. TikTok read <b>every</b> provenance field each file '
       'carried, invented nothing for the files that had none, and validated nothing on the file '
       'that lied. None of it survived TikTok’s own re-encode &mdash; but on the AI clip it '
       '<b>added</b> a label of its own. And a clip edited outside the app can be made to read '
-      'exactly like camera footage. Then we did it again with <b>five photos</b>, and found '
-      'something worse: the picker reads the metadata of <b>every image in your camera roll</b>, '
-      'not just the one you post.</p>')
+      'exactly like camera footage.</p>')
     w('<div class="tiles">')
     for cls, big, small in [("", "898", "things it read"),
                             ("is-bad", "10", "identity fields it took"),
                             ("is-warn", "18&times;", "times it re-read your GPS"),
                             ("is-good", "0", "survived the re-encode"),
-                            ("is-new", "1", "AI label it added"),
-                            ("is-bad", "4 of 4", "unposted photos it still read")]:
+                            ("is-new", "1", "AI label it added")]:
         w('<div class="tile %s"><b>%s</b><span>%s</span></div>' % (cls, big, small))
-    w('</div></header>')
+    w('</div>')
 
     # -------------------------------------------------------------- limits
     w('<section><h2>Read this before the table</h2>')
@@ -600,10 +615,29 @@ def main():
     # ------------------------------------------------------- the pass test
     w(passtest_section(runs))
 
-    # ------------------------------------------------------------- stills
-    w(images_section(iruns, idumps))
+    w('</div>')  # end page: video
 
-    # ------------------------------------------------------------- method
+    # ========================================================== page: photos
+    w('<div class="page" id="pg-photos" role="tabpanel" hidden>')
+    w('<p class="lede">Five stills, posted the same way. The video finding was that TikTok takes '
+      'everything <em>on the file you post</em>. The photo finding is worse than that, and it '
+      'is not the same claim: the picker reads the metadata of <b>every image in the roll</b>, '
+      'including the ones you never touch.</p>')
+    first_gps = [iruns[c["id"]]["tags"].get("image {GPS} Latitude") for c in IMAGE_RUNS]
+    secs = [m["first_seen_s"] for m in first_gps if m and m.get("first_seen_s")]
+    w('<div class="tiles">')
+    for cls, big, small in [
+            ("is-bad", "4 of 4", "unposted photos it still read"),
+            ("", str(sum(len(v) for v in ikeys.values())), "fields it read off a photo"),
+            ("is-warn", "%.1f s" % min(secs) if secs else "?", "before you chose anything"),
+            ("is-new", str(len(ikeys.get("{MakerApple}", []))), "private Apple tags"),
+            ("is-bad", "3", "per-shot UUIDs among them")]:
+        w('<div class="tile %s"><b>%s</b><span>%s</span></div>' % (cls, big, small))
+    w('</div>')
+    w(images_section(iruns, idumps))
+    w('</div>')  # end page: photos
+
+    # ------------------------------------------------- method, shared by both
     w(method_section(runs, raw_total, fact_total))
 
     w('</div>')  # .wrap
@@ -1139,12 +1173,12 @@ def images_section(iruns, idumps):
     o = []
     a = o.append
     cols = IMAGE_RUNS
-    a('<section><h2>The same thing happens to your photos — and worse</h2>')
-    a('<p>Five stills, posted one at a time through the same rig. A photo costs a posting '
-      'window rather than a library rebuild, so all five could sit in the camera roll at once '
-      '&mdash; each carrying its own canary id, so a hit still names exactly one file. That '
-      'detail is what exposed the first finding; with one shared id it would have been '
-      'invisible.</p>')
+    a('<section><h2>Why these five could share one camera roll</h2>')
+    a('<p>A photo costs a posting window rather than a library rebuild, so unlike the clips all '
+      'five could sit in the camera roll at once &mdash; each carrying <b>its own canary id</b>, '
+      'so a hit still names exactly one file. That single decision is what exposed the finding '
+      'below; had they shared an id, as they were first built, every hit would have looked like '
+      'the file just posted and there would have been nothing to see.</p>')
 
     # ------------------------------------------------- finding 1, the big one
     a('<div class="panel is-bad"><h3>It reads every photo in the picker, not the one you pick</h3>')
@@ -1240,7 +1274,7 @@ def images_section(iruns, idumps):
     # ---------------------------------- one table: the files and every field
     keys, gloss_missing, unmapped = image_keys(iruns), [], []
     total = sum(len(v) for v in keys.values())
-    a('<h3>Every field it read, and what each photo said</h3>')
+    a('</section><section><h2>Every field it read, and what each photo said</h2>')
     a('<p>What the five files are, then the complete list of what TikTok pulled off them &mdash; '
       '<b>%d distinct fields</b> across the five dictionaries <code>CGImageSource</code> hands '
       'back, generated from the run files so it cannot go out of date. Each column is <b>the '
@@ -1526,6 +1560,27 @@ code { font-size:.88em; color:var(--cool); font-family:ui-monospace,Consolas,mon
 section { margin-top:52px; display:flex; flex-direction:column; gap:14px; }
 .eyebrow { color:var(--dim); font-size:11px; font-weight:650; letter-spacing:.16em;
   text-transform:uppercase; }
+/* two investigations, two pages. They reached different conclusions, so the
+   switch is a real divider rather than a convenience. */
+.tabs { position:sticky; top:0; z-index:30; display:flex; gap:8px; flex-wrap:wrap;
+  margin:26px 0 22px; padding:12px 0; background:var(--bg);
+  border-bottom:1px solid var(--line); }
+.tab { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
+  padding:11px 20px; border:1px solid var(--line); border-radius:11px;
+  background:var(--panel); color:var(--dim); cursor:pointer; font:inherit;
+  text-align:left; transition:color .12s, border-color .12s, background .12s; }
+.tab b { font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.tab span { font-family:ui-monospace,Consolas,monospace; font-size:10px;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--dim); }
+.tab:hover { color:var(--ink); border-color:var(--mid); }
+.tab.is-on { color:var(--ink); background:var(--sunk); border-color:var(--cool);
+  box-shadow:inset 0 -2px 0 var(--cool); }
+.tab.is-on span { color:var(--cool); }
+.tab:focus-visible { outline:2px solid var(--cool); outline-offset:2px; }
+.page[hidden] { display:none; }
+.lede { font-size:16.5px; line-height:1.62; color:var(--mid); max-width:72ch; }
+.lede b { color:var(--ink); }
+@media (prefers-reduced-motion: reduce) { .tab { transition:none; } }
 .masthead { display:flex; flex-direction:column; gap:12px; }
 .cap { font-size:12.5px; color:var(--dim); max-width:78ch; }
 a { color:var(--cool); }
@@ -1733,6 +1788,37 @@ details > details { margin:0 15px 10px; background:var(--sunk); }
 </style>"""
 
 SCRIPT = """<script>
+(function(){
+  var tabs = [].slice.call(document.querySelectorAll('.tab'));
+  var pages = [].slice.call(document.querySelectorAll('.page'));
+  if (!tabs.length || !pages.length) return;
+  function show(id, remember){
+    pages.forEach(function(p){ p.hidden = (p.id !== id); });
+    tabs.forEach(function(t){
+      var on = t.getAttribute('data-page') === id;
+      t.classList.toggle('is-on', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    // a deep link should land on the right page, but switching pages must not
+    // add a history entry for every click
+    if (remember && history.replaceState) history.replaceState(null, '', '#' + id);
+  }
+  tabs.forEach(function(t, i){
+    t.addEventListener('click', function(){
+      show(t.getAttribute('data-page'), true);
+      window.scrollTo(0, 0);
+    });
+    t.addEventListener('keydown', function(e){
+      var d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!d) return;
+      e.preventDefault();
+      var n = tabs[(i + d + tabs.length) % tabs.length];
+      n.focus(); show(n.getAttribute('data-page'), true);
+    });
+  });
+  var want = (location.hash || '').replace('#', '');
+  show(pages.some(function(p){ return p.id === want; }) ? want : pages[0].id, false);
+})();
 document.querySelectorAll('.copy').forEach(function(btn){
   btn.addEventListener('click', function(){
     var pre = document.getElementById(btn.getAttribute('data-copy'));
