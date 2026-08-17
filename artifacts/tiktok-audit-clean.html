@@ -117,6 +117,10 @@ a { color:var(--cool); }
    matrix min-width and force its container to scroll */
 .mtx.compact { min-width:0; }
 .mtx.compact td.fld { white-space:normal; }
+/* plain-English column beside the raw field name, and the note on a group row */
+.mtx td.gl { color:var(--mid); white-space:normal; min-width:15ch; }
+.mtx tr.grp .gd { color:var(--dim); text-transform:none; letter-spacing:0;
+  font-weight:400; }
 .ct { font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:650;
   padding:3px 6px; border-radius:4px; background:var(--sunk); color:var(--dim);
   border:1px solid var(--line); white-space:nowrap; }
@@ -961,95 +965,744 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <span class="is-warn"><i></i>Injected into XMP only — and read anyway</span>
 <span class="is-dim"><i></i>Generated — nothing to take</span>
 </div>
-<h3>How hard it looks</h3>
-<p>Reads per session, counted per dictionary key across every photo in the roll. The picker sweep is not a glance.</p>
+<h3>Every field it read off a photo</h3>
+<p>Not a selection &mdash; this is the complete list, generated from the run files, so it cannot quietly go out of date. <b>103 distinct fields</b>, in the five dictionaries <code>CGImageSource</code> hands back. Counts are reads per session; a dash means that session never saw the field.</p>
 <div class="mtx-wrap wide"><table class="mtx"><thead><tr>
-<th class="cnr">What it pulled</th>
+<th class="cnr">Field</th><th class="cnr">What it is</th><th class="cnr">Values seen</th>
 <th class="is-dim"><em>posted</em><b>1</b> CLEAN</th>
 <th class="is-good"><em>posted</em><b>2</b> CAMERA</th>
 <th class="is-new"><em>posted</em><b>3</b> CANARY HEIC</th>
 <th class="is-warn"><em>posted</em><b>4</b> CANARY XMP</th>
 <th class="is-new"><em>posted</em><b>5</b> CANARY JPEG</th>
 </tr></thead><tbody>
-<tr><td class="fld">make</td>
+<tr class="grp is-bad"><td colspan="8">Device and file identity &nbsp;<span class="gd">Who made the handset, which model, which iOS build.</span></td></tr>
+<tr><td class="fld">{TIFF} Make</td><td class="gl">handset manufacturer</td><td class="on">Apple · CANARYMK-9B2E · CANARYMK-9B4F · CANARYMK-9B60</td>
 <td class="cnt">10&times;</td>
 <td class="cnt">19&times;</td>
 <td class="cnt">21&times;</td>
 <td class="cnt">20&times;</td>
 <td class="cnt">16&times;</td>
 </tr>
-<tr><td class="fld">model</td>
+<tr><td class="fld">{TIFF} Model</td><td class="gl">handset model</td><td class="on">CANARYMD-9B2E · CANARYMD-9B4F · CANARYMD-9B60 · iPhone X</td>
 <td class="cnt">10&times;</td>
 <td class="cnt">19&times;</td>
 <td class="cnt">21&times;</td>
 <td class="cnt">20&times;</td>
 <td class="cnt">16&times;</td>
 </tr>
-<tr><td class="fld">software</td>
+<tr><td class="fld">{TIFF} Software</td><td class="gl">iOS build</td><td class="on">16.7.16 · CANARYSW-9B2E · CANARYSW-9B4F · CANARYSW-9B60 · Figma</td>
 <td class="cnt">12&times;</td>
 <td class="cnt">19&times;</td>
 <td class="cnt">23&times;</td>
 <td class="cnt">26&times;</td>
 <td class="cnt">18&times;</td>
 </tr>
-<tr><td class="fld">GPS latitude</td>
-<td class="cnt">10&times;</td>
-<td class="cnt">19&times;</td>
-<td class="cnt">21&times;</td>
-<td class="cnt">20&times;</td>
-<td class="cnt">16&times;</td>
-</tr>
-<tr><td class="fld">GPS longitude</td>
-<td class="cnt">10&times;</td>
-<td class="cnt">19&times;</td>
-<td class="cnt">21&times;</td>
-<td class="cnt">20&times;</td>
-<td class="cnt">16&times;</td>
-</tr>
-<tr><td class="fld">GPS altitude</td>
-<td class="cnt">10&times;</td>
-<td class="cnt">19&times;</td>
-<td class="cnt">21&times;</td>
-<td class="cnt">20&times;</td>
-<td class="cnt">16&times;</td>
-</tr>
-<tr><td class="fld">compass bearing</td>
+<tr><td class="fld">{TIFF} HostComputer</td><td class="gl">the device that wrote the file — a second identifier</td><td class="on">iPhone X</td>
 <td class="cnt">4&times;</td>
 <td class="cnt">11&times;</td>
 <td class="cnt">6&times;</td>
 <td class="cnt">5&times;</td>
 <td class="cnt">4&times;</td>
 </tr>
-<tr><td class="fld">position error</td>
+<tr><td class="fld">{TIFF} DateTime</td><td class="gl">file write time</td><td class="on">2026:08:17 20:49:42</td>
 <td class="cnt">4&times;</td>
 <td class="cnt">11&times;</td>
 <td class="cnt">6&times;</td>
 <td class="cnt">5&times;</td>
 <td class="cnt">4&times;</td>
 </tr>
-<tr><td class="fld">capture date</td>
+<tr><td class="fld">{TIFF} Orientation</td><td class="gl">how the phone was held</td><td class="on">1 · 6</td>
+<td class="cnt">36&times;</td>
+<td class="cnt">39&times;</td>
+<td class="cnt">46&times;</td>
+<td class="cnt">38&times;</td>
+<td class="cnt">34&times;</td>
+</tr>
+<tr><td class="fld">{TIFF} ResolutionUnit</td><td class="gl">resolution unit</td><td class="on">2</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{TIFF} TileLength</td><td class="gl">HEIC tile size</td><td class="on">512</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">14&times;</td>
+<td class="cnt">15&times;</td>
+<td class="cnt">8&times;</td>
+<td class="cnt">6&times;</td>
+</tr>
+<tr><td class="fld">{TIFF} TileWidth</td><td class="gl">HEIC tile size</td><td class="on">512</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">14&times;</td>
+<td class="cnt">15&times;</td>
+<td class="cnt">8&times;</td>
+<td class="cnt">6&times;</td>
+</tr>
+<tr><td class="fld">{TIFF} XResolution</td><td class="gl">stored resolution</td><td class="on">72</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{TIFF} YResolution</td><td class="gl">stored resolution</td><td class="on">72</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr class="grp is-bad"><td colspan="8">Location &nbsp;<span class="gd">Not just a coordinate: altitude, heading, speed and GPS accuracy too.</span></td></tr>
+<tr><td class="fld">{GPS} Latitude</td><td class="gl">latitude</td><td class="on">11.1111 · 44.4444 · 54.63889666666667 · 77.7777</td>
 <td class="cnt">10&times;</td>
 <td class="cnt">19&times;</td>
 <td class="cnt">21&times;</td>
 <td class="cnt">20&times;</td>
 <td class="cnt">16&times;</td>
 </tr>
-<tr><td class="fld">digitised date</td>
+<tr><td class="fld">{GPS} Longitude</td><td class="gl">longitude</td><td class="on">22.2222 · 24.93501666666667 · 55.5555 · 88.8888</td>
+<td class="cnt">10&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">21&times;</td>
+<td class="cnt">20&times;</td>
+<td class="cnt">16&times;</td>
+</tr>
+<tr><td class="fld">{GPS} Altitude</td><td class="gl">altitude</td><td class="on">161.9312114989733 · 33.3 · 66.59999999999999 · 99.90000000000001</td>
+<td class="cnt">10&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">21&times;</td>
+<td class="cnt">20&times;</td>
+<td class="cnt">16&times;</td>
+</tr>
+<tr><td class="fld">{GPS} AltitudeRef</td><td class="gl">above or below sea level</td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{GPS} DestBearing</td><td class="gl">bearing to destination</td><td class="on">159.8709259259259</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{GPS} DestBearingRef</td><td class="gl">bearing reference</td><td class="on">T</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{GPS} GPSVersion</td><td class="gl">GPS tag version</td><td class="on">( 2, 3, 0, 0 )</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">12&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">10&times;</td>
+</tr>
+<tr><td class="fld">{GPS} HPositioningError</td><td class="gl">GPS accuracy in metres</td><td class="on">35</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{GPS} ImgDirection</td><td class="gl">which way the camera was pointing</td><td class="on">159.8709259259259</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{GPS} ImgDirectionRef</td><td class="gl">true or magnetic north</td><td class="on">T</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{GPS} LatitudeRef</td><td class="gl">hemisphere</td><td class="on">N</td>
+<td class="cnt">10&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">21&times;</td>
+<td class="cnt">20&times;</td>
+<td class="cnt">16&times;</td>
+</tr>
+<tr><td class="fld">{GPS} LongitudeRef</td><td class="gl">hemisphere</td><td class="on">E</td>
+<td class="cnt">10&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">21&times;</td>
+<td class="cnt">20&times;</td>
+<td class="cnt">16&times;</td>
+</tr>
+<tr><td class="fld">{GPS} Speed</td><td class="gl">how fast you were moving</td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{GPS} SpeedRef</td><td class="gl">speed units</td><td class="on">K</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr class="grp is-warn"><td colspan="8">Time, lens and exposure &nbsp;<span class="gd">The camera&#x27;s own record of the moment — enough to fingerprint a device and describe the scene.</span></td></tr>
+<tr><td class="fld">{Exif} DateTimeOriginal</td><td class="gl">shutter time</td><td class="on">2025:02:03 04:05:06 · 2026:08:17 20:49:42</td>
+<td class="cnt">10&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">21&times;</td>
+<td class="cnt">20&times;</td>
+<td class="cnt">16&times;</td>
+</tr>
+<tr><td class="fld">{Exif} DateTimeDigitized</td><td class="gl">digitised time</td><td class="on">2025:02:03 04:05:06 · 2026:08:17 20:49:42</td>
 <td class="cnt">8&times;</td>
 <td class="cnt">16&times;</td>
 <td class="cnt">18&times;</td>
 <td class="cnt">11&times;</td>
 <td class="cnt">14&times;</td>
 </tr>
-<tr><td class="fld">Apple maker note</td>
+<tr><td class="fld">{Exif} OffsetTime</td><td class="gl">timezone — places you geographically on its own</td><td class="on">+03:00</td>
 <td class="cnt">4&times;</td>
 <td class="cnt">11&times;</td>
 <td class="cnt">6&times;</td>
 <td class="cnt">5&times;</td>
 <td class="cnt">4&times;</td>
 </tr>
-<tr class="grp is-dim"><td colspan="6">Timing</td></tr>
-<tr><td class="fld">first GPS read at</td>
+<tr><td class="fld">{Exif} OffsetTimeOriginal</td><td class="gl">timezone at capture</td><td class="on">+03:00</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} OffsetTimeDigitized</td><td class="gl">timezone at digitising</td><td class="on">+03:00</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} SubsecTimeOriginal</td><td class="gl">sub-second, makes the timestamp near-unique</td><td class="on">604</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} SubsecTimeDigitized</td><td class="gl">sub-second</td><td class="on">604</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} ApertureValue</td><td class="gl">aperture, log form</td><td class="on">1.69599381283836</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} BrightnessValue</td><td class="gl">scene brightness — indoors or out</td><td class="on">-3.277693438967693</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} ColorSpace</td><td class="gl">colour space</td><td class="on">65535</td>
+<td class="cnt">8&times;</td>
+<td class="cnt">16&times;</td>
+<td class="cnt">18&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">14&times;</td>
+</tr>
+<tr><td class="fld">{Exif} ComponentsConfiguration</td><td class="gl">channel order</td><td class="on">( 1, 2, 3, 0 )</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">12&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">10&times;</td>
+</tr>
+<tr><td class="fld">{Exif} ExifVersion</td><td class="gl">EXIF version</td><td class="on">( 2, 3, 2 )</td>
+<td class="cnt">8&times;</td>
+<td class="cnt">16&times;</td>
+<td class="cnt">18&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">14&times;</td>
+</tr>
+<tr><td class="fld">{Exif} ExposureBiasValue</td><td class="gl">exposure compensation</td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} ExposureMode</td><td class="gl">exposure mode</td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} ExposureProgram</td><td class="gl">exposure program</td><td class="on">2</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} ExposureTime</td><td class="gl">shutter speed</td><td class="on">0.25</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} FNumber</td><td class="gl">aperture</td><td class="on">1.8</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} Flash</td><td class="gl">whether the flash fired</td><td class="on">16</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} FocalLenIn35mmFilm</td><td class="gl">focal length, 35mm equivalent</td><td class="on">28</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} FocalLength</td><td class="gl">focal length</td><td class="on">4</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} ISOSpeedRatings</td><td class="gl">sensor gain, tracks available light</td><td class="on">( 320 )</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} LensMake</td><td class="gl">lens maker</td><td class="on">Apple</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} LensModel</td><td class="gl">which lens, and therefore which phone</td><td class="on">iPhone X back dual camera 4mm f/1.8</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} LensSpecification</td><td class="gl">focal range and max aperture</td><td class="on">( 4, 6, &quot;1.8&quot;, &quot;2.4&quot; )</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} MeteringMode</td><td class="gl">metering mode</td><td class="on">5</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} PixelXDimension</td><td class="gl">full-resolution width</td><td class="on">4032</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} PixelYDimension</td><td class="gl">full-resolution height</td><td class="on">3024</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} SceneType</td><td class="gl">directly photographed, or a scan</td><td class="on">1</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} SensingMethod</td><td class="gl">sensor type</td><td class="on">2</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} ShutterSpeedValue</td><td class="gl">shutter, log form</td><td class="on">2.000034626038781</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} SubjectArea</td><td class="gl">where the subject sat in the frame</td><td class="on">( 2015, 1511, 2217, 1330 )</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{Exif} WhiteBalance</td><td class="gl">white balance</td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr class="grp is-new"><td colspan="8">Apple&#x27;s private block &nbsp;<span class="gd">35 mostly undocumented tags Apple writes for itself, read verbatim. Three carry UUIDs — identifiers unique to a single shot.</span></td></tr>
+<tr><td class="fld">{MakerApple} 1</td><td class="gl"></td><td class="on">14</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 2</td><td class="gl"></td><td class="on">{length = 512, bytes = 0x79008100 8f00a200 bc00de00 07013b01 ...…</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 3</td><td class="gl"></td><td class="on">{ epoch = 0; flags = 1; timescale = 1000000000; value = 78137481…</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 4</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 5</td><td class="gl"></td><td class="on">89</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 6</td><td class="gl"></td><td class="on">98</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 7</td><td class="gl"></td><td class="on">1</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 8</td><td class="gl"></td><td class="on">( &quot;0.05960891&quot;, &quot;-0.8558713&quot;, &quot;-0.5465792&quot; )</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 12</td><td class="gl"></td><td class="on">( &quot;2.53125&quot;, &quot;1.390625&quot; )</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 13</td><td class="gl"></td><td class="on">20</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 14</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 15</td><td class="gl"></td><td class="on">2</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 16</td><td class="gl"></td><td class="on">1</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 17</td><td class="gl">ContentIdentifier — pairs a Live Photo&#x27;s still to its clip</td><td class="on">D3609A27-2C38-4742-81AC-8911B3980A99</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 20</td><td class="gl"></td><td class="on">5</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 23</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 25</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 26</td><td class="gl"></td><td class="on">q750n</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 31</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 32</td><td class="gl">a third UUID, unnamed</td><td class="on">C4172253-5EBF-4D37-A4A6-F4149E9A82F5</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 33</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 35</td><td class="gl"></td><td class="on">( 0, 536871180 )</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 37</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 38</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 39</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 43</td><td class="gl">PhotoIdentifier — unique to this one shot</td><td class="on">55157F45-0C35-4E72-B103-8FA8D2339E73</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 45</td><td class="gl"></td><td class="on">6694</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 46</td><td class="gl"></td><td class="on">2</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 47</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 54</td><td class="gl"></td><td class="on">7</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 55</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 59</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 60</td><td class="gl"></td><td class="on">4</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 65</td><td class="gl"></td><td class="on">0</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">{MakerApple} 74</td><td class="gl"></td><td class="on">2</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr class="grp is-dim"><td colspan="8">Bitmap geometry &nbsp;<span class="gd">Read for every bitmap the app renders, so this group mixes your photos with interface chrome and cannot be attributed to a file.</span></td></tr>
+<tr><td class="fld">ColorModel</td><td class="gl">colour model</td><td class="on">RGB</td>
+<td class="cnt">120&times;</td>
+<td class="cnt">94&times;</td>
+<td class="cnt">125&times;</td>
+<td class="cnt">140&times;</td>
+<td class="cnt">115&times;</td>
+</tr>
+<tr><td class="fld">DPIHeight</td><td class="gl">DPI</td><td class="on">216 · 288 · 72</td>
+<td class="cnt">37&times;</td>
+<td class="cnt">24&times;</td>
+<td class="cnt">39&times;</td>
+<td class="cnt">57&times;</td>
+<td class="cnt">39&times;</td>
+</tr>
+<tr><td class="fld">DPIWidth</td><td class="gl">DPI</td><td class="on">216 · 288 · 72</td>
+<td class="cnt">37&times;</td>
+<td class="cnt">24&times;</td>
+<td class="cnt">39&times;</td>
+<td class="cnt">57&times;</td>
+<td class="cnt">39&times;</td>
+</tr>
+<tr><td class="fld">Depth</td><td class="gl">bit depth</td><td class="on">8</td>
+<td class="cnt">120&times;</td>
+<td class="cnt">94&times;</td>
+<td class="cnt">125&times;</td>
+<td class="cnt">140&times;</td>
+<td class="cnt">115&times;</td>
+</tr>
+<tr><td class="fld">HasAlpha</td><td class="gl">has transparency</td><td class="on">1</td>
+<td class="cnt">36&times;</td>
+<td class="cnt">16&times;</td>
+<td class="cnt">36&times;</td>
+<td class="cnt">57&times;</td>
+<td class="cnt">38&times;</td>
+</tr>
+<tr><td class="fld">IsIndexed</td><td class="gl">indexed palette</td><td class="on">1</td>
+<td class="cnt">22&times;</td>
+<td class="cnt">23&times;</td>
+<td class="cnt">21&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">19&times;</td>
+</tr>
+<tr><td class="fld">Orientation</td><td class="gl">orientation</td><td class="on">1 · 6</td>
+<td class="cnt">36&times;</td>
+<td class="cnt">39&times;</td>
+<td class="cnt">46&times;</td>
+<td class="cnt">38&times;</td>
+<td class="cnt">34&times;</td>
+</tr>
+<tr><td class="fld">PixelHeight</td><td class="gl">bitmap height</td><td class="on">100 · 120 · 132 · 144 · 162 · 168 · 170 · 1920 · 200 · 2080 · 24…</td>
+<td class="cnt">120&times;</td>
+<td class="cnt">94&times;</td>
+<td class="cnt">125&times;</td>
+<td class="cnt">140&times;</td>
+<td class="cnt">115&times;</td>
+</tr>
+<tr><td class="fld">PixelWidth</td><td class="gl">bitmap width</td><td class="on">100 · 1170 · 120 · 144 · 1440 · 145 · 162 · 168 · 200 · 2160 · 2…</td>
+<td class="cnt">120&times;</td>
+<td class="cnt">94&times;</td>
+<td class="cnt">125&times;</td>
+<td class="cnt">140&times;</td>
+<td class="cnt">115&times;</td>
+</tr>
+<tr><td class="fld">PrimaryImage</td><td class="gl">primary image in the container</td><td class="on">1</td>
+<td class="cnt">23&times;</td>
+<td class="cnt">27&times;</td>
+<td class="cnt">32&times;</td>
+<td class="cnt">27&times;</td>
+<td class="cnt">21&times;</td>
+</tr>
+<tr><td class="fld">ProfileName</td><td class="gl">colour profile</td><td class="on">Display P3 · sRGB · sRGB IEC61966-2.1</td>
+<td class="cnt">117&times;</td>
+<td class="cnt">91&times;</td>
+<td class="cnt">122&times;</td>
+<td class="cnt">135&times;</td>
+<td class="cnt">112&times;</td>
+</tr>
+<tr class="grp is-dim"><td colspan="8">Timing</td></tr>
+<tr><td class="fld">first GPS read at</td><td class="gl">how long after launch</td><td class="on">before anything was selected</td>
 <td class="on">6.8 s</td>
 <td class="on">6.1 s</td>
 <td class="on">6.7 s</td>
@@ -1057,7 +1710,9 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">7.6 s</td>
 </tr>
 </tbody></table></div>
-<p class="cap"><b>Photo 4 reads late (35 s) because the operator took longer to open the picker in that session</b>, not because the app behaved differently — the read pattern itself is identical across all five.</p>
+<p class="cap"><b>Photo 4 reads late (35 s) because the operator took longer to open the picker in that session</b>, not because the app behaved differently &mdash; the pattern itself is identical across all five.</p>
+<p class="cap"><b>The three UUIDs in the Apple block are the sharpest thing in this table.</b> A coordinate can be faked and a timestamp can be moved, but <code>ContentIdentifier</code> and <code>PhotoIdentifier</code> are values that exist to be unique to one shot. Anyone copying a real maker note onto other files &mdash; the obvious way to make a photo look camera-shot &mdash; carries those identifiers along with it, and stamps every one of those files with the same supposedly-unique id.</p>
+<p class="cap"><b>Bitmap geometry is the one group that is not evidence about your photos.</b> Those keys are read for every image the app draws, interface chrome included &mdash; which is why <code>{TIFF} Software</code> lists <code>Figma</code> alongside the real values, and why the pixel dimensions run from 28&nbsp;px icons to 4032&nbsp;px captures. It is listed for completeness, not attribution.</p>
 <div class="panel is-dim"><h3>What the stills runs do not show</h3><ul>
 <li><b>No upload body was captured on any of the five.</b> Between three and seven request bodies per run, all of it launch telemetry — nothing from the post itself. What reaches the CDN for a photo is unmeasured, exactly as it is for the clips.</li>
 <li><b>Reads are attributed by value, not by file handle.</b> The claim that a non-selected photo was read rests on its unique canary appearing in the session. That is sound here because every arm differs, but it is inference from the value set, not a per-file trace.</li>

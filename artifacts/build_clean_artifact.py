@@ -129,20 +129,101 @@ IMAGE_FIELDS = [
     ]),
 ]
 
-# The image dictionaries CGImageSource hands back, and what each one is.
-IMAGE_READ_ROWS = [
-    ("make", "image {TIFF} Make", "is-bad"),
-    ("model", "image {TIFF} Model", "is-bad"),
-    ("software", "image {TIFF} Software", "is-bad"),
-    ("GPS latitude", "image {GPS} Latitude", "is-bad"),
-    ("GPS longitude", "image {GPS} Longitude", "is-bad"),
-    ("GPS altitude", "image {GPS} Altitude", "is-bad"),
-    ("compass bearing", "image {GPS} ImgDirection", "is-bad"),
-    ("position error", "image {GPS} HPositioningError", "is-bad"),
-    ("capture date", "image {Exif} DateTimeOriginal", "is-warn"),
-    ("digitised date", "image {Exif} DateTimeDigitized", "is-warn"),
-    ("Apple maker note", "image {MakerApple}", "is-new"),
+# Plain English for the fields worth naming. Anything absent here still gets a
+# row -- the table is built from the data, not from this dict, so it cannot go
+# stale or quietly drop a field the app started reading.
+IMAGE_GLOSS = {
+    "{TIFF} Make": "handset manufacturer",
+    "{TIFF} Model": "handset model",
+    "{TIFF} Software": "iOS build",
+    "{TIFF} HostComputer": "the device that wrote the file — a second identifier",
+    "{TIFF} DateTime": "file write time",
+    "{TIFF} Orientation": "how the phone was held",
+    "{TIFF} XResolution": "stored resolution",
+    "{TIFF} YResolution": "stored resolution",
+    "{TIFF} ResolutionUnit": "resolution unit",
+    "{TIFF} TileWidth": "HEIC tile size",
+    "{TIFF} TileLength": "HEIC tile size",
+    "{Exif} DateTimeOriginal": "shutter time",
+    "{Exif} DateTimeDigitized": "digitised time",
+    "{Exif} OffsetTime": "timezone — places you geographically on its own",
+    "{Exif} OffsetTimeOriginal": "timezone at capture",
+    "{Exif} OffsetTimeDigitized": "timezone at digitising",
+    "{Exif} SubsecTimeOriginal": "sub-second, makes the timestamp near-unique",
+    "{Exif} SubsecTimeDigitized": "sub-second",
+    "{Exif} LensModel": "which lens, and therefore which phone",
+    "{Exif} LensMake": "lens maker",
+    "{Exif} LensSpecification": "focal range and max aperture",
+    "{Exif} SubjectArea": "where the subject sat in the frame",
+    "{Exif} BrightnessValue": "scene brightness — indoors or out",
+    "{Exif} Flash": "whether the flash fired",
+    "{Exif} ISOSpeedRatings": "sensor gain, tracks available light",
+    "{Exif} ExposureTime": "shutter speed",
+    "{Exif} FNumber": "aperture",
+    "{Exif} ApertureValue": "aperture, log form",
+    "{Exif} ShutterSpeedValue": "shutter, log form",
+    "{Exif} FocalLength": "focal length",
+    "{Exif} FocalLenIn35mmFilm": "focal length, 35mm equivalent",
+    "{Exif} MeteringMode": "metering mode",
+    "{Exif} WhiteBalance": "white balance",
+    "{Exif} ExposureMode": "exposure mode",
+    "{Exif} ExposureProgram": "exposure program",
+    "{Exif} ExposureBiasValue": "exposure compensation",
+    "{Exif} SceneType": "directly photographed, or a scan",
+    "{Exif} SensingMethod": "sensor type",
+    "{Exif} ColorSpace": "colour space",
+    "{Exif} ExifVersion": "EXIF version",
+    "{Exif} ComponentsConfiguration": "channel order",
+    "{Exif} PixelXDimension": "full-resolution width",
+    "{Exif} PixelYDimension": "full-resolution height",
+    "{GPS} Latitude": "latitude",
+    "{GPS} Longitude": "longitude",
+    "{GPS} Altitude": "altitude",
+    "{GPS} AltitudeRef": "above or below sea level",
+    "{GPS} LatitudeRef": "hemisphere",
+    "{GPS} LongitudeRef": "hemisphere",
+    "{GPS} ImgDirection": "which way the camera was pointing",
+    "{GPS} ImgDirectionRef": "true or magnetic north",
+    "{GPS} DestBearing": "bearing to destination",
+    "{GPS} DestBearingRef": "bearing reference",
+    "{GPS} HPositioningError": "GPS accuracy in metres",
+    "{GPS} Speed": "how fast you were moving",
+    "{GPS} SpeedRef": "speed units",
+    "{GPS} GPSVersion": "GPS tag version",
+    # exiftool names two of the three UUIDs in the Apple block; the third it
+    # leaves numbered, so neither do we.
+    "{MakerApple} 17": "ContentIdentifier — pairs a Live Photo's still to its clip",
+    "{MakerApple} 43": "PhotoIdentifier — unique to this one shot",
+    "{MakerApple} 32": "a third UUID, unnamed",
+    "ColorModel": "colour model", "Depth": "bit depth",
+    "PixelWidth": "bitmap width", "PixelHeight": "bitmap height",
+    "DPIWidth": "DPI", "DPIHeight": "DPI", "HasAlpha": "has transparency",
+    "IsIndexed": "indexed palette", "Orientation": "orientation",
+    "PrimaryImage": "primary image in the container",
+    "ProfileName": "colour profile",
+}
+
+# How each CGImageSource dictionary is grouped in the complete table.
+IMAGE_BLOCKS = [
+    ("{TIFF}", "Device and file identity", "is-bad",
+     "Who made the handset, which model, which iOS build."),
+    ("{GPS}", "Location", "is-bad",
+     "Not just a coordinate: altitude, heading, speed and GPS accuracy too."),
+    ("{Exif}", "Time, lens and exposure", "is-warn",
+     "The camera's own record of the moment — enough to fingerprint a device "
+     "and describe the scene."),
+    ("{MakerApple}", "Apple's private block", "is-new",
+     "%d mostly undocumented tags Apple writes for itself, read verbatim. "
+     "Three carry UUIDs — identifiers unique to a single shot."),
+    ("(top level)", "Bitmap geometry", "is-dim",
+     "Read for every bitmap the app renders, so this group mixes your photos "
+     "with interface chrome and cannot be attributed to a file."),
 ]
+
+# Time keys live in {Exif} but read as provenance, so they lead their group.
+IMAGE_TIME_KEYS = ("DateTimeOriginal", "DateTimeDigitized", "OffsetTime",
+                   "OffsetTimeOriginal", "OffsetTimeDigitized",
+                   "SubsecTimeOriginal", "SubsecTimeDigitized")
 
 CHAIN_DUMPS = [
     ("gallery-id/IMG_0027-after-index.MOV", "IMG_0027-after-index.MOV",
@@ -964,6 +1045,39 @@ def ivals(tags, key):
     return [str(x) for x in (v if isinstance(v, list) else [v])]
 
 
+def image_keys(iruns):
+    """Every image field any stills run saw, grouped by CGImageSource dict.
+
+    Built from the runs rather than a hand-kept list: a curated table silently
+    goes stale the moment the app reads something new, and a table claiming to
+    be complete has to actually be complete.
+    """
+    lead = {"{TIFF}": ["Make", "Model", "Software", "HostComputer", "DateTime"],
+            "{GPS}": ["Latitude", "Longitude", "Altitude"],
+            "{Exif}": list(IMAGE_TIME_KEYS)}
+    out = {}
+    seen = set()
+    for run in iruns.values():
+        seen |= {k for k in run["tags"] if k.startswith("image")}
+    for key in seen:
+        short = key[len("image "):]
+        m = re.match(r"^(\{[^}]+\})(?:\s+(.*))?$", short)
+        if m and not m.group(2):
+            continue                    # the bare "(block, opened below)" row
+        block = m.group(1) if m else "(top level)"
+        out.setdefault(block, []).append((key, short))
+    for block, rows in out.items():
+        first = lead.get(block, [])
+
+        def rank(item):
+            name = item[1].split("} ")[-1]
+            if block == "{MakerApple}":
+                return (0, int(name) if name.isdigit() else 9999, name)
+            return (first.index(name) if name in first else len(first), 0, name)
+        rows.sort(key=rank)
+    return out
+
+
 def images_section(iruns, idumps):
     o = []
     a = o.append
@@ -1118,25 +1232,43 @@ def images_section(iruns, idumps):
     a('</div>')
 
     # ------------------------------------------------------------ read counts
-    a('<h3>How hard it looks</h3>')
-    a('<p>Reads per session, counted per dictionary key across every photo in the roll. '
-      'The picker sweep is not a glance.</p>')
+    # ------------------------------------- every field, built from the data
+    keys, gloss_missing = image_keys(iruns), []
+    total = sum(len(v) for v in keys.values())
+    a('<h3>Every field it read off a photo</h3>')
+    a('<p>Not a selection &mdash; this is the complete list, generated from the run files, so it '
+      'cannot quietly go out of date. <b>%d distinct fields</b>, in the five dictionaries '
+      '<code>CGImageSource</code> hands back. Counts are reads per session; a dash means that '
+      'session never saw the field.</p>' % total)
     a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr>')
-    a('<th class="cnr">What it pulled</th>')
+    a('<th class="cnr">Field</th><th class="cnr">What it is</th><th class="cnr">Values seen</th>')
     for c in cols:
         a('<th class="%s"><em>posted</em><b>%d</b> %s</th>' % (c["cls"], c["n"], esc(c["label"])))
     a('</tr></thead><tbody>')
-    for label, key, cls in IMAGE_READ_ROWS:
-        a('<tr><td class="fld">%s</td>' % esc(label))
-        for c in cols:
-            m = iruns[c["id"]]["tags"].get(key)
-            if not m:
-                a('<td class="off">&mdash;</td>')
-            else:
-                a('<td class="cnt">%s&times;</td>' % (m.get("reads") or 0))
-        a('</tr>')
-    a('<tr class="grp is-dim"><td colspan="%d">Timing</td></tr>' % (len(cols) + 1))
-    a('<tr><td class="fld">first GPS read at</td>')
+    for block, gname, gcls, gdesc in IMAGE_BLOCKS:
+        rows = keys.get(block, [])
+        if not rows:
+            continue
+        # a count in the prose has to come from the rows, or it drifts
+        a('<tr class="grp %s"><td colspan="%d">%s &nbsp;<span class="gd">%s</span></td></tr>'
+          % (gcls, len(cols) + 3, esc(gname),
+             esc(gdesc % len(rows) if "%d" in gdesc else gdesc)))
+        for key, short in rows:
+            g = IMAGE_GLOSS.get(short, "")
+            if not g and block != "{MakerApple}":
+                gloss_missing.append(short)
+            vals = sorted({v for c in cols for v in ivals(iruns[c["id"]]["tags"], key)})
+            shown = " · ".join(vals)
+            a('<tr><td class="fld">%s</td><td class="gl">%s</td><td class="on">%s</td>'
+              % (esc(short), esc(g), esc(shown[:64] + ("…" if len(shown) > 64 else ""))))
+            for c in cols:
+                m = iruns[c["id"]]["tags"].get(key)
+                a('<td class="%s">%s</td>' % ("cnt", "%s&times;" % (m.get("reads") or 0))
+                  if m else '<td class="off">&mdash;</td>')
+            a('</tr>')
+    a('<tr class="grp is-dim"><td colspan="%d">Timing</td></tr>' % (len(cols) + 3))
+    a('<tr><td class="fld">first GPS read at</td><td class="gl">how long after launch</td>'
+      '<td class="on">before anything was selected</td>')
     for c in cols:
         m = iruns[c["id"]]["tags"].get("image {GPS} Latitude")
         t = m.get("first_seen_s") if m else None
@@ -1144,9 +1276,23 @@ def images_section(iruns, idumps):
                                       ("%.1f s" % t) if t else "&mdash;"))
     a('</tr>')
     a('</tbody></table></div>')
+    if gloss_missing:
+        print("  ! stills fields with no plain-English gloss: %s"
+              % ", ".join(sorted(set(gloss_missing))))
     a('<p class="cap"><b>Photo 4 reads late (35 s) because the operator took longer to open the '
-      'picker in that session</b>, not because the app behaved differently — the read pattern '
+      'picker in that session</b>, not because the app behaved differently &mdash; the pattern '
       'itself is identical across all five.</p>')
+    a('<p class="cap"><b>The three UUIDs in the Apple block are the sharpest thing in this '
+      'table.</b> A coordinate can be faked and a timestamp can be moved, but '
+      '<code>ContentIdentifier</code> and <code>PhotoIdentifier</code> are values that exist to '
+      'be unique to one shot. Anyone copying a real maker note onto other files &mdash; the '
+      'obvious way to make a photo look camera-shot &mdash; carries those identifiers along with '
+      'it, and stamps every one of those files with the same supposedly-unique id.</p>')
+    a('<p class="cap"><b>Bitmap geometry is the one group that is not evidence about your '
+      'photos.</b> Those keys are read for every image the app draws, interface chrome included '
+      '&mdash; which is why <code>{TIFF} Software</code> lists <code>Figma</code> alongside the '
+      'real values, and why the pixel dimensions run from 28&nbsp;px icons to 4032&nbsp;px '
+      'captures. It is listed for completeness, not attribution.</p>')
 
     # ------------------------------------------------------------------ limits
     a('<div class="panel is-dim"><h3>What the stills runs do not show</h3><ul>')
@@ -1409,6 +1555,10 @@ a { color:var(--cool); }
    matrix min-width and force its container to scroll */
 .mtx.compact { min-width:0; }
 .mtx.compact td.fld { white-space:normal; }
+/* plain-English column beside the raw field name, and the note on a group row */
+.mtx td.gl { color:var(--mid); white-space:normal; min-width:15ch; }
+.mtx tr.grp .gd { color:var(--dim); text-transform:none; letter-spacing:0;
+  font-weight:400; }
 .ct { font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:650;
   padding:3px 6px; border-radius:4px; background:var(--sunk); color:var(--dim);
   border:1px solid var(--line); white-space:nowrap; }
