@@ -142,15 +142,17 @@ IMAGE_GLOSS = {
     "{TIFF} XResolution": "stored resolution",
     "{TIFF} YResolution": "stored resolution",
     "{TIFF} ResolutionUnit": "resolution unit",
-    "{TIFF} TileWidth": "HEIC tile size — computed on read, not stored in the file",
-    "{TIFF} TileLength": "HEIC tile size — computed on read, not stored in the file",
+    "{TIFF} TileWidth": "HEIC tile size — computed on read, not stored",
+    "{TIFF} TileLength": "HEIC tile size — computed on read, not stored",
     "{Exif} DateTimeOriginal": "shutter time",
     "{Exif} DateTimeDigitized": "digitised time",
+    # identical strings on purpose: three timezone rows and two sub-second rows
+    # sort next to each other, and the table prints a description once per run
     "{Exif} OffsetTime": "timezone — places you geographically on its own",
-    "{Exif} OffsetTimeOriginal": "timezone at capture",
-    "{Exif} OffsetTimeDigitized": "timezone at digitising",
-    "{Exif} SubsecTimeOriginal": "sub-second, makes the timestamp near-unique",
-    "{Exif} SubsecTimeDigitized": "sub-second",
+    "{Exif} OffsetTimeOriginal": "timezone — places you geographically on its own",
+    "{Exif} OffsetTimeDigitized": "timezone — places you geographically on its own",
+    "{Exif} SubsecTimeOriginal": "sub-second — makes the timestamp near-unique",
+    "{Exif} SubsecTimeDigitized": "sub-second — makes the timestamp near-unique",
     "{Exif} LensModel": "which lens, and therefore which phone",
     "{Exif} LensMake": "lens maker",
     "{Exif} LensSpecification": "focal range and max aperture",
@@ -213,11 +215,11 @@ IMAGE_BLOCKS = [
      "The camera's own record of the moment — enough to fingerprint a device "
      "and describe the scene."),
     ("{MakerApple}", "Apple's private block", "is-new",
-     "%d mostly undocumented tags Apple writes for itself, read verbatim. "
-     "Three carry UUIDs — identifiers unique to a single shot."),
+     "%d mostly undocumented tags Apple writes for itself, read verbatim."),
     ("(top level)", "Bitmap geometry", "is-dim",
-     "Read for every bitmap the app renders, so this group mixes your photos "
-     "with interface chrome and cannot be attributed to a file."),
+     "Computed for every bitmap the app draws, interface chrome included, so "
+     "no value here belongs to one photo — which is why Figma appears among "
+     "the software strings."),
 ]
 
 # CGImageSource and exiftool disagree on some spellings. Everything else
@@ -1138,129 +1140,21 @@ def images_section(iruns, idumps):
     a = o.append
     cols = IMAGE_RUNS
     a('<section><h2>The same thing happens to your photos — and worse</h2>')
-    a('<p>Five stills, posted one at a time through the same rig. Because photos cost a '
-      'posting window rather than a library rebuild, all five could sit in the camera roll '
-      'together &mdash; each carrying its own canary id so a hit still names exactly one file. '
-      'That last detail is what exposed the finding below; with one shared id it would have '
-      'been invisible.</p>')
+    a('<p>Five stills, posted one at a time through the same rig. A photo costs a posting '
+      'window rather than a library rebuild, so all five could sit in the camera roll at once '
+      '&mdash; each carrying its own canary id, so a hit still names exactly one file. That '
+      'detail is what exposed the first finding below; with one shared id it would have been '
+      'invisible.</p>')
 
-    # ------------------------------------------------- finding 1, the big one
-    a('<div class="panel is-bad"><h3>It reads every photo in the picker, not the one you pick</h3>')
-    a('<p>Five photos sat in the roll. Each session posted exactly one of them. '
-      'Read one row at a time: what went out, and whose identity TikTok took while it was '
-      'happening.</p>')
-    a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr>')
-    a('<th class="cnr">The photo you posted</th>'
-      '<th class="cnr">What was written on it</th>'
-      '<th class="cnr">Other photos it read anyway<span class="gd">'
-      ' &mdash; out of the 4 in the roll carrying any identity at all</span></th>'
-      '<th class="cnr">Which ones</th>'
-      '<th class="cnr">Posted file, confirmed</th></tr></thead><tbody>')
-    identity_arms = [r for r in IMAGE_RUNS if r.get("mark")]
-    for c in cols:
-        t = iruns[c["id"]]["tags"]
-        makes, lats = set(ivals(t, "image {TIFF} Make")), set(ivals(t, "image {GPS} Latitude"))
-        others = [o for o in identity_arms
-                  if o["key"] != c["key"] and (o["mark"] in makes or o["gps"] in lats)]
-        # what the posted file itself carried, read off the file not asserted
-        d = idumps.get(c["key"]) or {}
-        if not c.get("mark"):
-            carried = '<span class="off">nothing at all</span>'
-        else:
-            where = "XMP only" if "XMP-tiff:Make" in d else "EXIF"
-            # the ellipsis is markup, so it goes on after escaping, not before
-            gps = esc(c["gps"][:10]) + ("&hellip;" if c["key"] == "icamera" else "")
-            model = d.get("IFD0:Model") or d.get("XMP-tiff:Model") or ""
-            carried = ('%s<i>%s%s &middot; %s</i>'
-                       % (esc(c["mark"]),
-                          (esc(str(model)) + " &middot; ") if model else "",
-                          gps, where))
-        chips = " ".join('<span class="ct %s">%s</span>'
-                         % ("keys" if o["key"] != "icamera" else "xmp", esc(o["label"]))
-                         for o in others)
-        uti = ivals(t, "resource uniformTypeIdentifier")
-        a('<tr><td class="fld sess %s"><b>%d</b> %s<i>%s</i></td>'
-          '<td class="on">%s</td>'
-          '<td class="cnt big">%d<i>of %d</i></td>'
-          '<td class="chips">%s</td>'
-          '<td class="on">%s<i>matches photo %d</i></td></tr>'
-          % (c["cls"], c["n"], esc(c["label"]), esc(c["note"]),
-             carried, len(others), len(identity_arms), chips,
-             esc(uti[0] if uti else "—"), c["n"]))
-    a('</tbody></table></div>')
-    a('<p class="cap"><b>Read the first row again.</b> The file posted that session was a flat '
-      'red rectangle with no EXIF, no XMP and no GPS &mdash; nothing to take. TikTok came away '
-      'with the make, model, iOS build, capture date and full coordinates of <em>four other '
-      'photos</em>, your real one among them, about 6.7&nbsp;seconds after launch and before '
-      'anything had been selected.</p>')
-    a('<p class="cap">The last column is the control. <code>uniformTypeIdentifier</code> tracks '
-      'the file actually handed to the encoder, and it matches the intended arm in all five '
-      'sessions &mdash; so the harvest in the middle columns is not a mix-up about which photo '
-      'was posted.</p>')
-
-    # the saturated grid, kept as proof but out of the way: every cell is a hit,
-    # which is the point and also why it reads as a wall rather than a finding
-    a('<details class="ldg"><summary><b>The full grid</b> '
-      '<em>every photo against every session &mdash; all 40 cells are hits</em></summary>')
-    a('<div class="mtx-wrap"><table class="mtx"><thead>')
-    a('<tr><th class="cnr" rowspan="2">Whose metadata appeared</th>'
-      '<th class="cnr in" rowspan="2">Its unique value</th>')
-    for c in cols:
-        a('<th class="%s"><em>posted</em><b>%d</b> %s</th>' % (c["cls"], c["n"], esc(c["label"])))
-    a('</tr><tr>')
-    for c in cols:
-        a('<th class="sub">%s</th>' % esc(c["note"]))
-    a('</tr></thead><tbody>')
-    for gname, field, key in [("Device identity", "mark", "image {TIFF} Make"),
-                              ("Location", "gps", "image {GPS} Latitude")]:
-        a('<tr class="grp is-bad"><td colspan="%d">%s</td></tr>' % (len(cols) + 2, gname))
-        for src in identity_arms:
-            val = src[field]
-            shown = (val[:10] + "&hellip; <i>your home</i>") if (
-                field == "gps" and src["key"] == "icamera") else esc(val)
-            a('<tr><td class="fld">photo %d &middot; %s</td>'
-              '<td class="in"><span class="ct keys">%s</span></td>'
-              % (src["n"], esc(src["label"]), shown))
-            for c in cols:
-                hit = val in ivals(iruns[c["id"]]["tags"], key)
-                a('<td class="%s">%s</td>' % ("on" if hit else "off",
-                                              "read" if hit else "&mdash;"))
-            a('</tr>')
-    a('</tbody></table></div>')
-    a('<p class="cap">The rig records values per tag key rather than per file handle, so '
-      '&ldquo;read&rdquo; means that photo&rsquo;s unique value appeared during the session. '
-      'That is only attributable because every arm was given a different canary id and a '
-      'different coordinate.</p>')
-    a('</details>')
-    a('</div>')
-
-    # ------------------------------------------------- finding 2, XMP parsed
-    a('<div class="panel is-warn"><h3>On photos, XMP <em>is</em> parsed — the opposite of video</h3>')
-    a('<p>Photo 4 carries <b>no EXIF, no IFD0, no GPS block at all</b>. Its make and coordinates '
-      'exist only inside an XMP packet. TikTok read them anyway, because ImageIO folds XMP into '
-      'the same <code>{TIFF}</code> and <code>{GPS}</code> dictionaries it fills from EXIF. '
-      'AVFoundation does not do this for video, which is why clip 2&rsquo;s XMP stayed an opaque '
-      'blob. The video playbook rule does not carry over.</p>')
-    a('<div class="mtx-wrap"><table class="mtx compact">'
-      '<thead><tr><th class="cnr">Same values, one container apart</th>'
-      '<th>clip 2 &middot; video</th><th>photo 4 &middot; still</th></tr></thead><tbody>')
-    for lbl, vid, still in [
-            ("make / model in XMP", "<span class=\"off\">blob, 3 062 B, never parsed</span>",
-             "<span class=\"on\">CANARYMK-9B4F</span>"),
-            ("GPS in XMP", "<span class=\"off\">no coordinate ever surfaced</span>",
-             "<span class=\"on\">44.4444 / 55.5555</span>")]:
-        a('<tr><td class="fld">%s</td><td>%s</td><td>%s</td></tr>' % (lbl, vid, still))
-    a('</tbody></table></div></div>')  # mtx-wrap, then panel
-
-    # ------------------------------------------- what the five files are
+    # ------------------------------------------- the cast, introduced once
     a('<h3>The five photos</h3>')
-    a('<p>What went into the roll. Arms 2 and 3 are the same picture: 3 is that photo with '
-      'its identity stripped off and a fake one written back on.</p>')
+    a('<p>Everything downstream refers to these by number. Photos 2 and 3 are the same picture: '
+      '3 is that photo with its identity stripped off and a fake one written back on.</p>')
     a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr><th class="cnr">&nbsp;</th>')
     for c in cols:
         a('<th class="%s"><em>%s</em><b>%d</b> %s</th>'
           % (c["cls"], esc(c["origin"]), c["n"], esc(c["label"])))
-    a('</tr><tr><th class="cnr sub">how it was made</th>')
+    a('</tr><tr><th class="cnr sub">what it is</th>')
     for c in cols:
         a('<th class="sub">%s</th>' % esc(c["note"]))
     a('</tr></thead><tbody>')
@@ -1288,13 +1182,97 @@ def images_section(iruns, idumps):
         a('<td class="zero">byte-identical</td>')
     a('</tr>')
     a('</tbody></table></div>')
-    a('<div class="keyline">')
-    for cls, txt in [("is-good", "Shot on the phone &mdash; the real thing"),
-                     ("is-new", "Injected by us &mdash; fake values, read verbatim"),
-                     ("is-warn", "Injected into XMP only &mdash; and read anyway"),
-                     ("is-dim", "Generated &mdash; nothing to take")]:
-        a('<span class="%s"><i></i>%s</span>' % (cls, txt))
+
+    # ------------------------------------------------- finding 1, the big one
+    a('<div class="panel is-bad"><h3>It reads every photo in the picker, not the one you pick</h3>')
+    a('<p>Each session posted exactly one of the five. Read a row left to right: what went out, '
+      'and whose identity TikTok took while it was happening.</p>')
+    a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr>')
+    a('<th class="cnr">The photo you posted</th>'
+      '<th class="cnr">What was written on it</th>'
+      '<th class="cnr">Other photos it read anyway<span class="gd">'
+      ' &mdash; out of the 4 in the roll carrying any identity at all</span></th>'
+      '<th class="cnr">Which ones</th>'
+      '<th class="cnr">Posted file, confirmed</th></tr></thead><tbody>')
+    identity_arms = [r for r in IMAGE_RUNS if r.get("mark")]
+    for c in cols:
+        t = iruns[c["id"]]["tags"]
+        makes, lats = set(ivals(t, "image {TIFF} Make")), set(ivals(t, "image {GPS} Latitude"))
+        others = [o for o in identity_arms
+                  if o["key"] != c["key"] and (o["mark"] in makes or o["gps"] in lats)]
+        d = idumps.get(c["key"]) or {}
+        if not c.get("mark"):
+            carried = '<span class="off">nothing at all</span>'
+        else:
+            # the ellipsis is markup, so it goes on after escaping, not before
+            gps = esc(c["gps"][:10]) + ("&hellip;" if c["key"] == "icamera" else "")
+            model = d.get("IFD0:Model") or d.get("XMP-tiff:Model") or ""
+            carried = ('%s<i>%s%s</i>'
+                       % (esc(c["mark"]),
+                          (esc(str(model)) + " &middot; ") if model else "", gps))
+        chips = " ".join('<span class="ct %s">%d %s</span>'
+                         % ("keys" if o["key"] != "icamera" else "xmp", o["n"], esc(o["label"]))
+                         for o in others)
+        uti = ivals(t, "resource uniformTypeIdentifier")
+        a('<tr><td class="fld sess %s"><b>%d</b> %s</td>'
+          '<td class="on">%s</td>'
+          '<td class="cnt big">%d<i>of %d</i></td>'
+          '<td class="chips">%s</td>'
+          '<td class="on">%s</td></tr>'
+          % (c["cls"], c["n"], esc(c["label"]), carried,
+             len(others), len(identity_arms), chips, esc(uti[0] if uti else "—")))
+    a('</tbody></table></div>')
+    a('<p class="cap"><b>Read the first row again.</b> The file posted that session was a flat '
+      'red rectangle with no EXIF, no XMP and no GPS &mdash; nothing to take. TikTok came away '
+      'with the make, model, iOS build, capture date and full coordinates of <em>four other '
+      'photos</em>, your real one among them, about 6.7&nbsp;seconds after launch and before '
+      'anything had been selected.</p>')
+    a('<p class="cap">The last column is the control: it is the type of the file actually handed '
+      'to the encoder, and it matches the intended photo in all five sessions &mdash; so the '
+      'harvest is not a mix-up about which one was posted.</p>')
+
+    # the saturated grid, kept as proof but out of the way: every cell is a hit,
+    # which is the point and also why it reads as a wall rather than a finding
+    a('<details class="ldg"><summary><b>The full grid</b> '
+      '<em>every photo against every session &mdash; all 40 cells are hits</em></summary>')
+    a('<div class="mtx-wrap"><table class="mtx"><thead><tr>')
+    a('<th class="cnr">Whose metadata appeared</th><th class="cnr in">Its unique value</th>')
+    for c in cols:
+        a('<th class="%s"><em>posted</em><b>%d</b></th>' % (c["cls"], c["n"]))
+    a('</tr></thead><tbody>')
+    for gname, field, key in [("Device identity", "mark", "image {TIFF} Make"),
+                              ("Location", "gps", "image {GPS} Latitude")]:
+        a('<tr class="grp is-bad"><td colspan="%d">%s</td></tr>' % (len(cols) + 2, gname))
+        for src in identity_arms:
+            val = src[field]
+            a('<tr><td class="fld">%d &middot; %s</td>'
+              '<td class="in"><span class="ct keys">%s</span></td>'
+              % (src["n"], esc(src["label"]), esc(val)))
+            for c in cols:
+                hit = val in ivals(iruns[c["id"]]["tags"], key)
+                a('<td class="%s">%s</td>' % ("on" if hit else "off",
+                                              "read" if hit else "&mdash;"))
+            a('</tr>')
+    a('</tbody></table></div></details>')
     a('</div>')
+
+    # ------------------------------------------------- finding 2, XMP parsed
+    a('<div class="panel is-warn"><h3>On photos, XMP <em>is</em> parsed — the opposite of video</h3>')
+    a('<p>Photo 4 carries <b>no EXIF, no IFD0, no GPS block at all</b>. Its make and coordinates '
+      'exist only inside an XMP packet. TikTok read them anyway, because ImageIO folds XMP into '
+      'the same <code>{TIFF}</code> and <code>{GPS}</code> dictionaries it fills from EXIF. '
+      'AVFoundation does not do this for video, which is why clip 2&rsquo;s XMP stayed an opaque '
+      'blob. The video playbook rule does not carry over.</p>')
+    a('<div class="mtx-wrap"><table class="mtx compact">'
+      '<thead><tr><th class="cnr">Same values, one container apart</th>'
+      '<th>clip 2 &middot; video</th><th>photo 4 &middot; still</th></tr></thead><tbody>')
+    for lbl, vid, still in [
+            ("make / model in XMP", '<span class="off">blob, 3 062 B, never parsed</span>',
+             '<span class="on">CANARYMK-9B4F</span>'),
+            ("GPS in XMP", '<span class="off">no coordinate ever surfaced</span>',
+             '<span class="on">44.4444 / 55.5555</span>')]:
+        a('<tr><td class="fld">%s</td><td>%s</td><td>%s</td></tr>' % (lbl, vid, still))
+    a('</tbody></table></div></div>')
 
     # ------------------------------------- every field, with the real values
     keys, gloss_missing, unmapped = image_keys(iruns), [], []
@@ -1302,32 +1280,37 @@ def images_section(iruns, idumps):
     a('<h3>Every field it read, and what each photo said</h3>')
     a('<p>The complete list, generated from the run files so it cannot go out of date: '
       '<b>%d distinct fields</b> across the five dictionaries <code>CGImageSource</code> hands '
-      'back. Each column shows <b>the value that photo actually carries</b>, read back off the '
-      'file with exiftool. A dash means that photo does not have the field at all.</p>' % total)
+      'back. Each column is <b>the value that photo actually carries</b>, read back off the file '
+      'with exiftool; a dash means it does not have the field at all.</p>' % total)
     a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr>')
-    a('<th class="cnr">Field</th><th class="cnr">What it is</th>')
+    a('<th class="cnr">Field</th>')
     for c in cols:
         a('<th class="%s"><b>%d</b> %s</th>' % (c["cls"], c["n"], esc(c["label"])))
-    a('<th class="cnr">Times read<span class="gd"> per session</span></th></tr></thead><tbody>')
+    a('<th class="cnr">Times read<span class="gd"> range across the five sessions</span>'
+      '</th></tr></thead><tbody>')
     for block, gname, gcls, gdesc in IMAGE_BLOCKS:
         rows = keys.get(block, [])
         if not rows:
             continue
         a('<tr class="grp %s"><td colspan="%d">%s &nbsp;<span class="gd">%s</span></td></tr>'
-          % (gcls, len(cols) + 3, esc(gname),
+          % (gcls, len(cols) + 2, esc(gname),
              esc(gdesc % len(rows) if "%d" in gdesc else gdesc)))
+        prev = None
         for key, short in rows:
             g = IMAGE_GLOSS.get(short, "")
             if not g and block != "{MakerApple}":
                 gloss_missing.append(short)
-            a('<tr><td class="fld">%s</td><td class="gl">%s</td>' % (esc(short), esc(g)))
+            # a description that just repeated the row above was noise; the
+            # blank reads as a ditto and the pairs sort next to each other
+            desc = "" if g == prev else g
+            prev = g
+            a('<tr><td class="fld fx"><b>%s</b>%s</td>'
+              % (esc(short), ('<i>%s</i>' % esc(desc)) if desc else ""))
             if block == "(top level)":
-                # computed by the framework for every bitmap it draws, including
-                # interface chrome, so no cell here belongs to a single photo
                 pooled = sorted({v for c in cols for v in ivals(iruns[c["id"]]["tags"], key)})
                 txt = " \u00b7 ".join(pooled)
-                a('<td class="on murky" colspan="%d">%s<i>not attributable to a file</i></td>'
-                  % (len(cols), esc(txt[:70] + ("\u2026" if len(txt) > 70 else ""))))
+                a('<td class="on murky" colspan="%d">%s</td>'
+                  % (len(cols), esc(txt[:74] + ("\u2026" if len(txt) > 74 else ""))))
             else:
                 found = False
                 for c in cols:
@@ -1349,9 +1332,9 @@ def images_section(iruns, idumps):
               % ("%d&ndash;%d" % (min(reads), max(reads))
                  if reads and min(reads) != max(reads) else (reads[0] if reads else 0)))
             a('</tr>')
-    a('<tr class="grp is-dim"><td colspan="%d">Timing</td></tr>' % (len(cols) + 3))
-    a('<tr><td class="fld">first GPS read</td><td class="gl">seconds after launch, '
-      'before anything was selected</td>')
+    a('<tr class="grp is-dim"><td colspan="%d">Timing</td></tr>' % (len(cols) + 2))
+    a('<tr><td class="fld fx"><b>first GPS read</b><i>seconds after launch, before anything '
+      'was selected</i></td>')
     for c in cols:
         m = iruns[c["id"]]["tags"].get("image {GPS} Latitude")
         t = m.get("first_seen_s") if m else None
@@ -1366,35 +1349,31 @@ def images_section(iruns, idumps):
         print("  ! stills fields that resolved to no value on any arm: %s"
               % ", ".join(sorted(set(unmapped))))
     a('<p class="cap"><b>Photo 2 is the only column with a full house</b>, because it is the '
-      'only genuine capture &mdash; lens, exposure, sub-second timing, compass bearing and the '
-      'Apple block are things a camera writes and a forgery has to reproduce. Photo 3 is that '
-      'same image stripped and refaked: it keeps the container and the colour profile but the '
-      'whole camera-settings group is empty, which is exactly the gap that gives it away.</p>')
-    a('<p class="cap"><b>The three UUIDs in the Apple block are the sharpest thing in this '
-      'table.</b> A coordinate can be faked and a timestamp moved, but '
-      '<code>ContentIdentifier</code> and <code>PhotoIdentifier</code> exist to be unique to '
-      'one shot. Copying a real maker note onto other files &mdash; the obvious way to make a '
-      'photo look camera-shot &mdash; stamps every one of them with the same supposedly-unique '
-      'id.</p>')
-    a('<p class="cap"><b>Read counts are a range across the five sessions</b>, since every '
-      'session read every photo. Bitmap geometry is the one group with no per-photo values: '
-      'those keys are read for every image the app draws, interface chrome included, which is '
-      'why <code>{TIFF} Software</code> reports <code>Figma</code> next to the real values.</p>')
+      'only genuine capture. Lens, exposure, sub-second timing, compass bearing and the Apple '
+      'block are things a camera writes and a forgery has to reproduce &mdash; and photo 3, '
+      'built from that very image, has the entire camera-settings group empty. That gap is the '
+      'tell.</p>')
+    a('<p class="cap"><b>The three UUIDs in the Apple block are the sharpest thing here.</b> A '
+      'coordinate can be faked and a timestamp moved, but <code>ContentIdentifier</code> and '
+      '<code>PhotoIdentifier</code> exist to be unique to one shot. Copying a real maker note '
+      'onto other files &mdash; the obvious way to make a photo look camera-shot &mdash; stamps '
+      'every one of them with the same supposedly-unique id.</p>')
 
     # ------------------------------------------------------------------ limits
     a('<div class="panel is-dim"><h3>What the stills runs do not show</h3><ul>')
     a('<li><b>No upload body was captured on any of the five.</b> Between three and seven '
-      'request bodies per run, all of it launch telemetry — nothing from the post itself. What '
-      'reaches the CDN for a photo is unmeasured, exactly as it is for the clips.</li>')
-    a('<li><b>Reads are attributed by value, not by file handle.</b> The claim that a '
-      'non-selected photo was read rests on its unique canary appearing in the session. That is '
-      'sound here because every arm differs, but it is inference from the value set, not a '
-      'per-file trace.</li>')
+      'request bodies per run, all of it launch telemetry &mdash; nothing from the post itself. '
+      'What reaches the CDN for a photo is unmeasured, exactly as it is for the clips.</li>')
+    a('<li><b>Reads are attributed by value, not by file handle.</b> The rig records values per '
+      'tag key with no note of which file they came from, so the claim that a non-selected photo '
+      'was read rests on its unique canary appearing in the session. Sound here because every '
+      'arm differs &mdash; but inference from the value set, not a per-file trace. It is also '
+      'why the values above are read back off the files rather than taken from the capture.</li>')
     a('<li><b>The roll held five photos, not five hundred.</b> Whether the picker sweeps the '
-      'entire library or only what it renders is untested — five items all fit on screen.</li>')
+      'entire library or only what it renders is untested &mdash; five items all fit on '
+      'screen.</li>')
     a('<li><b>Photos 2 and 3 are not in the repository.</b> They are a real capture and a '
-      'restamped copy of it: personal pixels, home GPS, and maker-note UUIDs. Their columns are '
-      'built from a local exiftool pass.</li>')
+      'restamped copy of it: personal pixels, home GPS, and maker-note UUIDs.</li>')
     a('</ul></div>')
     a('</section>')
     return "\n".join(o)
@@ -1651,8 +1630,11 @@ a { color:var(--cool); }
   white-space:nowrap; font-variant-numeric:tabular-nums; }
 .mtx td.chips { white-space:normal; min-width:17ch; }
 .mtx td.chips .ct { display:inline-block; margin:0 4px 4px 0; }
-/* plain-English column beside the raw field name, and the note on a group row */
-.mtx td.gl { color:var(--mid); white-space:normal; min-width:15ch; }
+/* field name and its description share one cell, so the table loses a column */
+.mtx td.fx { white-space:normal; min-width:19ch; max-width:34ch; }
+.mtx td.fx b { font-weight:600; }
+.mtx td.fx i { display:block; margin-top:3px; font-style:normal; font-size:10.5px;
+  color:var(--mid); line-height:1.4; }
 .mtx .gd { color:var(--dim); text-transform:none; letter-spacing:0; font-weight:400; }
 .mtx thead th.cnr .gd { display:block; margin-top:3px; }
 .ct { font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:650;
