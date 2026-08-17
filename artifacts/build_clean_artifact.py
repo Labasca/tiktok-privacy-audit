@@ -1091,65 +1091,92 @@ def images_section(iruns, idumps):
 
     # ------------------------------------------------- finding 1, the big one
     a('<div class="panel is-bad"><h3>It reads every photo in the picker, not the one you pick</h3>')
-    a('<p>In the run where the posted file was a <b>flat red rectangle carrying no metadata '
-      'whatsoever</b>, TikTok still pulled make, model, software, capture date and full GPS off '
-      '<em>every other photo in the roll</em> &mdash; about 6.7&nbsp;seconds in, before anything '
-      'was selected. Reading down a column below: that is one posting session, and every ticked '
-      'row is a file that was never chosen.</p>')
-    a('<div class="mtx-wrap wide"><table class="mtx"><thead>')
-    a('<tr><th class="cnr" rowspan="2">Whose metadata was read</th>'
-      '<th class="cnr in" rowspan="2">Tell</th>')
+    a('<p>Five photos sat in the roll. Each session posted exactly one of them. '
+      'Read one row at a time: what went out, and whose identity TikTok took while it was '
+      'happening.</p>')
+    a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr>')
+    a('<th class="cnr">The photo you posted</th>'
+      '<th class="cnr">What was written on it</th>'
+      '<th class="cnr">Other photos it read anyway<span class="gd">'
+      ' &mdash; out of the 4 in the roll carrying any identity at all</span></th>'
+      '<th class="cnr">Which ones</th>'
+      '<th class="cnr">Posted file, confirmed</th></tr></thead><tbody>')
+    identity_arms = [r for r in IMAGE_RUNS if r.get("mark")]
+    for c in cols:
+        t = iruns[c["id"]]["tags"]
+        makes, lats = set(ivals(t, "image {TIFF} Make")), set(ivals(t, "image {GPS} Latitude"))
+        others = [o for o in identity_arms
+                  if o["key"] != c["key"] and (o["mark"] in makes or o["gps"] in lats)]
+        # what the posted file itself carried, read off the file not asserted
+        d = idumps.get(c["key"]) or {}
+        if not c.get("mark"):
+            carried = '<span class="off">nothing at all</span>'
+        else:
+            where = "XMP only" if "XMP-tiff:Make" in d else "EXIF"
+            # the ellipsis is markup, so it goes on after escaping, not before
+            gps = esc(c["gps"][:10]) + ("&hellip;" if c["key"] == "icamera" else "")
+            model = d.get("IFD0:Model") or d.get("XMP-tiff:Model") or ""
+            carried = ('%s<i>%s%s &middot; %s</i>'
+                       % (esc(c["mark"]),
+                          (esc(str(model)) + " &middot; ") if model else "",
+                          gps, where))
+        chips = " ".join('<span class="ct %s">%s</span>'
+                         % ("keys" if o["key"] != "icamera" else "xmp", esc(o["label"]))
+                         for o in others)
+        uti = ivals(t, "resource uniformTypeIdentifier")
+        a('<tr><td class="fld sess %s"><b>%d</b> %s<i>%s</i></td>'
+          '<td class="on">%s</td>'
+          '<td class="cnt big">%d<i>of %d</i></td>'
+          '<td class="chips">%s</td>'
+          '<td class="on">%s<i>matches photo %d</i></td></tr>'
+          % (c["cls"], c["n"], esc(c["label"]), esc(c["note"]),
+             carried, len(others), len(identity_arms), chips,
+             esc(uti[0] if uti else "—"), c["n"]))
+    a('</tbody></table></div>')
+    a('<p class="cap"><b>Read the first row again.</b> The file posted that session was a flat '
+      'red rectangle with no EXIF, no XMP and no GPS &mdash; nothing to take. TikTok came away '
+      'with the make, model, iOS build, capture date and full coordinates of <em>four other '
+      'photos</em>, your real one among them, about 6.7&nbsp;seconds after launch and before '
+      'anything had been selected.</p>')
+    a('<p class="cap">The last column is the control. <code>uniformTypeIdentifier</code> tracks '
+      'the file actually handed to the encoder, and it matches the intended arm in all five '
+      'sessions &mdash; so the harvest in the middle columns is not a mix-up about which photo '
+      'was posted.</p>')
+
+    # the saturated grid, kept as proof but out of the way: every cell is a hit,
+    # which is the point and also why it reads as a wall rather than a finding
+    a('<details class="ldg"><summary><b>The full grid</b> '
+      '<em>every photo against every session &mdash; all 40 cells are hits</em></summary>')
+    a('<div class="mtx-wrap"><table class="mtx"><thead>')
+    a('<tr><th class="cnr" rowspan="2">Whose metadata appeared</th>'
+      '<th class="cnr in" rowspan="2">Its unique value</th>')
     for c in cols:
         a('<th class="%s"><em>posted</em><b>%d</b> %s</th>' % (c["cls"], c["n"], esc(c["label"])))
     a('</tr><tr>')
     for c in cols:
         a('<th class="sub">%s</th>' % esc(c["note"]))
     a('</tr></thead><tbody>')
-    a('<tr class="grp is-bad"><td colspan="%d">Device identity seen during the session</td></tr>'
-      % (len(cols) + 2))
-    for src in cols:
-        if not src.get("mark"):
-            continue
-        lbl = 'photo %d (%s)%s' % (src["n"], src["label"],
-                                   ' — your real one' if src["key"] == "icamera" else '')
-        a('<tr><td class="fld">%s</td><td class="in"><span class="ct keys">%s</span></td>'
-          % (esc(lbl), esc(src["mark"])))
-        for c in cols:
-            t = iruns[c["id"]]["tags"]
-            hit = src["mark"] in ivals(t, "image {TIFF} Make")
-            a('<td class="%s">%s</td>' % ("on" if hit else "off",
-                                          "read" if hit else "&mdash;"))
-        a('</tr>')
-    a('<tr class="grp is-bad"><td colspan="%d">Location seen during the session</td></tr>'
-      % (len(cols) + 2))
-    for src in cols:
-        if not src.get("gps"):
-            continue
-        lbl = 'photo %d (%s)' % (src["n"], src["label"])
-        shown = src["gps"][:9] + ('&hellip; <i>your home</i>' if src["key"] == "icamera" else '')
-        a('<tr><td class="fld">%s</td><td class="in"><span class="ct keys">%s</span></td>'
-          % (esc(lbl), shown))
-        for c in cols:
-            t = iruns[c["id"]]["tags"]
-            hit = src["gps"] in ivals(t, "image {GPS} Latitude")
-            a('<td class="%s">%s</td>' % ("on" if hit else "off",
-                                          "read" if hit else "&mdash;"))
-        a('</tr>')
-    a('<tr class="grp is-new"><td colspan="%d">Which file was actually posted</td></tr>'
-      % (len(cols) + 2))
-    a('<tr><td class="fld">type handed to the encoder</td>'
-      '<td class="in"><span class="ct itemlist">PHAsset</span></td>')
-    for c in cols:
-        uti = ivals(iruns[c["id"]]["tags"], "resource uniformTypeIdentifier")
-        a('<td class="on">%s</td>' % esc(uti[0] if uti else "—"))
-    a('</tr>')
-    a('</tbody></table></div>')  # end mtx-wrap
-    a('<p class="cap">The rig records values per tag key, not per file, so &ldquo;read&rdquo; '
-      'here means that file&rsquo;s unique value appeared in the session. That is only '
-      'attributable because every arm carries a different id &mdash; and it is why the '
-      '<code>uniformTypeIdentifier</code> row matters: it tracks the <em>selected</em> file '
-      'exactly (jpeg, heic, heic, jpeg, jpeg), confirming the right arm was posted each '
-      'time while the metadata rows stayed full.</p>')
+    for gname, field, key in [("Device identity", "mark", "image {TIFF} Make"),
+                              ("Location", "gps", "image {GPS} Latitude")]:
+        a('<tr class="grp is-bad"><td colspan="%d">%s</td></tr>' % (len(cols) + 2, gname))
+        for src in identity_arms:
+            val = src[field]
+            shown = (val[:10] + "&hellip; <i>your home</i>") if (
+                field == "gps" and src["key"] == "icamera") else esc(val)
+            a('<tr><td class="fld">photo %d &middot; %s</td>'
+              '<td class="in"><span class="ct keys">%s</span></td>'
+              % (src["n"], esc(src["label"]), shown))
+            for c in cols:
+                hit = val in ivals(iruns[c["id"]]["tags"], key)
+                a('<td class="%s">%s</td>' % ("on" if hit else "off",
+                                              "read" if hit else "&mdash;"))
+            a('</tr>')
+    a('</tbody></table></div>')
+    a('<p class="cap">The rig records values per tag key rather than per file handle, so '
+      '&ldquo;read&rdquo; means that photo&rsquo;s unique value appeared during the session. '
+      'That is only attributable because every arm was given a different canary id and a '
+      'different coordinate.</p>')
+    a('</details>')
     a('</div>')
 
     # ------------------------------------------------- finding 2, XMP parsed
@@ -1555,10 +1582,19 @@ a { color:var(--cool); }
    matrix min-width and force its container to scroll */
 .mtx.compact { min-width:0; }
 .mtx.compact td.fld { white-space:normal; }
+/* one row per posting session: identity cell, headline count, chip list */
+.mtx td.sess { white-space:normal; min-width:15ch; }
+.mtx td.sess b { font-size:17px; margin-right:6px; color:var(--accent,var(--ink)); }
+.mtx td.sess i, .mtx td.cnt.big i { display:block; font-style:normal; margin-top:4px;
+  font-size:10px; font-weight:400; color:var(--dim); line-height:1.35; }
+.mtx td.cnt.big { font-size:30px; line-height:1; text-align:center; width:1%;
+  white-space:nowrap; font-variant-numeric:tabular-nums; }
+.mtx td.chips { white-space:normal; min-width:17ch; }
+.mtx td.chips .ct { display:inline-block; margin:0 4px 4px 0; }
 /* plain-English column beside the raw field name, and the note on a group row */
 .mtx td.gl { color:var(--mid); white-space:normal; min-width:15ch; }
-.mtx tr.grp .gd { color:var(--dim); text-transform:none; letter-spacing:0;
-  font-weight:400; }
+.mtx .gd { color:var(--dim); text-transform:none; letter-spacing:0; font-weight:400; }
+.mtx thead th.cnr .gd { display:block; margin-top:3px; }
 .ct { font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:650;
   padding:3px 6px; border-radius:4px; background:var(--sunk); color:var(--dim);
   border:1px solid var(--line); white-space:nowrap; }

@@ -117,10 +117,19 @@ a { color:var(--cool); }
    matrix min-width and force its container to scroll */
 .mtx.compact { min-width:0; }
 .mtx.compact td.fld { white-space:normal; }
+/* one row per posting session: identity cell, headline count, chip list */
+.mtx td.sess { white-space:normal; min-width:15ch; }
+.mtx td.sess b { font-size:17px; margin-right:6px; color:var(--accent,var(--ink)); }
+.mtx td.sess i, .mtx td.cnt.big i { display:block; font-style:normal; margin-top:4px;
+  font-size:10px; font-weight:400; color:var(--dim); line-height:1.35; }
+.mtx td.cnt.big { font-size:30px; line-height:1; text-align:center; width:1%;
+  white-space:nowrap; font-variant-numeric:tabular-nums; }
+.mtx td.chips { white-space:normal; min-width:17ch; }
+.mtx td.chips .ct { display:inline-block; margin:0 4px 4px 0; }
 /* plain-English column beside the raw field name, and the note on a group row */
 .mtx td.gl { color:var(--mid); white-space:normal; min-width:15ch; }
-.mtx tr.grp .gd { color:var(--dim); text-transform:none; letter-spacing:0;
-  font-weight:400; }
+.mtx .gd { color:var(--dim); text-transform:none; letter-spacing:0; font-weight:400; }
+.mtx thead th.cnr .gd { display:block; margin-top:3px; }
 .ct { font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:650;
   padding:3px 6px; border-radius:4px; background:var(--sunk); color:var(--dim);
   border:1px solid var(--line); white-space:nowrap; }
@@ -712,9 +721,20 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <section><h2>The same thing happens to your photos — and worse</h2>
 <p>Five stills, posted one at a time through the same rig. Because photos cost a posting window rather than a library rebuild, all five could sit in the camera roll together &mdash; each carrying its own canary id so a hit still names exactly one file. That last detail is what exposed the finding below; with one shared id it would have been invisible.</p>
 <div class="panel is-bad"><h3>It reads every photo in the picker, not the one you pick</h3>
-<p>In the run where the posted file was a <b>flat red rectangle carrying no metadata whatsoever</b>, TikTok still pulled make, model, software, capture date and full GPS off <em>every other photo in the roll</em> &mdash; about 6.7&nbsp;seconds in, before anything was selected. Reading down a column below: that is one posting session, and every ticked row is a file that was never chosen.</p>
-<div class="mtx-wrap wide"><table class="mtx"><thead>
-<tr><th class="cnr" rowspan="2">Whose metadata was read</th><th class="cnr in" rowspan="2">Tell</th>
+<p>Five photos sat in the roll. Each session posted exactly one of them. Read one row at a time: what went out, and whose identity TikTok took while it was happening.</p>
+<div class="mtx-wrap wide"><table class="mtx"><thead><tr>
+<th class="cnr">The photo you posted</th><th class="cnr">What was written on it</th><th class="cnr">Other photos it read anyway<span class="gd"> &mdash; out of the 4 in the roll carrying any identity at all</span></th><th class="cnr">Which ones</th><th class="cnr">Posted file, confirmed</th></tr></thead><tbody>
+<tr><td class="fld sess is-dim"><b>1</b> CLEAN<i>flat red, nothing written on it</i></td><td class="on"><span class="off">nothing at all</span></td><td class="cnt big">4<i>of 4</i></td><td class="chips"><span class="ct xmp">CAMERA</span> <span class="ct keys">CANARY HEIC</span> <span class="ct keys">CANARY XMP</span> <span class="ct keys">CANARY JPEG</span></td><td class="on">public.jpeg<i>matches photo 1</i></td></tr>
+<tr><td class="fld sess is-good"><b>2</b> CAMERA<i>real photo off this iPhone X</i></td><td class="on">Apple<i>iPhone X &middot; 54.6388966&hellip; &middot; EXIF</i></td><td class="cnt big">3<i>of 4</i></td><td class="chips"><span class="ct keys">CANARY HEIC</span> <span class="ct keys">CANARY XMP</span> <span class="ct keys">CANARY JPEG</span></td><td class="on">public.heic<i>matches photo 2</i></td></tr>
+<tr><td class="fld sess is-new"><b>3</b> CANARY HEIC<i>same photo, identity stripped and refaked</i></td><td class="on">CANARYMK-9B2E<i>CANARYMD-9B2E &middot; 11.1111 &middot; EXIF</i></td><td class="cnt big">3<i>of 4</i></td><td class="chips"><span class="ct xmp">CAMERA</span> <span class="ct keys">CANARY XMP</span> <span class="ct keys">CANARY JPEG</span></td><td class="on">public.heic<i>matches photo 3</i></td></tr>
+<tr><td class="fld sess is-warn"><b>4</b> CANARY XMP<i>flat blue, faked in XMP only — no EXIF at all</i></td><td class="on">CANARYMK-9B4F<i>CANARYMD-9B4F &middot; 44.4444 &middot; XMP only</i></td><td class="cnt big">3<i>of 4</i></td><td class="chips"><span class="ct xmp">CAMERA</span> <span class="ct keys">CANARY HEIC</span> <span class="ct keys">CANARY JPEG</span></td><td class="on">public.jpeg<i>matches photo 4</i></td></tr>
+<tr><td class="fld sess is-new"><b>5</b> CANARY JPEG<i>flat yellow, same values but written to EXIF</i></td><td class="on">CANARYMK-9B60<i>CANARYMD-9B60 &middot; 77.7777 &middot; EXIF</i></td><td class="cnt big">3<i>of 4</i></td><td class="chips"><span class="ct xmp">CAMERA</span> <span class="ct keys">CANARY HEIC</span> <span class="ct keys">CANARY XMP</span></td><td class="on">public.jpeg<i>matches photo 5</i></td></tr>
+</tbody></table></div>
+<p class="cap"><b>Read the first row again.</b> The file posted that session was a flat red rectangle with no EXIF, no XMP and no GPS &mdash; nothing to take. TikTok came away with the make, model, iOS build, capture date and full coordinates of <em>four other photos</em>, your real one among them, about 6.7&nbsp;seconds after launch and before anything had been selected.</p>
+<p class="cap">The last column is the control. <code>uniformTypeIdentifier</code> tracks the file actually handed to the encoder, and it matches the intended arm in all five sessions &mdash; so the harvest in the middle columns is not a mix-up about which photo was posted.</p>
+<details class="ldg"><summary><b>The full grid</b> <em>every photo against every session &mdash; all 40 cells are hits</em></summary>
+<div class="mtx-wrap"><table class="mtx"><thead>
+<tr><th class="cnr" rowspan="2">Whose metadata appeared</th><th class="cnr in" rowspan="2">Its unique value</th>
 <th class="is-dim"><em>posted</em><b>1</b> CLEAN</th>
 <th class="is-good"><em>posted</em><b>2</b> CAMERA</th>
 <th class="is-new"><em>posted</em><b>3</b> CANARY HEIC</th>
@@ -727,74 +747,67 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <th class="sub">flat blue, faked in XMP only — no EXIF at all</th>
 <th class="sub">flat yellow, same values but written to EXIF</th>
 </tr></thead><tbody>
-<tr class="grp is-bad"><td colspan="7">Device identity seen during the session</td></tr>
-<tr><td class="fld">photo 2 (CAMERA) — your real one</td><td class="in"><span class="ct keys">Apple</span></td>
+<tr class="grp is-bad"><td colspan="7">Device identity</td></tr>
+<tr><td class="fld">photo 2 &middot; CAMERA</td><td class="in"><span class="ct keys">Apple</span></td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 </tr>
-<tr><td class="fld">photo 3 (CANARY HEIC)</td><td class="in"><span class="ct keys">CANARYMK-9B2E</span></td>
+<tr><td class="fld">photo 3 &middot; CANARY HEIC</td><td class="in"><span class="ct keys">CANARYMK-9B2E</span></td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 </tr>
-<tr><td class="fld">photo 4 (CANARY XMP)</td><td class="in"><span class="ct keys">CANARYMK-9B4F</span></td>
+<tr><td class="fld">photo 4 &middot; CANARY XMP</td><td class="in"><span class="ct keys">CANARYMK-9B4F</span></td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 </tr>
-<tr><td class="fld">photo 5 (CANARY JPEG)</td><td class="in"><span class="ct keys">CANARYMK-9B60</span></td>
+<tr><td class="fld">photo 5 &middot; CANARY JPEG</td><td class="in"><span class="ct keys">CANARYMK-9B60</span></td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 </tr>
-<tr class="grp is-bad"><td colspan="7">Location seen during the session</td></tr>
-<tr><td class="fld">photo 2 (CAMERA)</td><td class="in"><span class="ct keys">54.638896&hellip; <i>your home</i></span></td>
+<tr class="grp is-bad"><td colspan="7">Location</td></tr>
+<tr><td class="fld">photo 2 &middot; CAMERA</td><td class="in"><span class="ct keys">54.6388966&hellip; <i>your home</i></span></td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 </tr>
-<tr><td class="fld">photo 3 (CANARY HEIC)</td><td class="in"><span class="ct keys">11.1111</span></td>
+<tr><td class="fld">photo 3 &middot; CANARY HEIC</td><td class="in"><span class="ct keys">11.1111</span></td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 </tr>
-<tr><td class="fld">photo 4 (CANARY XMP)</td><td class="in"><span class="ct keys">44.4444</span></td>
+<tr><td class="fld">photo 4 &middot; CANARY XMP</td><td class="in"><span class="ct keys">44.4444</span></td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 </tr>
-<tr><td class="fld">photo 5 (CANARY JPEG)</td><td class="in"><span class="ct keys">77.7777</span></td>
+<tr><td class="fld">photo 5 &middot; CANARY JPEG</td><td class="in"><span class="ct keys">77.7777</span></td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
 <td class="on">read</td>
-</tr>
-<tr class="grp is-new"><td colspan="7">Which file was actually posted</td></tr>
-<tr><td class="fld">type handed to the encoder</td><td class="in"><span class="ct itemlist">PHAsset</span></td>
-<td class="on">public.jpeg</td>
-<td class="on">public.heic</td>
-<td class="on">public.heic</td>
-<td class="on">public.jpeg</td>
-<td class="on">public.jpeg</td>
 </tr>
 </tbody></table></div>
-<p class="cap">The rig records values per tag key, not per file, so &ldquo;read&rdquo; here means that file&rsquo;s unique value appeared in the session. That is only attributable because every arm carries a different id &mdash; and it is why the <code>uniformTypeIdentifier</code> row matters: it tracks the <em>selected</em> file exactly (jpeg, heic, heic, jpeg, jpeg), confirming the right arm was posted each time while the metadata rows stayed full.</p>
+<p class="cap">The rig records values per tag key rather than per file handle, so &ldquo;read&rdquo; means that photo&rsquo;s unique value appeared during the session. That is only attributable because every arm was given a different canary id and a different coordinate.</p>
+</details>
 </div>
 <div class="panel is-warn"><h3>On photos, XMP <em>is</em> parsed — the opposite of video</h3>
 <p>Photo 4 carries <b>no EXIF, no IFD0, no GPS block at all</b>. Its make and coordinates exist only inside an XMP packet. TikTok read them anyway, because ImageIO folds XMP into the same <code>{TIFF}</code> and <code>{GPS}</code> dictionaries it fills from EXIF. AVFoundation does not do this for video, which is why clip 2&rsquo;s XMP stayed an opaque blob. The video playbook rule does not carry over.</p>
