@@ -69,6 +69,81 @@ RUNS = [
 # Windows where the operator did not post. Named so the record is complete.
 MISSED = [("unique-7-sora", 18), ("unique-8-ai", 18)]
 
+# ------------------------------------------------------------- stills arms
+# Five photos, posted one at a time like the clips. Unlike the clips these
+# shared a camera roll, which is only sound because each arm carries its own
+# canary id -- and that turned out to be the whole finding.
+IMAGE_RUNS = [
+    dict(id="img-1-clean", n=1, key="iclean", label="CLEAN", cls="is-dim",
+         origin="I MADE IT", note="flat red, nothing written on it",
+         file="testfiles/image-arms/img-1-clean.jpg", asset="IMG_0039.JPG",
+         mark=None, gps=None),
+    dict(id="img-2-camera", n=2, key="icamera", label="CAMERA", cls="is-good",
+         origin="I SHOT IT", note="real photo off this iPhone X",
+         file="testfiles/image-arms/img-2-camera.heic", asset="IMG_0040.HEIC",
+         mark="Apple", gps="54.63889666666667", private=True),
+    dict(id="img-3-canary-heic", n=3, key="iheic", label="CANARY HEIC", cls="is-new",
+         origin="I MADE IT PASS", note="same photo, identity stripped and refaked",
+         file="testfiles/image-arms/img-3-canary.heic", asset="IMG_0041.HEIC",
+         mark="CANARYMK-9B2E", gps="11.1111", private=True),
+    dict(id="img-4-canary-xmp", n=4, key="ixmp", label="CANARY XMP", cls="is-warn",
+         origin="I MADE IT", note="flat blue, faked in XMP only — no EXIF at all",
+         file="testfiles/image-arms/img-4-canary-xmp.jpg", asset="IMG_0042.JPG",
+         mark="CANARYMK-9B4F", gps="44.4444"),
+    dict(id="img-5-canary-jpeg", n=5, key="ijpeg", label="CANARY JPEG", cls="is-new",
+         origin="I MADE IT", note="flat yellow, same values but written to EXIF",
+         file="testfiles/image-arms/img-5-canary.jpg", asset="IMG_0043.JPG",
+         mark="CANARYMK-9B60", gps="77.7777"),
+]
+
+# Field rows for the stills inventory. Each row names the tags that could carry
+# it, EXIF first then the XMP spelling, so a cell can say which container the
+# value actually came out of -- the distinction arm 4 exists to test.
+IMAGE_FIELDS = [
+    ("Which device shot it", "is-bad", [
+        ("make", ["IFD0:Make", "XMP-tiff:Make"]),
+        ("model", ["IFD0:Model", "XMP-tiff:Model"]),
+        ("software / iOS build", ["IFD0:Software", "XMP-tiff:Software"]),
+    ]),
+    ("Where it was shot", "is-bad", [
+        ("GPS latitude", ["GPS:GPSLatitude", "XMP-exif:GPSLatitude"]),
+        ("GPS longitude", ["GPS:GPSLongitude", "XMP-exif:GPSLongitude"]),
+        ("GPS altitude", ["GPS:GPSAltitude", "XMP-exif:GPSAltitude"]),
+        ("compass bearing", ["GPS:GPSImgDirection"]),
+        ("position error", ["GPS:GPSHPositioningError"]),
+    ]),
+    ("When it was shot", "is-warn", [
+        ("capture date", ["ExifIFD:DateTimeOriginal", "XMP-exif:DateTimeOriginal"]),
+        ("timezone offset", ["ExifIFD:OffsetTimeOriginal"]),
+        ("sub-second", ["ExifIFD:SubSecTimeOriginal"]),
+    ]),
+    ("Which lens and settings", "is-warn", [
+        ("lens", ["ExifIFD:LensModel"]),
+        ("aperture", ["ExifIFD:FNumber"]),
+        ("exposure", ["ExifIFD:ExposureTime"]),
+        ("ISO", ["ExifIFD:ISO"]),
+    ]),
+    ("What the picture itself is", "is-dim", [
+        ("container", ["File:FileType"]),
+        ("colour profile", ["ICC_Profile:ProfileDescription"]),
+    ]),
+]
+
+# The image dictionaries CGImageSource hands back, and what each one is.
+IMAGE_READ_ROWS = [
+    ("make", "image {TIFF} Make", "is-bad"),
+    ("model", "image {TIFF} Model", "is-bad"),
+    ("software", "image {TIFF} Software", "is-bad"),
+    ("GPS latitude", "image {GPS} Latitude", "is-bad"),
+    ("GPS longitude", "image {GPS} Longitude", "is-bad"),
+    ("GPS altitude", "image {GPS} Altitude", "is-bad"),
+    ("compass bearing", "image {GPS} ImgDirection", "is-bad"),
+    ("position error", "image {GPS} HPositioningError", "is-bad"),
+    ("capture date", "image {Exif} DateTimeOriginal", "is-warn"),
+    ("digitised date", "image {Exif} DateTimeDigitized", "is-warn"),
+    ("Apple maker note", "image {MakerApple}", "is-new"),
+]
+
 CHAIN_DUMPS = [
     ("gallery-id/IMG_0027-after-index.MOV", "IMG_0027-after-index.MOV",
      "The canary clip pulled back off the phone after the Photos import. The stamp survived."),
@@ -329,8 +404,27 @@ def main():
     assert not unsplit, "atom still carries its keyspace, unknown container: %r" % unsplit[:5]
     print("runs ok: %d raw tags -> %d distinct facts" % (raw_total, fact_total))
 
+    # stills arms: same rig, one shared roll, one canary id per arm
+    iruns = {r["id"]: load_run(r["id"]) for r in IMAGE_RUNS}
+    iexpect = {"img-1-clean": 142, "img-2-camera": 147, "img-3-canary-heic": 149,
+               "img-4-canary-xmp": 152, "img-5-canary-jpeg": 149}
+    for rid, n in iexpect.items():
+        assert iruns[rid]["tag_count"] == n, "%s drifted: %d" % (rid, iruns[rid]["tag_count"])
+    # the finding rests on every arm carrying a distinct canary; if two ever
+    # collide the read table silently starts lying about which file was seen
+    marks = [r["mark"] for r in IMAGE_RUNS if r.get("mark")]
+    gpss = [r["gps"] for r in IMAGE_RUNS if r.get("gps")]
+    assert len(set(marks)) == len(marks), "stills arms share a canary id: %r" % marks
+    assert len(set(gpss)) == len(gpss), "stills arms share a coordinate: %r" % gpss
+    print("stills ok: %d raw tags across %d arms"
+          % (sum(r["tag_count"] for r in iruns.values()), len(iruns)))
+
     print("dumping denominators with exiftool ...")
     dumps = {r["key"]: exif(r["dump"][0]) for r in RUNS if r["dump"]}
+    idumps = {r["key"]: exif(r["file"]) for r in IMAGE_RUNS}
+    missing = [r["label"] for r in IMAGE_RUNS if idumps.get(r["key"]) is None]
+    if missing:
+        print("  ! stills denominator unavailable for: %s" % ", ".join(missing))
     chain = [(name, note, exif(path)) for path, name, note in CHAIN_DUMPS]
 
     canary_ids = [f for f in runs["unique-6-canary-2"]["_input"].values()
@@ -352,13 +446,16 @@ def main():
       'carried, invented nothing for the files that had none, and validated nothing on the file '
       'that lied. None of it survived TikTok’s own re-encode &mdash; but on the AI clip it '
       '<b>added</b> a label of its own. And a clip edited outside the app can be made to read '
-      'exactly like camera footage.</p>')
+      'exactly like camera footage. Then we did it again with <b>five photos</b>, and found '
+      'something worse: the picker reads the metadata of <b>every image in your camera roll</b>, '
+      'not just the one you post.</p>')
     w('<div class="tiles">')
     for cls, big, small in [("", "898", "things it read"),
                             ("is-bad", "10", "identity fields it took"),
                             ("is-warn", "18&times;", "times it re-read your GPS"),
                             ("is-good", "0", "survived the re-encode"),
-                            ("is-new", "1", "AI label it added")]:
+                            ("is-new", "1", "AI label it added"),
+                            ("is-bad", "4 of 4", "unposted photos it still read")]:
         w('<div class="tile %s"><b>%s</b><span>%s</span></div>' % (cls, big, small))
     w('</div></header>')
 
@@ -402,6 +499,9 @@ def main():
 
     # ------------------------------------------------------- the pass test
     w(passtest_section(runs))
+
+    # ------------------------------------------------------------- stills
+    w(images_section(iruns, idumps))
 
     # ------------------------------------------------------------- method
     w(method_section(runs, raw_total, fact_total))
@@ -855,6 +955,218 @@ def playbook_section(dumps, chain):
     return "\n".join(o)
 
 
+def ivals(tags, key):
+    """A tag value is a bare string when one was seen and a list when several."""
+    m = tags.get(key)
+    if not m:
+        return []
+    v = m["value"]
+    return [str(x) for x in (v if isinstance(v, list) else [v])]
+
+
+def images_section(iruns, idumps):
+    o = []
+    a = o.append
+    cols = IMAGE_RUNS
+    a('<section><h2>The same thing happens to your photos — and worse</h2>')
+    a('<p>Five stills, posted one at a time through the same rig. Because photos cost a '
+      'posting window rather than a library rebuild, all five could sit in the camera roll '
+      'together &mdash; each carrying its own canary id so a hit still names exactly one file. '
+      'That last detail is what exposed the finding below; with one shared id it would have '
+      'been invisible.</p>')
+
+    # ------------------------------------------------- finding 1, the big one
+    a('<div class="panel is-bad"><h3>It reads every photo in the picker, not the one you pick</h3>')
+    a('<p>In the run where the posted file was a <b>flat red rectangle carrying no metadata '
+      'whatsoever</b>, TikTok still pulled make, model, software, capture date and full GPS off '
+      '<em>every other photo in the roll</em> &mdash; about 6.7&nbsp;seconds in, before anything '
+      'was selected. Reading down a column below: that is one posting session, and every ticked '
+      'row is a file that was never chosen.</p>')
+    a('<div class="mtx-wrap wide"><table class="mtx"><thead>')
+    a('<tr><th class="cnr" rowspan="2">Whose metadata was read</th>'
+      '<th class="cnr in" rowspan="2">Tell</th>')
+    for c in cols:
+        a('<th class="%s"><em>posted</em><b>%d</b> %s</th>' % (c["cls"], c["n"], esc(c["label"])))
+    a('</tr><tr>')
+    for c in cols:
+        a('<th class="sub">%s</th>' % esc(c["note"]))
+    a('</tr></thead><tbody>')
+    a('<tr class="grp is-bad"><td colspan="%d">Device identity seen during the session</td></tr>'
+      % (len(cols) + 2))
+    for src in cols:
+        if not src.get("mark"):
+            continue
+        lbl = 'photo %d (%s)%s' % (src["n"], src["label"],
+                                   ' — your real one' if src["key"] == "icamera" else '')
+        a('<tr><td class="fld">%s</td><td class="in"><span class="ct keys">%s</span></td>'
+          % (esc(lbl), esc(src["mark"])))
+        for c in cols:
+            t = iruns[c["id"]]["tags"]
+            hit = src["mark"] in ivals(t, "image {TIFF} Make")
+            a('<td class="%s">%s</td>' % ("on" if hit else "off",
+                                          "read" if hit else "&mdash;"))
+        a('</tr>')
+    a('<tr class="grp is-bad"><td colspan="%d">Location seen during the session</td></tr>'
+      % (len(cols) + 2))
+    for src in cols:
+        if not src.get("gps"):
+            continue
+        lbl = 'photo %d (%s)' % (src["n"], src["label"])
+        shown = src["gps"][:9] + ('&hellip; <i>your home</i>' if src["key"] == "icamera" else '')
+        a('<tr><td class="fld">%s</td><td class="in"><span class="ct keys">%s</span></td>'
+          % (esc(lbl), shown))
+        for c in cols:
+            t = iruns[c["id"]]["tags"]
+            hit = src["gps"] in ivals(t, "image {GPS} Latitude")
+            a('<td class="%s">%s</td>' % ("on" if hit else "off",
+                                          "read" if hit else "&mdash;"))
+        a('</tr>')
+    a('<tr class="grp is-new"><td colspan="%d">Which file was actually posted</td></tr>'
+      % (len(cols) + 2))
+    a('<tr><td class="fld">type handed to the encoder</td>'
+      '<td class="in"><span class="ct itemlist">PHAsset</span></td>')
+    for c in cols:
+        uti = ivals(iruns[c["id"]]["tags"], "resource uniformTypeIdentifier")
+        a('<td class="on">%s</td>' % esc(uti[0] if uti else "—"))
+    a('</tr>')
+    a('</tbody></table></div>')  # end mtx-wrap
+    a('<p class="cap">The rig records values per tag key, not per file, so &ldquo;read&rdquo; '
+      'here means that file&rsquo;s unique value appeared in the session. That is only '
+      'attributable because every arm carries a different id &mdash; and it is why the '
+      '<code>uniformTypeIdentifier</code> row matters: it tracks the <em>selected</em> file '
+      'exactly (jpeg, heic, heic, jpeg, jpeg), confirming the right arm was posted each '
+      'time while the metadata rows stayed full.</p>')
+    a('</div>')
+
+    # ------------------------------------------------- finding 2, XMP parsed
+    a('<div class="panel is-warn"><h3>On photos, XMP <em>is</em> parsed — the opposite of video</h3>')
+    a('<p>Photo 4 carries <b>no EXIF, no IFD0, no GPS block at all</b>. Its make and coordinates '
+      'exist only inside an XMP packet. TikTok read them anyway, because ImageIO folds XMP into '
+      'the same <code>{TIFF}</code> and <code>{GPS}</code> dictionaries it fills from EXIF. '
+      'AVFoundation does not do this for video, which is why clip 2&rsquo;s XMP stayed an opaque '
+      'blob. The video playbook rule does not carry over.</p>')
+    a('<div class="mtx-wrap"><table class="mtx compact">'
+      '<thead><tr><th class="cnr">Same values, one container apart</th>'
+      '<th>clip 2 &middot; video</th><th>photo 4 &middot; still</th></tr></thead><tbody>')
+    for lbl, vid, still in [
+            ("make / model in XMP", "<span class=\"off\">blob, 3 062 B, never parsed</span>",
+             "<span class=\"on\">CANARYMK-9B4F</span>"),
+            ("GPS in XMP", "<span class=\"off\">no coordinate ever surfaced</span>",
+             "<span class=\"on\">44.4444 / 55.5555</span>")]:
+        a('<tr><td class="fld">%s</td><td>%s</td><td>%s</td></tr>' % (lbl, vid, still))
+    a('</tbody></table></div></div>')  # mtx-wrap, then panel
+
+    # ----------------------------------------------------- the inventory table
+    a('<h3>What each photo carried</h3>')
+    a('<p>The denominator, straight from exiftool. A dash means the field was not on that '
+      'file. The badge on each value names the container it came out of.</p>')
+    a('<div class="mtx-wrap wide"><table class="mtx"><thead>')
+    a('<tr><th class="cnr" rowspan="2">Field</th>')
+    for c in cols:
+        a('<th class="%s"><em>%s</em><b>%d</b> %s</th>'
+          % (c["cls"], esc(c["origin"]), c["n"], esc(c["label"])))
+    a('</tr><tr>')
+    for c in cols:
+        a('<th class="sub">%s</th>' % esc(c["note"]))
+    a('</tr></thead><tbody>')
+    for gname, gcls, fields in IMAGE_FIELDS:
+        a('<tr class="grp %s"><td colspan="%d">%s</td></tr>' % (gcls, len(cols) + 1, esc(gname)))
+        for label, keys in fields:
+            a('<tr><td class="fld">%s</td>' % esc(label))
+            for c in cols:
+                d = idumps.get(c["key"])
+                if d is None:
+                    a('<td class="off"><i>not in repo</i></td>')
+                    continue
+                cell = None
+                for k in keys:
+                    if k in d:
+                        cell = (k.split(":")[0], d[k])
+                        break
+                if cell is None:
+                    a('<td class="off">&mdash;</td>')
+                else:
+                    grp, val = cell
+                    badge = "XMP" if grp.startswith("XMP") else \
+                            ("EXIF" if grp in ("IFD0", "ExifIFD", "GPS") else grp)
+                    a('<td class="on">%s<i>%s</i></td>'
+                      % (esc(str(val)[:34]), esc(badge)))
+            a('</tr>')
+    # maker note is a count, not a value
+    a('<tr class="grp is-new"><td colspan="%d">Apple maker note</td></tr>' % (len(cols) + 1))
+    a('<tr><td class="fld">private Apple tags</td>')
+    for c in cols:
+        d = idumps.get(c["key"])
+        if d is None:
+            a('<td class="off"><i>not in repo</i></td>')
+            continue
+        n = len([k for k in d if k.startswith("Apple:")])
+        a('<td class="%s">%s</td>' % ("cnt" if n else "off", n if n else "&mdash;"))
+    a('</tr>')
+    a('<tr class="grp is-new"><td colspan="%d">Outcome</td></tr>' % (len(cols) + 1))
+    a('<tr><td class="fld">survived PhotoKit import</td>')
+    for c in cols:
+        a('<td class="on">byte-identical</td>')
+    a('</tr>')
+    a('</tbody></table></div>')
+    a('<div class="keyline">')
+    for cls, txt in [("is-good", "Shot on the phone — the real thing"),
+                     ("is-new", "Injected by us — fake values, read verbatim"),
+                     ("is-warn", "Injected into XMP only — and read anyway"),
+                     ("is-dim", "Generated — nothing to take")]:
+        a('<span class="%s"><i></i>%s</span>' % (cls, txt))
+    a('</div>')
+
+    # ------------------------------------------------------------ read counts
+    a('<h3>How hard it looks</h3>')
+    a('<p>Reads per session, counted per dictionary key across every photo in the roll. '
+      'The picker sweep is not a glance.</p>')
+    a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr>')
+    a('<th class="cnr">What it pulled</th>')
+    for c in cols:
+        a('<th class="%s"><em>posted</em><b>%d</b> %s</th>' % (c["cls"], c["n"], esc(c["label"])))
+    a('</tr></thead><tbody>')
+    for label, key, cls in IMAGE_READ_ROWS:
+        a('<tr><td class="fld">%s</td>' % esc(label))
+        for c in cols:
+            m = iruns[c["id"]]["tags"].get(key)
+            if not m:
+                a('<td class="off">&mdash;</td>')
+            else:
+                a('<td class="cnt">%s&times;</td>' % (m.get("reads") or 0))
+        a('</tr>')
+    a('<tr class="grp is-dim"><td colspan="%d">Timing</td></tr>' % (len(cols) + 1))
+    a('<tr><td class="fld">first GPS read at</td>')
+    for c in cols:
+        m = iruns[c["id"]]["tags"].get("image {GPS} Latitude")
+        t = m.get("first_seen_s") if m else None
+        a('<td class="%s">%s</td>' % ("on" if t else "off",
+                                      ("%.1f s" % t) if t else "&mdash;"))
+    a('</tr>')
+    a('</tbody></table></div>')
+    a('<p class="cap"><b>Photo 4 reads late (35 s) because the operator took longer to open the '
+      'picker in that session</b>, not because the app behaved differently — the read pattern '
+      'itself is identical across all five.</p>')
+
+    # ------------------------------------------------------------------ limits
+    a('<div class="panel is-dim"><h3>What the stills runs do not show</h3><ul>')
+    a('<li><b>No upload body was captured on any of the five.</b> Between three and seven '
+      'request bodies per run, all of it launch telemetry — nothing from the post itself. What '
+      'reaches the CDN for a photo is unmeasured, exactly as it is for the clips.</li>')
+    a('<li><b>Reads are attributed by value, not by file handle.</b> The claim that a '
+      'non-selected photo was read rests on its unique canary appearing in the session. That is '
+      'sound here because every arm differs, but it is inference from the value set, not a '
+      'per-file trace.</li>')
+    a('<li><b>The roll held five photos, not five hundred.</b> Whether the picker sweeps the '
+      'entire library or only what it renders is untested — five items all fit on screen.</li>')
+    a('<li><b>Photos 2 and 3 are not in the repository.</b> They are a real capture and a '
+      'restamped copy of it: personal pixels, home GPS, and maker-note UUIDs. Their columns are '
+      'built from a local exiftool pass.</li>')
+    a('</ul></div>')
+    a('</section>')
+    return "\n".join(o)
+
+
 def method_section(runs, raw_total, fact_total):
     o = []
     a = o.append
@@ -1093,6 +1405,10 @@ a { color:var(--cool); }
 .mtx thead th u.blend { display:block; margin-top:4px; text-decoration:none; font-size:9.5px;
   letter-spacing:.07em; text-transform:uppercase; font-weight:650; color:var(--warn); }
 .mtx td.zero { color:var(--good); font-weight:600; }
+/* a two-column comparison has nothing to line up, so it must not inherit the
+   matrix min-width and force its container to scroll */
+.mtx.compact { min-width:0; }
+.mtx.compact td.fld { white-space:normal; }
 .ct { font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:650;
   padding:3px 6px; border-radius:4px; background:var(--sunk); color:var(--dim);
   border:1px solid var(--line); white-space:nowrap; }

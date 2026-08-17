@@ -113,6 +113,10 @@ a { color:var(--cool); }
 .mtx thead th u.blend { display:block; margin-top:4px; text-decoration:none; font-size:9.5px;
   letter-spacing:.07em; text-transform:uppercase; font-weight:650; color:var(--warn); }
 .mtx td.zero { color:var(--good); font-weight:600; }
+/* a two-column comparison has nothing to line up, so it must not inherit the
+   matrix min-width and force its container to scroll */
+.mtx.compact { min-width:0; }
+.mtx.compact td.fld { white-space:normal; }
 .ct { font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:650;
   padding:3px 6px; border-radius:4px; background:var(--sunk); color:var(--dim);
   border:1px solid var(--line); white-space:nowrap; }
@@ -213,13 +217,14 @@ details > details { margin:0 15px 10px; background:var(--sunk); }
 <header class="masthead">
 <p class="eyebrow">TikTok post-path capture · jailbroken iPhone X · 14 August 2026</p>
 <h1>Everything TikTok reads off a video when you post it</h1>
-<p>We hooked the app with Frida and posted nine clips, one per session, each with a deliberately different history: generated, downloaded, filmed on the phone, injected with fake metadata, and AI-generated. TikTok read <b>every</b> provenance field each file carried, invented nothing for the files that had none, and validated nothing on the file that lied. None of it survived TikTok’s own re-encode &mdash; but on the AI clip it <b>added</b> a label of its own. And a clip edited outside the app can be made to read exactly like camera footage.</p>
+<p>We hooked the app with Frida and posted nine clips, one per session, each with a deliberately different history: generated, downloaded, filmed on the phone, injected with fake metadata, and AI-generated. TikTok read <b>every</b> provenance field each file carried, invented nothing for the files that had none, and validated nothing on the file that lied. None of it survived TikTok’s own re-encode &mdash; but on the AI clip it <b>added</b> a label of its own. And a clip edited outside the app can be made to read exactly like camera footage. Then we did it again with <b>five photos</b>, and found something worse: the picker reads the metadata of <b>every image in your camera roll</b>, not just the one you post.</p>
 <div class="tiles">
 <div class="tile "><b>898</b><span>things it read</span></div>
 <div class="tile is-bad"><b>10</b><span>identity fields it took</span></div>
 <div class="tile is-warn"><b>18&times;</b><span>times it re-read your GPS</span></div>
 <div class="tile is-good"><b>0</b><span>survived the re-encode</span></div>
 <div class="tile is-new"><b>1</b><span>AI label it added</span></div>
+<div class="tile is-bad"><b>4 of 4</b><span>unposted photos it still read</span></div>
 </div></header>
 <section><h2>Read this before the table</h2>
 <div class="panel is-warn"><h3>Three limits on what this proves</h3><ul>
@@ -699,6 +704,366 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <div class="row is-warn"><b>This says nothing about reach</b><span>It shows the file reads the same. Whether that changes distribution is not measurable with this rig and was not measured.<span>What it does do is remove metadata as a variable.</span></span><span class="end">Out of scope</span></div>
 </div>
 <p class="cap">Reproduced by <code>nativize.py</code> in the repo: it copies every field from a real capture, re-encodes to <code>hvc1</code> at the reference&rsquo;s size and rate, strips anything the reference lacks, then diffs the result against it.</p>
+</section>
+<section><h2>The same thing happens to your photos — and worse</h2>
+<p>Five stills, posted one at a time through the same rig. Because photos cost a posting window rather than a library rebuild, all five could sit in the camera roll together &mdash; each carrying its own canary id so a hit still names exactly one file. That last detail is what exposed the finding below; with one shared id it would have been invisible.</p>
+<div class="panel is-bad"><h3>It reads every photo in the picker, not the one you pick</h3>
+<p>In the run where the posted file was a <b>flat red rectangle carrying no metadata whatsoever</b>, TikTok still pulled make, model, software, capture date and full GPS off <em>every other photo in the roll</em> &mdash; about 6.7&nbsp;seconds in, before anything was selected. Reading down a column below: that is one posting session, and every ticked row is a file that was never chosen.</p>
+<div class="mtx-wrap wide"><table class="mtx"><thead>
+<tr><th class="cnr" rowspan="2">Whose metadata was read</th><th class="cnr in" rowspan="2">Tell</th>
+<th class="is-dim"><em>posted</em><b>1</b> CLEAN</th>
+<th class="is-good"><em>posted</em><b>2</b> CAMERA</th>
+<th class="is-new"><em>posted</em><b>3</b> CANARY HEIC</th>
+<th class="is-warn"><em>posted</em><b>4</b> CANARY XMP</th>
+<th class="is-new"><em>posted</em><b>5</b> CANARY JPEG</th>
+</tr><tr>
+<th class="sub">flat red, nothing written on it</th>
+<th class="sub">real photo off this iPhone X</th>
+<th class="sub">same photo, identity stripped and refaked</th>
+<th class="sub">flat blue, faked in XMP only — no EXIF at all</th>
+<th class="sub">flat yellow, same values but written to EXIF</th>
+</tr></thead><tbody>
+<tr class="grp is-bad"><td colspan="7">Device identity seen during the session</td></tr>
+<tr><td class="fld">photo 2 (CAMERA) — your real one</td><td class="in"><span class="ct keys">Apple</span></td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+</tr>
+<tr><td class="fld">photo 3 (CANARY HEIC)</td><td class="in"><span class="ct keys">CANARYMK-9B2E</span></td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+</tr>
+<tr><td class="fld">photo 4 (CANARY XMP)</td><td class="in"><span class="ct keys">CANARYMK-9B4F</span></td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+</tr>
+<tr><td class="fld">photo 5 (CANARY JPEG)</td><td class="in"><span class="ct keys">CANARYMK-9B60</span></td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+</tr>
+<tr class="grp is-bad"><td colspan="7">Location seen during the session</td></tr>
+<tr><td class="fld">photo 2 (CAMERA)</td><td class="in"><span class="ct keys">54.638896&hellip; <i>your home</i></span></td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+</tr>
+<tr><td class="fld">photo 3 (CANARY HEIC)</td><td class="in"><span class="ct keys">11.1111</span></td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+</tr>
+<tr><td class="fld">photo 4 (CANARY XMP)</td><td class="in"><span class="ct keys">44.4444</span></td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+</tr>
+<tr><td class="fld">photo 5 (CANARY JPEG)</td><td class="in"><span class="ct keys">77.7777</span></td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+<td class="on">read</td>
+</tr>
+<tr class="grp is-new"><td colspan="7">Which file was actually posted</td></tr>
+<tr><td class="fld">type handed to the encoder</td><td class="in"><span class="ct itemlist">PHAsset</span></td>
+<td class="on">public.jpeg</td>
+<td class="on">public.heic</td>
+<td class="on">public.heic</td>
+<td class="on">public.jpeg</td>
+<td class="on">public.jpeg</td>
+</tr>
+</tbody></table></div>
+<p class="cap">The rig records values per tag key, not per file, so &ldquo;read&rdquo; here means that file&rsquo;s unique value appeared in the session. That is only attributable because every arm carries a different id &mdash; and it is why the <code>uniformTypeIdentifier</code> row matters: it tracks the <em>selected</em> file exactly (jpeg, heic, heic, jpeg, jpeg), confirming the right arm was posted each time while the metadata rows stayed full.</p>
+</div>
+<div class="panel is-warn"><h3>On photos, XMP <em>is</em> parsed — the opposite of video</h3>
+<p>Photo 4 carries <b>no EXIF, no IFD0, no GPS block at all</b>. Its make and coordinates exist only inside an XMP packet. TikTok read them anyway, because ImageIO folds XMP into the same <code>{TIFF}</code> and <code>{GPS}</code> dictionaries it fills from EXIF. AVFoundation does not do this for video, which is why clip 2&rsquo;s XMP stayed an opaque blob. The video playbook rule does not carry over.</p>
+<div class="mtx-wrap"><table class="mtx compact"><thead><tr><th class="cnr">Same values, one container apart</th><th>clip 2 &middot; video</th><th>photo 4 &middot; still</th></tr></thead><tbody>
+<tr><td class="fld">make / model in XMP</td><td><span class="off">blob, 3 062 B, never parsed</span></td><td><span class="on">CANARYMK-9B4F</span></td></tr>
+<tr><td class="fld">GPS in XMP</td><td><span class="off">no coordinate ever surfaced</span></td><td><span class="on">44.4444 / 55.5555</span></td></tr>
+</tbody></table></div></div>
+<h3>What each photo carried</h3>
+<p>The denominator, straight from exiftool. A dash means the field was not on that file. The badge on each value names the container it came out of.</p>
+<div class="mtx-wrap wide"><table class="mtx"><thead>
+<tr><th class="cnr" rowspan="2">Field</th>
+<th class="is-dim"><em>I MADE IT</em><b>1</b> CLEAN</th>
+<th class="is-good"><em>I SHOT IT</em><b>2</b> CAMERA</th>
+<th class="is-new"><em>I MADE IT PASS</em><b>3</b> CANARY HEIC</th>
+<th class="is-warn"><em>I MADE IT</em><b>4</b> CANARY XMP</th>
+<th class="is-new"><em>I MADE IT</em><b>5</b> CANARY JPEG</th>
+</tr><tr>
+<th class="sub">flat red, nothing written on it</th>
+<th class="sub">real photo off this iPhone X</th>
+<th class="sub">same photo, identity stripped and refaked</th>
+<th class="sub">flat blue, faked in XMP only — no EXIF at all</th>
+<th class="sub">flat yellow, same values but written to EXIF</th>
+</tr></thead><tbody>
+<tr class="grp is-bad"><td colspan="6">Which device shot it</td></tr>
+<tr><td class="fld">make</td>
+<td class="off">&mdash;</td>
+<td class="on">Apple<i>EXIF</i></td>
+<td class="on">CANARYMK-9B2E<i>EXIF</i></td>
+<td class="on">CANARYMK-9B4F<i>XMP</i></td>
+<td class="on">CANARYMK-9B60<i>EXIF</i></td>
+</tr>
+<tr><td class="fld">model</td>
+<td class="off">&mdash;</td>
+<td class="on">iPhone X<i>EXIF</i></td>
+<td class="on">CANARYMD-9B2E<i>EXIF</i></td>
+<td class="on">CANARYMD-9B4F<i>XMP</i></td>
+<td class="on">CANARYMD-9B60<i>EXIF</i></td>
+</tr>
+<tr><td class="fld">software / iOS build</td>
+<td class="off">&mdash;</td>
+<td class="on">16.7.16<i>EXIF</i></td>
+<td class="on">CANARYSW-9B2E<i>EXIF</i></td>
+<td class="on">CANARYSW-9B4F<i>XMP</i></td>
+<td class="on">CANARYSW-9B60<i>EXIF</i></td>
+</tr>
+<tr class="grp is-bad"><td colspan="6">Where it was shot</td></tr>
+<tr><td class="fld">GPS latitude</td>
+<td class="off">&mdash;</td>
+<td class="on">54.6388972222222<i>EXIF</i></td>
+<td class="on">11.1111<i>EXIF</i></td>
+<td class="on">44.4444<i>XMP</i></td>
+<td class="on">77.7777<i>EXIF</i></td>
+</tr>
+<tr><td class="fld">GPS longitude</td>
+<td class="off">&mdash;</td>
+<td class="on">24.9350166666667<i>EXIF</i></td>
+<td class="on">22.2222<i>EXIF</i></td>
+<td class="on">55.5555<i>XMP</i></td>
+<td class="on">88.8888<i>EXIF</i></td>
+</tr>
+<tr><td class="fld">GPS altitude</td>
+<td class="off">&mdash;</td>
+<td class="on">161.9312115<i>EXIF</i></td>
+<td class="on">33.3<i>EXIF</i></td>
+<td class="on">66.6<i>XMP</i></td>
+<td class="on">99.9<i>EXIF</i></td>
+</tr>
+<tr><td class="fld">compass bearing</td>
+<td class="off">&mdash;</td>
+<td class="on">159.8709259<i>EXIF</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">position error</td>
+<td class="off">&mdash;</td>
+<td class="on">35<i>EXIF</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr class="grp is-warn"><td colspan="6">When it was shot</td></tr>
+<tr><td class="fld">capture date</td>
+<td class="off">&mdash;</td>
+<td class="on">2026:08:17 20:49:42<i>EXIF</i></td>
+<td class="on">2025:02:03 04:05:06<i>EXIF</i></td>
+<td class="on">2025:02:03 04:05:06<i>XMP</i></td>
+<td class="on">2025:02:03 04:05:06<i>EXIF</i></td>
+</tr>
+<tr><td class="fld">timezone offset</td>
+<td class="off">&mdash;</td>
+<td class="on">+03:00<i>EXIF</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">sub-second</td>
+<td class="off">&mdash;</td>
+<td class="on">604<i>EXIF</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr class="grp is-warn"><td colspan="6">Which lens and settings</td></tr>
+<tr><td class="fld">lens</td>
+<td class="off">&mdash;</td>
+<td class="on">iPhone X back dual camera 4mm f/1.<i>EXIF</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">aperture</td>
+<td class="off">&mdash;</td>
+<td class="on">1.8<i>EXIF</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">exposure</td>
+<td class="off">&mdash;</td>
+<td class="on">0.25<i>EXIF</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">ISO</td>
+<td class="off">&mdash;</td>
+<td class="on">320<i>EXIF</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr class="grp is-dim"><td colspan="6">What the picture itself is</td></tr>
+<tr><td class="fld">container</td>
+<td class="on">JPEG<i>File</i></td>
+<td class="on">HEIC<i>File</i></td>
+<td class="on">HEIC<i>File</i></td>
+<td class="on">JPEG<i>File</i></td>
+<td class="on">JPEG<i>File</i></td>
+</tr>
+<tr><td class="fld">colour profile</td>
+<td class="off">&mdash;</td>
+<td class="on">Display P3<i>ICC_Profile</i></td>
+<td class="on">Display P3<i>ICC_Profile</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr class="grp is-new"><td colspan="6">Apple maker note</td></tr>
+<tr><td class="fld">private Apple tags</td>
+<td class="off">&mdash;</td>
+<td class="cnt">23</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr class="grp is-new"><td colspan="6">Outcome</td></tr>
+<tr><td class="fld">survived PhotoKit import</td>
+<td class="on">byte-identical</td>
+<td class="on">byte-identical</td>
+<td class="on">byte-identical</td>
+<td class="on">byte-identical</td>
+<td class="on">byte-identical</td>
+</tr>
+</tbody></table></div>
+<div class="keyline">
+<span class="is-good"><i></i>Shot on the phone — the real thing</span>
+<span class="is-new"><i></i>Injected by us — fake values, read verbatim</span>
+<span class="is-warn"><i></i>Injected into XMP only — and read anyway</span>
+<span class="is-dim"><i></i>Generated — nothing to take</span>
+</div>
+<h3>How hard it looks</h3>
+<p>Reads per session, counted per dictionary key across every photo in the roll. The picker sweep is not a glance.</p>
+<div class="mtx-wrap wide"><table class="mtx"><thead><tr>
+<th class="cnr">What it pulled</th>
+<th class="is-dim"><em>posted</em><b>1</b> CLEAN</th>
+<th class="is-good"><em>posted</em><b>2</b> CAMERA</th>
+<th class="is-new"><em>posted</em><b>3</b> CANARY HEIC</th>
+<th class="is-warn"><em>posted</em><b>4</b> CANARY XMP</th>
+<th class="is-new"><em>posted</em><b>5</b> CANARY JPEG</th>
+</tr></thead><tbody>
+<tr><td class="fld">make</td>
+<td class="cnt">10&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">21&times;</td>
+<td class="cnt">20&times;</td>
+<td class="cnt">16&times;</td>
+</tr>
+<tr><td class="fld">model</td>
+<td class="cnt">10&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">21&times;</td>
+<td class="cnt">20&times;</td>
+<td class="cnt">16&times;</td>
+</tr>
+<tr><td class="fld">software</td>
+<td class="cnt">12&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">23&times;</td>
+<td class="cnt">26&times;</td>
+<td class="cnt">18&times;</td>
+</tr>
+<tr><td class="fld">GPS latitude</td>
+<td class="cnt">10&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">21&times;</td>
+<td class="cnt">20&times;</td>
+<td class="cnt">16&times;</td>
+</tr>
+<tr><td class="fld">GPS longitude</td>
+<td class="cnt">10&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">21&times;</td>
+<td class="cnt">20&times;</td>
+<td class="cnt">16&times;</td>
+</tr>
+<tr><td class="fld">GPS altitude</td>
+<td class="cnt">10&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">21&times;</td>
+<td class="cnt">20&times;</td>
+<td class="cnt">16&times;</td>
+</tr>
+<tr><td class="fld">compass bearing</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">position error</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr><td class="fld">capture date</td>
+<td class="cnt">10&times;</td>
+<td class="cnt">19&times;</td>
+<td class="cnt">21&times;</td>
+<td class="cnt">20&times;</td>
+<td class="cnt">16&times;</td>
+</tr>
+<tr><td class="fld">digitised date</td>
+<td class="cnt">8&times;</td>
+<td class="cnt">16&times;</td>
+<td class="cnt">18&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">14&times;</td>
+</tr>
+<tr><td class="fld">Apple maker note</td>
+<td class="cnt">4&times;</td>
+<td class="cnt">11&times;</td>
+<td class="cnt">6&times;</td>
+<td class="cnt">5&times;</td>
+<td class="cnt">4&times;</td>
+</tr>
+<tr class="grp is-dim"><td colspan="6">Timing</td></tr>
+<tr><td class="fld">first GPS read at</td>
+<td class="on">6.8 s</td>
+<td class="on">6.1 s</td>
+<td class="on">6.7 s</td>
+<td class="on">35.7 s</td>
+<td class="on">7.6 s</td>
+</tr>
+</tbody></table></div>
+<p class="cap"><b>Photo 4 reads late (35 s) because the operator took longer to open the picker in that session</b>, not because the app behaved differently — the read pattern itself is identical across all five.</p>
+<div class="panel is-dim"><h3>What the stills runs do not show</h3><ul>
+<li><b>No upload body was captured on any of the five.</b> Between three and seven request bodies per run, all of it launch telemetry — nothing from the post itself. What reaches the CDN for a photo is unmeasured, exactly as it is for the clips.</li>
+<li><b>Reads are attributed by value, not by file handle.</b> The claim that a non-selected photo was read rests on its unique canary appearing in the session. That is sound here because every arm differs, but it is inference from the value set, not a per-file trace.</li>
+<li><b>The roll held five photos, not five hundred.</b> Whether the picker sweeps the entire library or only what it renders is untested — five items all fit on screen.</li>
+<li><b>Photos 2 and 3 are not in the repository.</b> They are a real capture and a restamped copy of it: personal pixels, home GPS, and maker-note UUIDs. Their columns are built from a local exiftool pass.</li>
+</ul></div>
 </section>
 <section><h2>How it was measured</h2>
 <div class="two">
