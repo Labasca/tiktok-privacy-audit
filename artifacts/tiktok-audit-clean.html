@@ -722,74 +722,16 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <p class="cap">Reproduced by <code>nativize.py</code> in the repo: it copies every field from a real capture, re-encodes to <code>hvc1</code> at the reference&rsquo;s size and rate, strips anything the reference lacks, then diffs the result against it.</p>
 </section>
 <section><h2>The same thing happens to your photos — and worse</h2>
-<p>Five stills, posted one at a time through the same rig. A photo costs a posting window rather than a library rebuild, so all five could sit in the camera roll at once &mdash; each carrying its own canary id, so a hit still names exactly one file. That detail is what exposed the first finding below; with one shared id it would have been invisible.</p>
-<h3>The five photos</h3>
-<p>Everything downstream refers to these by number. Photos 2 and 3 are the same picture: 3 is that photo with its identity stripped off and a fake one written back on.</p>
-<div class="mtx-wrap wide"><table class="mtx"><thead><tr><th class="cnr">&nbsp;</th>
-<th class="is-dim"><em>I MADE IT</em><b>1</b> CLEAN</th>
-<th class="is-good"><em>I SHOT IT</em><b>2</b> CAMERA</th>
-<th class="is-new"><em>I MADE IT PASS</em><b>3</b> CANARY HEIC</th>
-<th class="is-warn"><em>I MADE IT</em><b>4</b> CANARY XMP</th>
-<th class="is-new"><em>I MADE IT</em><b>5</b> CANARY JPEG</th>
-</tr><tr><th class="cnr sub">what it is</th>
-<th class="sub">flat red, nothing written on it</th>
-<th class="sub">real photo off this iPhone X</th>
-<th class="sub">same photo, identity stripped and refaked</th>
-<th class="sub">flat blue, faked in XMP only — no EXIF at all</th>
-<th class="sub">flat yellow, same values but written to EXIF</th>
-</tr></thead><tbody>
-<tr><td class="fld">container</td>
-<td class="on">JPEG</td>
-<td class="on">HEIC</td>
-<td class="on">HEIC</td>
-<td class="on">JPEG</td>
-<td class="on">JPEG</td>
-</tr>
-<tr><td class="fld">stored size</td>
-<td class="on">1170 x 2532</td>
-<td class="on">4032 x 3024</td>
-<td class="on">4032 x 3024</td>
-<td class="on">1170 x 2532</td>
-<td class="on">1170 x 2532</td>
-</tr>
-<tr><td class="fld">colour profile</td>
-<td class="off">&mdash;</td>
-<td class="on">Display P3</td>
-<td class="on">Display P3</td>
-<td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
-</tr>
-<tr><td class="fld">identity written in</td>
-<td class="off">&mdash;</td>
-<td class="on">EXIF / TIFF</td>
-<td class="on">EXIF / TIFF</td>
-<td class="on">XMP</td>
-<td class="on">EXIF / TIFF</td>
-</tr>
-<tr><td class="fld">Apple maker note</td>
-<td class="off">&mdash;</td>
-<td class="on">23 tags</td>
-<td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
-</tr>
-<tr><td class="fld">survived PhotoKit import</td>
-<td class="zero">byte-identical</td>
-<td class="zero">byte-identical</td>
-<td class="zero">byte-identical</td>
-<td class="zero">byte-identical</td>
-<td class="zero">byte-identical</td>
-</tr>
-</tbody></table></div>
+<p>Five stills, posted one at a time through the same rig. A photo costs a posting window rather than a library rebuild, so all five could sit in the camera roll at once &mdash; each carrying its own canary id, so a hit still names exactly one file. That detail is what exposed the first finding; with one shared id it would have been invisible.</p>
 <div class="panel is-bad"><h3>It reads every photo in the picker, not the one you pick</h3>
 <p>Each session posted exactly one of the five. Read a row left to right: what went out, and whose identity TikTok took while it was happening.</p>
 <div class="mtx-wrap wide"><table class="mtx"><thead><tr>
 <th class="cnr">The photo you posted</th><th class="cnr">What was written on it</th><th class="cnr">Other photos it read anyway<span class="gd"> &mdash; out of the 4 in the roll carrying any identity at all</span></th><th class="cnr">Which ones</th><th class="cnr">Posted file, confirmed</th></tr></thead><tbody>
-<tr><td class="fld sess is-dim"><b>1</b> CLEAN</td><td class="on"><span class="off">nothing at all</span></td><td class="cnt big">4<i>of 4</i></td><td class="chips"><span class="ct xmp">2 CAMERA</span> <span class="ct keys">3 CANARY HEIC</span> <span class="ct keys">4 CANARY XMP</span> <span class="ct keys">5 CANARY JPEG</span></td><td class="on">public.jpeg</td></tr>
-<tr><td class="fld sess is-good"><b>2</b> CAMERA</td><td class="on">Apple<i>iPhone X &middot; 54.6388966&hellip;</i></td><td class="cnt big">3<i>of 4</i></td><td class="chips"><span class="ct keys">3 CANARY HEIC</span> <span class="ct keys">4 CANARY XMP</span> <span class="ct keys">5 CANARY JPEG</span></td><td class="on">public.heic</td></tr>
-<tr><td class="fld sess is-new"><b>3</b> CANARY HEIC</td><td class="on">CANARYMK-9B2E<i>CANARYMD-9B2E &middot; 11.1111</i></td><td class="cnt big">3<i>of 4</i></td><td class="chips"><span class="ct xmp">2 CAMERA</span> <span class="ct keys">4 CANARY XMP</span> <span class="ct keys">5 CANARY JPEG</span></td><td class="on">public.heic</td></tr>
-<tr><td class="fld sess is-warn"><b>4</b> CANARY XMP</td><td class="on">CANARYMK-9B4F<i>CANARYMD-9B4F &middot; 44.4444</i></td><td class="cnt big">3<i>of 4</i></td><td class="chips"><span class="ct xmp">2 CAMERA</span> <span class="ct keys">3 CANARY HEIC</span> <span class="ct keys">5 CANARY JPEG</span></td><td class="on">public.jpeg</td></tr>
-<tr><td class="fld sess is-new"><b>5</b> CANARY JPEG</td><td class="on">CANARYMK-9B60<i>CANARYMD-9B60 &middot; 77.7777</i></td><td class="cnt big">3<i>of 4</i></td><td class="chips"><span class="ct xmp">2 CAMERA</span> <span class="ct keys">3 CANARY HEIC</span> <span class="ct keys">4 CANARY XMP</span></td><td class="on">public.jpeg</td></tr>
+<tr><td class="fld sess is-dim"><b>1</b> CLEAN<i>flat red, nothing written on it</i></td><td class="on"><span class="off">nothing at all</span></td><td class="cnt big">4<i>of 4</i></td><td class="chips"><span class="ct xmp">2 CAMERA</span> <span class="ct keys">3 CANARY HEIC</span> <span class="ct keys">4 CANARY XMP</span> <span class="ct keys">5 CANARY JPEG</span></td><td class="on">public.jpeg</td></tr>
+<tr><td class="fld sess is-good"><b>2</b> CAMERA<i>real photo off this iPhone X</i></td><td class="on">Apple<i>iPhone X &middot; 54.6388966&hellip;</i></td><td class="cnt big">3<i>of 4</i></td><td class="chips"><span class="ct keys">3 CANARY HEIC</span> <span class="ct keys">4 CANARY XMP</span> <span class="ct keys">5 CANARY JPEG</span></td><td class="on">public.heic</td></tr>
+<tr><td class="fld sess is-new"><b>3</b> CANARY HEIC<i>same photo, identity stripped and refaked</i></td><td class="on">CANARYMK-9B2E<i>CANARYMD-9B2E &middot; 11.1111</i></td><td class="cnt big">3<i>of 4</i></td><td class="chips"><span class="ct xmp">2 CAMERA</span> <span class="ct keys">4 CANARY XMP</span> <span class="ct keys">5 CANARY JPEG</span></td><td class="on">public.heic</td></tr>
+<tr><td class="fld sess is-warn"><b>4</b> CANARY XMP<i>flat blue, faked in XMP only — no EXIF at all</i></td><td class="on">CANARYMK-9B4F<i>CANARYMD-9B4F &middot; 44.4444</i></td><td class="cnt big">3<i>of 4</i></td><td class="chips"><span class="ct xmp">2 CAMERA</span> <span class="ct keys">3 CANARY HEIC</span> <span class="ct keys">5 CANARY JPEG</span></td><td class="on">public.jpeg</td></tr>
+<tr><td class="fld sess is-new"><b>5</b> CANARY JPEG<i>flat yellow, same values but written to EXIF</i></td><td class="on">CANARYMK-9B60<i>CANARYMD-9B60 &middot; 77.7777</i></td><td class="cnt big">3<i>of 4</i></td><td class="chips"><span class="ct xmp">2 CAMERA</span> <span class="ct keys">3 CANARY HEIC</span> <span class="ct keys">4 CANARY XMP</span></td><td class="on">public.jpeg</td></tr>
 </tbody></table></div>
 <p class="cap"><b>Read the first row again.</b> The file posted that session was a flat red rectangle with no EXIF, no XMP and no GPS &mdash; nothing to take. TikTok came away with the make, model, iOS build, capture date and full coordinates of <em>four other photos</em>, your real one among them, about 6.7&nbsp;seconds after launch and before anything had been selected.</p>
 <p class="cap">The last column is the control: it is the type of the file actually handed to the encoder, and it matches the intended photo in all five sessions &mdash; so the harvest is not a mix-up about which one was posted.</p>
@@ -869,7 +811,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <tr><td class="fld">GPS in XMP</td><td><span class="off">no coordinate ever surfaced</span></td><td><span class="on">44.4444 / 55.5555</span></td></tr>
 </tbody></table></div></div>
 <h3>Every field it read, and what each photo said</h3>
-<p>The complete list, generated from the run files so it cannot go out of date: <b>103 distinct fields</b> across the five dictionaries <code>CGImageSource</code> hands back. Each column is <b>the value that photo actually carries</b>, read back off the file with exiftool; a dash means it does not have the field at all.</p>
+<p>What the five files are, then the complete list of what TikTok pulled off them &mdash; <b>103 distinct fields</b> across the five dictionaries <code>CGImageSource</code> hands back, generated from the run files so it cannot go out of date. Each column is <b>the value that photo actually carries</b>, read back off the file with exiftool; a dash means it does not have the field at all. Photos 2 and 3 are the same picture: 3 is that photo with its identity stripped off and a fake one written back on.</p>
 <div class="mtx-wrap wide"><table class="mtx"><thead><tr>
 <th class="cnr">Field</th>
 <th class="is-dim"><b>1</b> CLEAN</th>
@@ -878,6 +820,49 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <th class="is-warn"><b>4</b> CANARY XMP</th>
 <th class="is-new"><b>5</b> CANARY JPEG</th>
 <th class="cnr">Times read<span class="gd"> range across the five sessions</span></th></tr></thead><tbody>
+<tr class="grp is-dim"><td colspan="7">The file itself &nbsp;<span class="gd">Before anything was read off it.</span></td></tr>
+<tr><td class="fld fx"><b>container</b></td>
+<td class="on">JPEG</td>
+<td class="on">HEIC</td>
+<td class="on">HEIC</td>
+<td class="on">JPEG</td>
+<td class="on">JPEG</td>
+<td class="off">&mdash;</td></tr>
+<tr><td class="fld fx"><b>stored size</b><i>pixels as written, before any rotation</i></td>
+<td class="on">1170 x 2532</td>
+<td class="on">4032 x 3024</td>
+<td class="on">4032 x 3024</td>
+<td class="on">1170 x 2532</td>
+<td class="on">1170 x 2532</td>
+<td class="off">&mdash;</td></tr>
+<tr><td class="fld fx"><b>colour profile</b></td>
+<td class="off">&mdash;</td>
+<td class="on">Display P3</td>
+<td class="on">Display P3</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td></tr>
+<tr><td class="fld fx"><b>identity written in</b><i>which container holds the make and GPS</i></td>
+<td class="off">&mdash;</td>
+<td class="on">EXIF / TIFF</td>
+<td class="on">EXIF / TIFF</td>
+<td class="on">XMP</td>
+<td class="on">EXIF / TIFF</td>
+<td class="off">&mdash;</td></tr>
+<tr><td class="fld fx"><b>Apple maker note</b></td>
+<td class="off">&mdash;</td>
+<td class="on">23 tags</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td></tr>
+<tr><td class="fld fx"><b>survived PhotoKit import</b><i>imported through the API an app actually uses, then pulled back and diffed</i></td>
+<td class="zero">byte-identical</td>
+<td class="zero">byte-identical</td>
+<td class="zero">byte-identical</td>
+<td class="zero">byte-identical</td>
+<td class="zero">byte-identical</td>
+<td class="off">&mdash;</td></tr>
 <tr class="grp is-bad"><td colspan="7">Device and file identity &nbsp;<span class="gd">Who made the handset, which model, which iOS build.</span></td></tr>
 <tr><td class="fld fx"><b>{TIFF} Make</b><i>handset manufacturer</i></td>
 <td class="off">&mdash;</td>
@@ -1670,7 +1655,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">6.7 s</td>
 <td class="on">35.7 s</td>
 <td class="on">7.6 s</td>
-<td class="cnt">&nbsp;</td></tr>
+<td class="off">&mdash;</td></tr>
 </tbody></table></div>
 <p class="cap"><b>Photo 2 is the only column with a full house</b>, because it is the only genuine capture. Lens, exposure, sub-second timing, compass bearing and the Apple block are things a camera writes and a forgery has to reproduce &mdash; and photo 3, built from that very image, has the entire camera-settings group empty. That gap is the tell.</p>
 <p class="cap"><b>The three UUIDs in the Apple block are the sharpest thing here.</b> A coordinate can be faked and a timestamp moved, but <code>ContentIdentifier</code> and <code>PhotoIdentifier</code> exist to be unique to one shot. Copying a real maker note onto other files &mdash; the obvious way to make a photo look camera-shot &mdash; stamps every one of them with the same supposedly-unique id.</p>

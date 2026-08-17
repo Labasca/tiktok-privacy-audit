@@ -1143,45 +1143,8 @@ def images_section(iruns, idumps):
     a('<p>Five stills, posted one at a time through the same rig. A photo costs a posting '
       'window rather than a library rebuild, so all five could sit in the camera roll at once '
       '&mdash; each carrying its own canary id, so a hit still names exactly one file. That '
-      'detail is what exposed the first finding below; with one shared id it would have been '
+      'detail is what exposed the first finding; with one shared id it would have been '
       'invisible.</p>')
-
-    # ------------------------------------------- the cast, introduced once
-    a('<h3>The five photos</h3>')
-    a('<p>Everything downstream refers to these by number. Photos 2 and 3 are the same picture: '
-      '3 is that photo with its identity stripped off and a fake one written back on.</p>')
-    a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr><th class="cnr">&nbsp;</th>')
-    for c in cols:
-        a('<th class="%s"><em>%s</em><b>%d</b> %s</th>'
-          % (c["cls"], esc(c["origin"]), c["n"], esc(c["label"])))
-    a('</tr><tr><th class="cnr sub">what it is</th>')
-    for c in cols:
-        a('<th class="sub">%s</th>' % esc(c["note"]))
-    a('</tr></thead><tbody>')
-    summary = [
-        ("container", lambda d: d.get("File:FileType")),
-        ("stored size", lambda d: ("%s x %s" % (d["File:ImageWidth"], d["File:ImageHeight"]))
-         if "File:ImageWidth" in d else None),
-        ("colour profile", lambda d: d.get("ICC_Profile:ProfileDescription")),
-        ("identity written in", lambda d: "XMP" if "XMP-tiff:Make" in d
-         else ("EXIF / TIFF" if "IFD0:Make" in d else None)),
-        ("Apple maker note",
-         lambda d: ("%d tags" % len([k for k in d if k.startswith("Apple:")]))
-         if any(k.startswith("Apple:") for k in d) else None),
-    ]
-    for label, fn in summary:
-        a('<tr><td class="fld">%s</td>' % esc(label))
-        for c in cols:
-            d = idumps.get(c["key"])
-            v = fn(d) if d else None
-            a('<td class="on">%s</td>' % esc(str(v)) if v is not None
-              else '<td class="off">&mdash;</td>')
-        a('</tr>')
-    a('<tr><td class="fld">survived PhotoKit import</td>')
-    for c in cols:
-        a('<td class="zero">byte-identical</td>')
-    a('</tr>')
-    a('</tbody></table></div>')
 
     # ------------------------------------------------- finding 1, the big one
     a('<div class="panel is-bad"><h3>It reads every photo in the picker, not the one you pick</h3>')
@@ -1214,12 +1177,12 @@ def images_section(iruns, idumps):
                          % ("keys" if o["key"] != "icamera" else "xmp", o["n"], esc(o["label"]))
                          for o in others)
         uti = ivals(t, "resource uniformTypeIdentifier")
-        a('<tr><td class="fld sess %s"><b>%d</b> %s</td>'
+        a('<tr><td class="fld sess %s"><b>%d</b> %s<i>%s</i></td>'
           '<td class="on">%s</td>'
           '<td class="cnt big">%d<i>of %d</i></td>'
           '<td class="chips">%s</td>'
           '<td class="on">%s</td></tr>'
-          % (c["cls"], c["n"], esc(c["label"]), carried,
+          % (c["cls"], c["n"], esc(c["label"]), esc(c["note"]), carried,
              len(others), len(identity_arms), chips, esc(uti[0] if uti else "—")))
     a('</tbody></table></div>')
     a('<p class="cap"><b>Read the first row again.</b> The file posted that session was a flat '
@@ -1274,20 +1237,55 @@ def images_section(iruns, idumps):
         a('<tr><td class="fld">%s</td><td>%s</td><td>%s</td></tr>' % (lbl, vid, still))
     a('</tbody></table></div></div>')
 
-    # ------------------------------------- every field, with the real values
+    # ---------------------------------- one table: the files and every field
     keys, gloss_missing, unmapped = image_keys(iruns), [], []
     total = sum(len(v) for v in keys.values())
     a('<h3>Every field it read, and what each photo said</h3>')
-    a('<p>The complete list, generated from the run files so it cannot go out of date: '
+    a('<p>What the five files are, then the complete list of what TikTok pulled off them &mdash; '
       '<b>%d distinct fields</b> across the five dictionaries <code>CGImageSource</code> hands '
-      'back. Each column is <b>the value that photo actually carries</b>, read back off the file '
-      'with exiftool; a dash means it does not have the field at all.</p>' % total)
+      'back, generated from the run files so it cannot go out of date. Each column is <b>the '
+      'value that photo actually carries</b>, read back off the file with exiftool; a dash means '
+      'it does not have the field at all. Photos 2 and 3 are the same picture: 3 is that photo '
+      'with its identity stripped off and a fake one written back on.</p>' % total)
     a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr>')
     a('<th class="cnr">Field</th>')
     for c in cols:
         a('<th class="%s"><b>%d</b> %s</th>' % (c["cls"], c["n"], esc(c["label"])))
     a('<th class="cnr">Times read<span class="gd"> range across the five sessions</span>'
       '</th></tr></thead><tbody>')
+
+    # what the files are, as the opening group rather than a second table with
+    # the same five columns above it
+    a('<tr class="grp is-dim"><td colspan="%d">The file itself &nbsp;<span class="gd">'
+      'Before anything was read off it.</span></td></tr>' % (len(cols) + 2))
+    fileset = [
+        ("container", "", lambda d: d.get("File:FileType")),
+        ("stored size", "pixels as written, before any rotation",
+         lambda d: ("%s x %s" % (d["File:ImageWidth"], d["File:ImageHeight"]))
+         if "File:ImageWidth" in d else None),
+        ("colour profile", "", lambda d: d.get("ICC_Profile:ProfileDescription")),
+        ("identity written in", "which container holds the make and GPS",
+         lambda d: "XMP" if "XMP-tiff:Make" in d
+         else ("EXIF / TIFF" if "IFD0:Make" in d else None)),
+        ("Apple maker note", "",
+         lambda d: ("%d tags" % len([k for k in d if k.startswith("Apple:")]))
+         if any(k.startswith("Apple:") for k in d) else None),
+    ]
+    for label, note, fn in fileset:
+        a('<tr><td class="fld fx"><b>%s</b>%s</td>'
+          % (esc(label), ('<i>%s</i>' % esc(note)) if note else ""))
+        for c in cols:
+            d = idumps.get(c["key"])
+            v = fn(d) if d else None
+            a('<td class="on">%s</td>' % esc(str(v)) if v is not None
+              else '<td class="off">&mdash;</td>')
+        a('<td class="off">&mdash;</td></tr>')
+    a('<tr><td class="fld fx"><b>survived PhotoKit import</b>'
+      '<i>imported through the API an app actually uses, then pulled back and diffed</i></td>')
+    for c in cols:
+        a('<td class="zero">byte-identical</td>')
+    a('<td class="off">&mdash;</td></tr>')
+
     for block, gname, gcls, gdesc in IMAGE_BLOCKS:
         rows = keys.get(block, [])
         if not rows:
@@ -1340,7 +1338,7 @@ def images_section(iruns, idumps):
         t = m.get("first_seen_s") if m else None
         a('<td class="%s">%s</td>' % ("on" if t else "off",
                                       ("%.1f s" % t) if t else "&mdash;"))
-    a('<td class="cnt">&nbsp;</td></tr>')
+    a('<td class="off">&mdash;</td></tr>')
     a('</tbody></table></div>')
     if gloss_missing:
         print("  ! stills fields with no plain-English gloss: %s"
