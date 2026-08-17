@@ -64,3 +64,7 @@ gallery-id/photos-db-now/
 gallery-id/photos-db-rebuilt/
 gallery-id/accounts/
 gallery-id/accounts-edit/
+
+# conversation exports from /export
+test.txt
+*.export.txt

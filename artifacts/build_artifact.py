@@ -174,10 +174,14 @@ def main() -> None:
     r5 = load_run("unique-5-camera")
     r6 = load_run("unique-6-canary-2")
     r6pub = load_run("unique-6-publish")
+    r8 = load_run("unique-8-ai-2")
+    r9 = load_run("unique-9-stripped")
     src1 = collect(str(ROOT / "testfiles/unique-1-clean.mov"))
     src2 = collect(str(ROOT / "testfiles/unique-2-stamped.mov"))
     src5 = collect(str(ROOT / "gallery-id/IMG_0026-camera.MOV"))
     src6 = collect(str(ROOT / "testfiles/unique-6-canary.mov"))
+    sora_path = ROOT / "testfiles/ai-sora-ships.mp4"
+    src_sora = collect(str(sora_path)) if sora_path.is_file() else {}
     recode_path = ROOT / "gallery-id/publish_video_local_canary.mp4"
     src6out = collect(str(recode_path)) if recode_path.is_file() else {}
     canaries = json.loads(
@@ -192,6 +196,8 @@ def main() -> None:
         + raw_arm_html("unique-5-camera", "5 · Camera · IMG_0026", r5)
         + raw_arm_html("unique-6-canary-2", "6 · CANARY · IMG_0027 (reads)", r6)
         + raw_arm_html("unique-6-publish", "6b · CANARY CDN upload (attach)", r6pub)
+        + raw_arm_html("unique-8-ai-2", "7 · AI clip · IMG_0029 (+ picker walk of Sora IMG_0028)", r8)
+        + raw_arm_html("unique-9-stripped", "8 · stripped AI · IMG_0031 (no aigc write)", r9)
     )
 
     state = {
@@ -204,6 +210,7 @@ def main() -> None:
             {"id": "5-camera", "status": "done", "owner": "you+frida"},
             {"id": "6-canary", "status": "done", "owner": "you+frida"},
             {"id": "cdn-upload", "status": "done", "owner": "rig"},
+            {"id": "7-aigc", "status": "done", "owner": "you+frida"},
             {"id": "aweme-json", "status": "blocked", "owner": "rig"},
         ],
     }
@@ -269,9 +276,9 @@ def main() -> None:
 </header>
 
 <div class="status">
-  <span class="badge">LIVE · 6 ARMS + CDN UPLOAD</span>
+  <span class="badge">LIVE · AIGC LABEL SEEN</span>
   <span class="meta" style="float:right">As of {esc(as_of)}</span>
-  <p>TikTok <strong>reads</strong> whatever QuickTime Keys / UserData the file actually holds — including fake canaries (<code>CANARYMK-7F3A</code>, GPS <code>11.1111,22.2222</code>). The local re-encode and the CDN <code>POST /upload/v1</code> we captured have <strong>none</strong> of those fields. The video is on the burner profile. A separate <code>aweme_v1</code> JSON call was not seen; attach+TLS still kills the app after the success buzz.</p>
+  <p>Canaries are read then stripped before CDN upload. On the AI post (<code>unique-8-ai-2</code>) TikTok <strong>wrote</strong> <code>aigc_info {{\"aigc_label_type\":2}}</code> into the export — a field never seen on CLEAN / STAMPED / camera / canary. No C2PA / Sora / OpenAI string was in INPUT. Posted file is IMG_0029 (~4.57 MB); picker also walked the public Sora demo IMG_0028.</p>
 </div>
 
 <details class="next">
@@ -310,6 +317,7 @@ def main() -> None:
     <tr><td>Canary injection</td><td>Unique fake make/model/OS/date/GPS/title survive Photos and are read as themselves, not rewritten to Apple/Vilnius.</td><td>unique-6-canary-2 INPUT only IMG_0027; every CANARY* and 11.1111/22.2222 read; no iPhone X / 54.6389 invented.</td><td><span class="pill done">met</span></td></tr>
     <tr><td>Re-encode strip</td><td>Local publish_video_local_* no longer holds the canaries.</td><td>exiftool on 14311 B copy: only TEEditor / Lavf57.71.100. No CANARY / GPS.</td><td><span class="pill done">met</span></td></tr>
     <tr><td>CDN media upload</td><td>See the file that actually left toward TikTok storage.</td><td>unique-6-publish SSL_write POST /upload/v1 to tiktokcdn-eu.com, 34384 B, no canaries. Video live on profile.</td><td><span class="pill done">met</span></td></tr>
+    <tr><td>AIGC label</td><td>Does TikTok stamp an AI-generated mark on an AI clip?</td><td>unique-8-ai-2 wrote <code>mdta/aigc_info {{\"aigc_label_type\":2}}</code> at 21.9s. Absent from arms 1–6.</td><td><span class="pill done">met</span></td></tr>
     <tr><td>aweme JSON body</td><td>See whether a second publish API still carries the canaries as form fields.</td><td>Not captured. App died ~1s after success haptic. Hook now self-detaches after 2 TLS posts.</td><td><span class="pill warn">not seen</span></td></tr>
     <tr><td>Settled OUTPUT</td><td>Dump tags on the finished re-encode.</td><td>Sintel / Bunny settled. Canary local copy dumped by hand. CLEAN / stamped / camera OUTPUT never settled (wav/m4a).</td><td><span class="pill now">partial</span></td></tr>
   </table>
@@ -333,6 +341,7 @@ def main() -> None:
     <tr><td>4</td><td>Bunny / tree hole</td><td><code>IMG_0009.MOV</code> 990971 B</td><td>Scraped BBB title/artist/CC</td><td><span class="pill done">solo window done</span></td></tr>
     <tr><td>5</td><td>Fresh Camera clip (not old desk)</td><td><code>IMG_0026.MOV</code> 4177966 B</td><td>Real iPhone X camera HEVC + GPS +54.6389+024.9351+161.972</td><td><span class="pill done">solo window done</span></td></tr>
     <tr><td>6</td><td>Yellow screen, giant 6, CANARY</td><td><code>IMG_0027.MOV</code> 17213 B</td><td>Fake canaries (not Apple): CANARYMK/MD/SW-7F3A, GPS 11.1111 22.2222, title/comment</td><td><span class="pill done">read + CDN upload</span></td></tr>
+    <tr><td>7</td><td>Operator AI clip (+ Sora demo in Recents)</td><td><code>IMG_0029.MP4</code> 4568650 B posted; picker also opened <code>IMG_0028.MP4</code> 29689334 B (OpenAI public Sora ships)</td><td>See if TikTok applies an AIGC label. Source had Lavf, no C2PA in the rig.</td><td><span class="pill done">aigc_label_type 2 written</span></td></tr>
   </table>
   </div>
   <h2>5 · Camera <span class="pill done">done</span></h2>
@@ -357,6 +366,19 @@ def main() -> None:
     <li>Pulled <code>publish_video_local_7673935059631590678.mp4</code> 14311 B from TikTok’s Documents folder. Canaries gone. Keys are TEEditor / Lavf57.71.100.</li>
     <li><code>unique-6-publish</code> attach + one SSL_write: CDN <code>POST /upload/v1</code> 34384 B, no canaries, success buzz, video later appeared on profile. App died at 51.4s. Hook now self-detaches after 2 bodies.</li>
   </ul>
+  <h2>7 · AI clip <span class="pill done">done</span></h2>
+  <h3>Done so far</h3>
+  <ul>
+    <li>Public Sora demo (ships in coffee, 29.7 MB, Adobe/AE XMP, no C2PA) was already in Recents as IMG_0028.</li>
+    <li>Operator added another AI-generator export as IMG_0029 (4,568,650 B).</li>
+    <li>Frida spawn 180s, pid 11709, run <code>unique-8-ai-2</code>. Success buzz at 20.6s.</li>
+    <li>Named INPUT: IMG_0028 29689334 + IMG_0029 4568650 + draft/export/publish ~4568201. Posted encode matches 0029.</li>
+    <li>INPUT software: Lavf58.76.100. No C2PA, no Sora/OpenAI/Higgsfield strings.</li>
+    <li>At 21.9s TikTok wrote <code>mdta/aigc_info {{\"aigc_label_type\":2}}</code> into the export (4 reads). Also product:tiktok / TEEditor. <code>isFastImport</code> was 0 on this encode.</li>
+    <li>Front camera capture session opened at 7.6s (compose chrome), not the posted file.</li>
+  </ul>
+  <h3>How it was verified</h3>
+  <p>tags.json files.INPUT names IMG_0029 at the same byte size as DraftResource and the local publish copy. aigc_info is only under video metadata / written-into-the-export, not under INPUT from the source file. String search of arms 1–6 tags.json: no aigc_label_type.</p>
   <h2>Earlier windows (do not use as per-file columns)</h2>
   <div class="scroll">
   <table>
@@ -367,6 +389,7 @@ def main() -> None:
     <tr><td><code>05-generated-manual</code></td><td>First live post attempt; INPUT mixed 0008/0003; no UPLOADED.</td><td><span class="pill warn">blended</span></td></tr>
     <tr><td><code>unique-6-canary</code></td><td>120s spawn; operator was AFK; no IMG_0027 INPUT.</td><td><span class="pill warn">missed post</span></td></tr>
     <tr><td><code>unique-6-aweme</code></td><td>-Full -Attach on compose. Encode started (export 14311). iOS killed TikTok at 50s. Post did not land.</td><td><span class="pill warn">crash</span></td></tr>
+    <tr><td><code>unique-7-sora</code> / <code>unique-8-ai</code></td><td>Spawn windows where the operator did not post.</td><td><span class="pill warn">missed post</span></td></tr>
   </table>
   </div>
 </section>
@@ -376,27 +399,29 @@ def main() -> None:
   <p class="meta">Source: compare_runs.py --normalize --container INPUT on unique-1-solo … unique-5-camera. A dash means that field was not in this window’s INPUT walk.</p>
   <div class="scroll">
   <table>
-    <tr><th>Field</th><th>1 CLEAN</th><th>2 STAMPED</th><th>3 Sintel</th><th>4 Bunny</th><th>5 Camera</th><th>6 CANARY</th></tr>
-    <tr><td>Named INPUT file</td><td>IMG_0021 9065</td><td>IMG_0022 16524</td><td>IMG_0010 1048174</td><td>IMG_0009 990971</td><td>IMG_0026 4177966</td><td>IMG_0027 17213</td></tr>
-    <tr><td>Export / publish</td><td>9691</td><td>13706</td><td>1054614</td><td>1000150</td><td>4156740</td><td>14311 local / 34384 CDN</td></tr>
-    <tr><td>Settled OUTPUT</td><td>—</td><td>—</td><td>1052041</td><td>995177</td><td>—</td><td>local dump 14311</td></tr>
-    <tr><td>make</td><td>—</td><td>Apple</td><td>—</td><td>—</td><td>Apple</td><td>CANARYMK-7F3A</td></tr>
-    <tr><td>model</td><td>—</td><td>iPhone X</td><td>—</td><td>—</td><td>iPhone X</td><td>CANARYMD-7F3A</td></tr>
-    <tr><td>software</td><td>—</td><td>16.7.16</td><td>—</td><td>—</td><td>16.7.16</td><td>CANARYSW-7F3A</td></tr>
-    <tr><td>creationdate</td><td>—</td><td>2026-08-11T14:02:31+0300</td><td>—</td><td>—</td><td>2026-08-14T19:31:34+0300</td><td>2025-01-02T03:04:05+0000</td></tr>
-    <tr><td>GPS ISO6709</td><td>—</td><td>—</td><td>—</td><td>—</td><td>+54.6389+024.9351+161.972/</td><td>+11.1111+022.2222+33.300/</td></tr>
-    <tr><td>GPS accuracy</td><td>—</td><td>—</td><td>—</td><td>—</td><td>35.000000</td><td>12.0</td></tr>
-    <tr><td>udta make/model</td><td>—</td><td>Apple / iPhone X</td><td>—</td><td>—</td><td>—</td><td>CANARYMK / CANARYMD</td></tr>
-    <tr><td>title / name</td><td>—</td><td>—</td><td>—</td><td>Big Buck Bunny, Sunflower version</td><td>—</td><td>CANARY-TITLE-7F3A</td></tr>
-    <tr><td>artist</td><td>—</td><td>—</td><td>—</td><td>Blender Foundation 2008, Janus Bager Kristensen 2013</td><td>—</td><td>—</td></tr>
-    <tr><td>comment / CC</td><td>—</td><td>—</td><td>—</td><td>Creative Commons Attribution 3.0</td><td>—</td><td>CANARY-CMT-7F3A</td></tr>
-    <tr><td>genre</td><td>—</td><td>—</td><td>—</td><td>Animation</td><td>—</td><td>—</td></tr>
-    <tr><td>file software (Lavf on source)</td><td>Lavf63.1.101</td><td>Lavf63.1.101</td><td>Lavf63.1.101</td><td>Lavf63.1.101</td><td>—</td><td>Lavf63.1.101</td></tr>
-    <tr><td>codec (track)</td><td>avc1 family</td><td>avc1 family</td><td>avc1 family</td><td>avc1 family</td><td>hvc1</td><td>avc1 family</td></tr>
-    <tr><td>product:tiktok written</td><td>yes</td><td>yes</td><td>yes</td><td>yes</td><td>yes</td><td>yes</td></tr>
-    <tr><td>On local re-encode</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>stripped</td></tr>
-    <tr><td>On CDN /upload/v1</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>stripped (no canary bytes)</td></tr>
-    <tr><td>aweme_v1 JSON</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>not seen</td></tr>
+    <tr><th>Field</th><th>1 CLEAN</th><th>2 STAMPED</th><th>3 Sintel</th><th>4 Bunny</th><th>5 Camera</th><th>6 CANARY</th><th>7 AI (0029)</th></tr>
+    <tr><td>Named INPUT file</td><td>IMG_0021 9065</td><td>IMG_0022 16524</td><td>IMG_0010 1048174</td><td>IMG_0009 990971</td><td>IMG_0026 4177966</td><td>IMG_0027 17213</td><td>IMG_0029 4568650 (also walked 0028 29.7 MB)</td></tr>
+    <tr><td>Export / publish</td><td>9691</td><td>13706</td><td>1054614</td><td>1000150</td><td>4156740</td><td>14311 local / 34384 CDN</td><td>4568201</td></tr>
+    <tr><td>Settled OUTPUT</td><td>—</td><td>—</td><td>1052041</td><td>995177</td><td>—</td><td>local dump 14311</td><td>—</td></tr>
+    <tr><td>make</td><td>—</td><td>Apple</td><td>—</td><td>—</td><td>Apple</td><td>CANARYMK-7F3A</td><td>—</td></tr>
+    <tr><td>model</td><td>—</td><td>iPhone X</td><td>—</td><td>—</td><td>iPhone X</td><td>CANARYMD-7F3A</td><td>—</td></tr>
+    <tr><td>software</td><td>—</td><td>16.7.16</td><td>—</td><td>—</td><td>16.7.16</td><td>CANARYSW-7F3A</td><td>—</td></tr>
+    <tr><td>creationdate</td><td>—</td><td>2026-08-11T14:02:31+0300</td><td>—</td><td>—</td><td>2026-08-14T19:31:34+0300</td><td>2025-01-02T03:04:05+0000</td><td>—</td></tr>
+    <tr><td>GPS ISO6709</td><td>—</td><td>—</td><td>—</td><td>—</td><td>+54.6389+024.9351+161.972/</td><td>+11.1111+022.2222+33.300/</td><td>—</td></tr>
+    <tr><td>GPS accuracy</td><td>—</td><td>—</td><td>—</td><td>—</td><td>35.000000</td><td>12.0</td><td>—</td></tr>
+    <tr><td>udta make/model</td><td>—</td><td>Apple / iPhone X</td><td>—</td><td>—</td><td>—</td><td>CANARYMK / CANARYMD</td><td>—</td></tr>
+    <tr><td>title / name</td><td>—</td><td>—</td><td>—</td><td>Big Buck Bunny, Sunflower version</td><td>—</td><td>CANARY-TITLE-7F3A</td><td>—</td></tr>
+    <tr><td>artist</td><td>—</td><td>—</td><td>—</td><td>Blender Foundation 2008, Janus Bager Kristensen 2013</td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>comment / CC</td><td>—</td><td>—</td><td>—</td><td>Creative Commons Attribution 3.0</td><td>—</td><td>CANARY-CMT-7F3A</td><td>—</td></tr>
+    <tr><td>genre</td><td>—</td><td>—</td><td>—</td><td>Animation</td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>file software (Lavf on source)</td><td>Lavf63.1.101</td><td>Lavf63.1.101</td><td>Lavf63.1.101</td><td>Lavf63.1.101</td><td>—</td><td>Lavf63.1.101</td><td>Lavf58.76.100</td></tr>
+    <tr><td>codec (track)</td><td>avc1 family</td><td>avc1 family</td><td>avc1 family</td><td>avc1 family</td><td>hvc1</td><td>avc1 family</td><td>avc1</td></tr>
+    <tr><td>C2PA / Sora / OpenAI in INPUT</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>none seen</td></tr>
+    <tr><td>product:tiktok written</td><td>yes</td><td>yes</td><td>yes</td><td>yes</td><td>yes</td><td>yes</td><td>yes</td></tr>
+    <tr><td>aigc_label_type</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td><strong>2 (written)</strong></td></tr>
+    <tr><td>On local re-encode</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>stripped</td><td>aigc stamp added</td></tr>
+    <tr><td>On CDN /upload/v1</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>stripped (no canary bytes)</td><td>—</td></tr>
+    <tr><td>aweme_v1 JSON</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>not seen</td><td>not seen</td></tr>
   </table>
   </div>
   <h2>What this means in one sentence</h2>
@@ -412,6 +437,9 @@ def main() -> None:
   <div class="scroll"><table><tr><th>Tag</th><th>Value</th></tr>{table_from_prov(src2)}</table></div>
   <h3>IMG_0026-camera.MOV — what the file holds</h3>
   <div class="scroll"><table><tr><th>Tag</th><th>Value</th></tr>{table_from_prov(src5)}</table></div>
+  <h3>ai-sora-ships.mp4 — public OpenAI Sora demo (IMG_0028, not the posted 0029)</h3>
+  <p class="meta">cdn.openai.com/sora/videos/ships-in-coffee.mp4. This is a marketing encode (Adobe Photoshop / After Effects XMP), not a ChatGPT download. No C2PA.</p>
+  <div class="scroll"><table><tr><th>Tag</th><th>Value</th></tr>{table_from_prov(src_sora) if src_sora else "<tr><td colspan=2>file not on disk</td></tr>"}</table></div>
   <h3>unique-6-canary.mov — what we injected</h3>
   <div class="scroll"><table><tr><th>Tag</th><th>Value</th></tr>{table_from_prov(src6)}</table></div>
   <h3>publish_video_local canary copy — after TikTok encode</h3>
@@ -509,6 +537,8 @@ def main() -> None:
     <a href="#raw-unique-5-camera">5 Camera</a>
     <a href="#raw-unique-6-canary-2">6 CANARY reads</a>
     <a href="#raw-unique-6-publish">6b CDN upload</a>
+    <a href="#raw-unique-8-ai-2">7 AI / AIGC</a>
+    <a href="#raw-unique-9-stripped">8 stripped AI</a>
   </div>
   {raw_html}
 </section>
@@ -557,7 +587,23 @@ def main() -> None:
     <tr><td><code>unique-6-canary-2</code></td><td>spawn 180s</td><td>All canaries read. Clean INPUT IMG_0027.</td></tr>
     <tr><td><code>unique-6-aweme</code></td><td>-Full -Attach</td><td>Encode started, app killed, post did not land</td></tr>
     <tr><td><code>unique-6-publish</code></td><td>-Publish -Attach</td><td>CDN POST captured, no canaries, app killed, video later live</td></tr>
+    <tr><td><code>unique-8-ai-2</code></td><td>spawn 180s</td><td>Posted IMG_0029; wrote aigc_label_type 2; picker also walked Sora IMG_0028</td></tr>
   </table>
+  <h2>AIGC label (unique-8-ai-2)</h2>
+  <p>First time the rig saw TikTok invent an AI mark. It is <em>written into the export</em>, not read from the source INPUT walk.</p>
+  <div class="scroll">
+  <table>
+    <tr><th>When</th><th>Where</th><th>Value</th><th>Reads</th></tr>
+    <tr><td>10.1s</td><td>opened media</td><td>IMG_0028.MP4 (Sora demo, picker walk)</td><td>—</td></tr>
+    <tr><td>11.1s</td><td>INPUT</td><td>IMG_0028 29689334 · Lavf58.76.100 · uiso timecode · avc1</td><td>—</td></tr>
+    <tr><td>12.3s</td><td>encode started</td><td>AVAssetWriter</td><td>—</td></tr>
+    <tr><td>20.6s</td><td>success haptic</td><td>success</td><td>1</td></tr>
+    <tr><td>21.9s</td><td>video metadata mdta/aigc_info</td><td><code>{{\"aigc_label_type\":2}}</code></td><td>4</td></tr>
+    <tr><td>22.5s</td><td>written into the export mdta/aigc_info</td><td><code>{{\"aigc_label_type\":2}}</code></td><td>with TEEditor / product:tiktok</td></tr>
+    <tr><td>—</td><td>publish_video_local</td><td>4568201 B (matches IMG_0029, not 0028)</td><td>—</td></tr>
+  </table>
+  </div>
+  <p>None of CLEAN, STAMPED, Sintel, Bunny, camera, or canary exports carried <code>aigc_info</code>. The AI decision here did not require a C2PA block in the file (none was read). Check the live TikTok UI for an “AI-generated” badge — that is the product surface this stamp likely feeds.</p>
 </section>
 </main>
 
@@ -605,7 +651,7 @@ document.querySelectorAll('.tabbar .tab').forEach(function(btn){{
 - earlier blended runs kept only as caveats
 
 ## Notes
-- {as_of} canary injection read, stripped on re-encode and CDN upload; aweme JSON not seen
+- {as_of} canary strip + CDN upload; unique-8-ai-2 wrote aigc_label_type 2; aweme JSON not seen
 """,
         encoding="utf-8",
     )

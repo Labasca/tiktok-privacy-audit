@@ -554,6 +554,7 @@
 
   <footer>
     <p>Generated from <code>coverage/coverage.json</code> and <code>coverage/tiktok_declared.json</code>, both rebuildable with <code>pull_manifests.py</code> then <code>analyze_manifests.py</code> then <code>build_coverage.py</code>. Manifests were read from the app bundle via a cold, spawn-suspended Frida file read that never runs TikTok's own code. Read-only throughout.</p>
+    <p style="margin-top:10px;">Poster control (ZXTouch, SpringBoard only) lives on the same token set: <code>python automation/poster.py dashboard</code> → <code>http://127.0.0.1:8765/poster</code>.</p>
     <p style="margin-top:10px;">* Precise location appears in TikTok's Info.plist usage strings and permission set. In the manifests the declared granularity is Coarse plus Precise via the location permission surface.</p>
   </footer>
 </div>

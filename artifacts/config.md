@@ -25,4 +25,4 @@
 - earlier blended runs kept only as caveats
 
 ## Notes
-- 2026-08-14 17:40 UTC canary injection read, stripped on re-encode and CDN upload; aweme JSON not seen
+- 2026-08-17 10:51 UTC canary strip + CDN upload; unique-8-ai-2 wrote aigc_label_type 2; aweme JSON not seen
