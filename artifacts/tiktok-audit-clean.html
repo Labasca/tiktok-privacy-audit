@@ -279,7 +279,7 @@ details > details { margin:0 15px 10px; background:var(--sunk); }
 <li><b>We never saw the uploaded bytes.</b> The TLS hook captured the CDN request <em>headers</em> — 1 774 bytes announcing <code>Content-Length: 34384</code> — but none of that 34 KB body. The re-encode feeding it is measured clean, so the upload almost certainly is too, but that last step is inference, not observation. A second publish call (<code>/aweme/v1/aweme/post/</code>) was never seen either: attaching the hook killed the app both times, ~51s in, right after the success haptic.</li>
 </ul></div></section>
 <section><h2>What they got from each clip</h2>
-<p>One clip per emptied camera roll, one Frida session each, so no value below is contaminated by a neighbouring file. A dash means the field was not on that file — and TikTok did not invent it.</p>
+<p>One clip per emptied camera roll, one Frida session each, so no value below is contaminated by a neighbouring file. A dash means the field was not on that file — and TikTok did not invent it. The first seven groups are the ones that carry the argument; the rest of what it touched follows underneath, so the table is the whole set rather than a selection from it.</p>
 <div class="mtx-wrap wide"><table class="mtx"><thead>
 <tr><th class="cnr" rowspan="2">Field</th><th class="cnr in" rowspan="2">In</th>
 <th class="is-dim"><em>I MADE IT</em><b>1</b> CLEAN</th>
@@ -540,6 +540,658 @@ details > details { margin:0 15px 10px; background:var(--sunk); }
 <td class="on">{&quot;data&quot;:{&quot;product&quot;:&quot;tiktok&quot;,&quot;editingEffe</td>
 <td class="on">{&quot;data&quot;:{&quot;product&quot;:&quot;tiktok&quot;,&quot;editingEffe</td>
 </tr>
+<tr class="grp is-warn"><td colspan="11">Everything else it read off the file &nbsp;<span class="gd">Not selected for the story above — the rest of what the picker walked.</span></td></tr>
+<tr><td class="fld">id3 encoder</td><td class="in"><span class="ct itemlist">ID3</span></td>
+<td class="on">Lavf58.28.101</td>
+<td class="on">Lavf58.28.101</td>
+<td class="on">Lavf58.76.100</td>
+<td class="on">Lavf58.76.100</td>
+<td class="on">Lavf58.76.100</td>
+<td class="on">Lavf58.28.101</td>
+<td class="off">&mdash;</td>
+<td class="on murky">Lavf58.76.100<i>from the picker walk, not the posted file</i></td>
+<td class="on">Lavf58.45.100</td>
+</tr>
+<tr><td class="fld">id3 user text</td><td class="in"><span class="ct itemlist">ID3</span></td>
+<td class="on">-1 | 0 | 1 | 3a9ccdad8c0dce4abaff9bd6651</td>
+<td class="on">-1 | 0 | 0ee8ec9489e8138b84e91d7ea6521f0</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">-1 | 0 | 1 | 3a9ccdad8c0dce4abaff9bd6651</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">encoder key %01</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="on">1</td>
+<td class="off">&mdash;</td>
+<td class="on">1<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %02</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">4608000<i>read 2&times;</i></td>
+<td class="on">4608000<i>read 2&times;</i></td>
+<td class="on">3870720<i>read 2&times;</i></td>
+<td class="on">3870720<i>read 2&times;</i></td>
+<td class="on">6912000<i>read 2&times;</i></td>
+<td class="on">4608000<i>read 2&times;</i></td>
+<td class="on">4608000</td>
+<td class="off">&mdash;</td>
+<td class="on">6912000<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %03</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">4c82aaae7648fcf551d7a0b6e5bfd1a2<i>read 2&times;</i></td>
+<td class="on">a62d485e09a2bc0cad6a261936aa6334<i>read 2&times;</i></td>
+<td class="on">529d5ea9fd333f17b553a22124bd03a2<i>read 2&times;</i></td>
+<td class="on">9acccb1771a698039d57dbeb26c0b6ca<i>read 2&times;</i></td>
+<td class="on">d316fa70009765ad90f923729b9ecdf5<i>read 2&times;</i></td>
+<td class="on">419ee6a2c043965ef95b93771b9760a6<i>read 2&times;</i></td>
+<td class="on">c4e1ef06f605c6ab5f65e57793bf6d07</td>
+<td class="off">&mdash;</td>
+<td class="on">6421ae29733197678eb0cb6375d90424<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %04</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast</td>
+<td class="off">&mdash;</td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %05</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0</td>
+<td class="off">&mdash;</td>
+<td class="on">0<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %06</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="on">5</td>
+<td class="off">&mdash;</td>
+<td class="on">5<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %07</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0</td>
+<td class="off">&mdash;</td>
+<td class="on">0<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %08</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="on">-1</td>
+<td class="off">&mdash;</td>
+<td class="on">-1<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %09</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="on">2026-08-14T16:23:57Z<i>read 2&times;</i></td>
+<td class="on">2026-08-14T16:27:54Z<i>read 2&times;</i></td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="on">Lavf57.71.100</td>
+<td class="off">&mdash;</td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %0A</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">encoder key itsk/%A9too</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">Lavf58.76.100<i>read 18&times;</i></td>
+<td class="on murky">Lavf58.76.100<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/Hw</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">1<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/aigc_info</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">{&quot;aigc_label_type&quot;:2}<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/bitrate</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">2560000<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">TikTok product block</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">{&quot;data&quot;:{&quot;product&quot;:&quot;tiktok&quot;,&quot;editingEffe<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/com.apple.quicktime.copyright</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">94f358b2ed0fbce0b28a9f1ef8030c2d<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/compatible_brands</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">qt<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/creation_time</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">2026-08-17T10:31:36Z<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/encoder</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">Lavf57.71.100<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/major_brand</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">qt<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/maxrate</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">0<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/mdat_pos</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">28<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/minor_version</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">512<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/moov_pos</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">2746832<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/source</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">2<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/te_is_reencode</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">1<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/writerType</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on murky">-1<i>from the picker walk, not the posted file</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">uiso/%A9TSC</td><td class="in"><span class="ct userdata">UserData</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">30<i>decoded from the atom</i></td>
+<td class="on">30<i>decoded from the atom</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">uiso/%A9TSZ</td><td class="in"><span class="ct userdata">UserData</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">1<i>decoded from the atom</i></td>
+<td class="on">1<i>decoded from the atom</i></td>
+<td class="off">&mdash;</td>
+</tr>
+<tr class="grp is-new"><td colspan="11">Everything else it wrote into its export &nbsp;<span class="gd">TikTok&#x27;s own encoder block, read back off the file it produced.</span></td></tr>
+<tr><td class="fld">encoder key %01</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="on">1<i>read 2&times;</i></td>
+<td class="on">1<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %02</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">4608000<i>read 2&times;</i></td>
+<td class="on">4608000<i>read 2&times;</i></td>
+<td class="on">3870720<i>read 2&times;</i></td>
+<td class="on">3870720<i>read 2&times;</i></td>
+<td class="on">6912000<i>read 2&times;</i></td>
+<td class="on">4608000<i>read 2&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="on">6912000<i>read 2&times;</i></td>
+<td class="on">6912000<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %03</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">4c82aaae7648fcf551d7a0b6e5bfd1a2<i>read 2&times;</i></td>
+<td class="on">a62d485e09a2bc0cad6a261936aa6334<i>read 2&times;</i></td>
+<td class="on">529d5ea9fd333f17b553a22124bd03a2<i>read 2&times;</i></td>
+<td class="on">9acccb1771a698039d57dbeb26c0b6ca<i>read 2&times;</i></td>
+<td class="on">d316fa70009765ad90f923729b9ecdf5<i>read 2&times;</i></td>
+<td class="on">419ee6a2c043965ef95b93771b9760a6<i>read 2&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="on">ad0b3bfb72eaebbf1c9b4bf39af21308<i>read 2&times;</i></td>
+<td class="on">6421ae29733197678eb0cb6375d90424<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %04</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %05</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %06</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="on">5<i>read 2&times;</i></td>
+<td class="on">5<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %07</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="on">0<i>read 2&times;</i></td>
+<td class="on">0<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %08</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="on">-1<i>read 2&times;</i></td>
+<td class="on">-1<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %09</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="on">2026-08-14T16:23:57Z<i>read 2&times;</i></td>
+<td class="on">2026-08-14T16:27:54Z<i>read 2&times;</i></td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+</tr>
+<tr><td class="fld">encoder key %0A</td><td class="in"><span class="ct itemlist">iTunes</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="on">Lavf57.71.100<i>read 2&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/Hw</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">1<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/bitrate</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">2560000<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/com.apple.quicktime.copyright</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">5dd1090499fa115cbb0b90df11cbdf97 | 94f35<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">software / OS</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">{&quot;publicMode&quot;:&quot;1&quot;,&quot;TEEditor&quot;:&quot;2&quot;,&quot;isFast<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/compatible_brands</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">qt<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/creation_time</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">2026-08-17T10:31:33Z | 2026-08-17T10:31:<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/encoder</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">Lavf57.71.100<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/major_brand</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">qt<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/maxrate</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">0<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/mdat_pos</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">28<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/minor_version</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">512<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/moov_pos</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">2746832<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/source</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">2<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/te_is_reencode</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">1<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr><td class="fld">mdta/writerType</td><td class="in"><span class="ct keys">Keys</span></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+<td class="on">-1<i>read 4&times;</i></td>
+<td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
+</tr>
+<tr class="grp is-dim"><td colspan="11">Asked of the Photos library, not the file &nbsp;<span class="gd">Properties of the asset, which the bytes never carried.</span></td></tr>
+<tr><td class="fld">mediaSubtypes</td><td class="in"></td>
+<td class="on">none</td>
+<td class="on">none</td>
+<td class="on">none</td>
+<td class="on">none</td>
+<td class="on">none</td>
+<td class="on">none</td>
+<td class="on">none</td>
+<td class="on murky">none<i>from the picker walk, not the posted file</i></td>
+<td class="on">none</td>
+</tr>
+<tr><td class="fld">pixelHeight</td><td class="in"></td>
+<td class="on">1280</td>
+<td class="on">1280</td>
+<td class="on">360</td>
+<td class="on">360</td>
+<td class="on">1920</td>
+<td class="on">1280</td>
+<td class="on">1080 | 720</td>
+<td class="on murky">1080 | 1920 | 720<i>from the picker walk, not the posted file</i></td>
+<td class="on">1920</td>
+</tr>
+<tr><td class="fld">pixelWidth</td><td class="in"></td>
+<td class="on">720</td>
+<td class="on">720</td>
+<td class="on">640</td>
+<td class="on">640</td>
+<td class="on">1080</td>
+<td class="on">720</td>
+<td class="on">1280 | 1920</td>
+<td class="on murky">1080 | 1280 | 1920<i>from the picker walk, not the posted file</i></td>
+<td class="on">1080</td>
+</tr>
 <tr class="grp is-new"><td colspan="11">Outcome</td></tr>
 <tr><td class="fld">identity fields taken</td><td class="in"></td>
 <td class="off">&mdash;</td>
@@ -572,7 +1224,8 @@ details > details { margin:0 15px 10px; background:var(--sunk); }
 </div>
 <p class="cap"><b>Clip 8 (AI STRIPPED) is blended.</b> Its Recents still held four clips, so the picker deep-walked all of them and its INPUT column mixes files &mdash; including a leftover TikTok export, which is why a TEEditor JSON string shows up under device software. Only its <em>written</em> row is attributable to the clip that was posted. Every other column had exactly one item in Recents.</p>
 <p class="cap"><b>On the AI-label row,</b> a dash is real evidence. Most exports report their fields as numbered keys rather than names, but the rig records the <em>value</em> either way &mdash; and the string <code>aigc_label_type</code> appears in exactly one export across all nine clips.</p>
-<p class="cap"><b>Deliberately not in this table:</b> the audio encoder string (<code>id3/TSSE</code>) tracks the backing-music file TikTok loads, not your video &mdash; clips sharing a track share the value, so it says nothing about the clip. Thumbnail properties are interface bitmaps. Filesystem dates cover TikTok&rsquo;s own drafts and exports as well as your file. All of it is in the ledger.</p>
+<p class="cap"><b>Two rows that look like findings and are not.</b> The audio encoder string (<code>id3/TSSE</code>) tracks the backing-music file TikTok loads rather than your video, so clips sharing a track share the value. The <code>itsk</code> block is TikTok&rsquo;s own encoder writing to itself. Both are listed because the table claims to be complete, not because they say anything about the clip you posted.</p>
+<p class="cap"><b>Still deliberately out:</b> thumbnail properties, which are interface bitmaps rather than your video, and filesystem dates, which cover TikTok&rsquo;s own drafts and exports as well as your file. Both are in the ledger.</p>
 <p class="cap">Read clip 2 (STAMPED) against clip 6 (CANARY). Both were faked by hand. Clip 2 put its GPS in an XMP packet and TikTok read that packet as an opaque blob, parsing no coordinate. Clip 6 put the same kind of value in a QuickTime key and it came back 18 times. Same rig, one container apart.</p>
 </section>
 <section><h2>What they check for, and what it tells them</h2>

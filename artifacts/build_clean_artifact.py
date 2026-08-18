@@ -682,6 +682,80 @@ def decode_blob(v):
     return None
 
 
+BUCKET = {"written": "_written", "track": "_track", "library": "_library",
+          "input": "_input"}
+
+# Which container an atom actually lives in, from its own prefix.
+ATOM_CONTAINER = [("mdta/", "Keys", "keys"), ("udta/", "UserData", "userdata"),
+                  ("uiso/", "UserData", "userdata"), ("itsk/", "iTunes", "itemlist"),
+                  ("id3/", "ID3", "itemlist")]
+
+
+def atom_badge(atom):
+    for pre, name, cls in ATOM_CONTAINER:
+        if atom.startswith(pre):
+            return name, cls
+    return "", ""
+
+
+def clip_cell(runs, c, atom, src):
+    """One clip's value for one atom, however that atom chooses to be awkward."""
+    if atom == "__resolution__":
+        w_ = runs[c["id"]]["_library"].get("pixelWidth")
+        h_ = runs[c["id"]]["_library"].get("pixelHeight")
+        f = ({"value": "%s x %s" % (w_["value"], h_["value"]), "reads": w_["reads"]}
+             if w_ and h_ else None)
+    else:
+        f = runs[c["id"]][BUCKET.get(src, "_input")].get(atom)
+    if not f:
+        return '<td class="off">&mdash;</td>'
+    if f["value"].startswith("{length ="):
+        txt = decode_blob(f["value"])
+        if txt:
+            return '<td class="on">%s<i>decoded from the atom</i></td>' % esc(txt)
+        nb = re.search(r"length = (\d+)", f["value"]).group(1)
+        return '<td class="blob">blob<i>%s B, unparsed</i></td>' % fmt_bytes(nb)
+    comp = runs[c["id"]]["_comp"].get(atom)
+    rd = ('<i>read %d&times;</i>' % comp["reads"]) if comp else ''
+    murky = c.get("blended") and src != "written"
+    if murky:
+        rd = '<i>from the picker walk, not the posted file</i>'
+    return ('<td class="on%s">%s%s</td>'
+            % (" murky" if murky else "", esc(f["value"][:40]), rd))
+
+
+def leftover_groups(runs, cols):
+    """Every atom the curated groups above do not already name.
+
+    The point of the table is that TikTok takes everything, so a table showing
+    a chosen twenty of fifty-two undercuts its own argument.
+    """
+    # keyed on (atom, phase): the same four-character code read off the source
+    # and written into the export are two different facts, and collapsing them
+    # would silently drop a whole group
+    named = {(f[1], f[3] if len(f) > 3 else "input")
+             for _g, _c, fields in TABLE_GROUPS for f in fields}
+    out = []
+    for src, gname, gcls, note in [
+            ("input", "Everything else it read off the file", "is-warn",
+             "Not selected for the story above — the rest of what the picker walked."),
+            ("written", "Everything else it wrote into its export", "is-new",
+             "TikTok's own encoder block, read back off the file it produced."),
+            ("library", "Asked of the Photos library, not the file", "is-dim",
+             "Properties of the asset, which the bytes never carried."),
+            ("track", "Track level", "is-dim", "Codec of the video track.")]:
+        atoms = set()
+        for c in cols:
+            atoms |= set(runs[c["id"]][BUCKET[src]])
+        rest = sorted(a for a in atoms if (a, src) not in named)
+        if not rest:
+            continue
+        out.append((gname, gcls, note,
+                    [(atom_name(a), a, atom_badge(a)[0], src) for a in rest]))
+        named |= {(a, src) for a in rest}
+    return out
+
+
 def matrix_section(runs):
     cols = [r for r in RUNS if r["key"] != "publish" and r.get("table", True)]
     o = []
@@ -689,7 +763,9 @@ def matrix_section(runs):
     a('<section><h2>What they got from each clip</h2>')
     a('<p>One clip per emptied camera roll, one Frida session each, so no value below is '
       'contaminated by a neighbouring file. A dash means the field was not on that file — and '
-      'TikTok did not invent it.</p>')
+      'TikTok did not invent it. The first seven groups are the ones that carry the argument; '
+      'the rest of what it touched follows underneath, so the table is the whole set rather '
+      'than a selection from it.</p>')
     a('<div class="mtx-wrap wide"><table class="mtx"><thead>')
     a('<tr><th class="cnr" rowspan="2">Field</th><th class="cnr in" rowspan="2">In</th>')
     for c in cols:
@@ -708,32 +784,20 @@ def matrix_section(runs):
             a('<tr><td class="fld">%s</td><td class="in"><span class="ct %s">%s</span></td>'
               % (esc(label), ctr.lower(), ctr))
             for c in cols:
-                bucket = {"written": "_written", "track": "_track",
-                          "library": "_library"}.get(src, "_input")
-                if atom == "__resolution__":
-                    w_ = runs[c["id"]]["_library"].get("pixelWidth")
-                    h_ = runs[c["id"]]["_library"].get("pixelHeight")
-                    f = ({"value": "%s x %s" % (w_["value"], h_["value"]),
-                          "reads": w_["reads"]} if w_ and h_ else None)
-                else:
-                    f = runs[c["id"]][bucket].get(atom)
-                if not f:
-                    a('<td class="off">&mdash;</td>')
-                elif f["value"].startswith("{length ="):
-                    txt = decode_blob(f["value"])
-                    if txt:
-                        a('<td class="on">%s<i>decoded from the atom</i></td>' % esc(txt))
-                    else:
-                        nb = re.search(r"length = (\d+)", f["value"]).group(1)
-                        a('<td class="blob">blob<i>%s B, unparsed</i></td>' % fmt_bytes(nb))
-                else:
-                    comp = runs[c["id"]]["_comp"].get(atom)
-                    rd = ('<i>read %d&times;</i>' % comp["reads"]) if comp else ''
-                    if c.get("blended") and src != "written":
-                        rd = '<i>from the picker walk, not the posted file</i>'
-                    a('<td class="on%s">%s%s</td>'
-                      % (" murky" if (c.get("blended") and src != "written") else "",
-                         esc(f["value"][:40]), rd))
+                a(clip_cell(runs, c, atom, src))
+            a('</tr>')
+
+    # completeness: the atoms the curated groups above do not name
+    for gname, gcls, note, fields in leftover_groups(runs, cols):
+        a('<tr class="grp %s"><td colspan="%d">%s &nbsp;<span class="gd">%s</span>'
+          '</td></tr>' % (gcls, len(cols) + 2, esc(gname), esc(note)))
+        for label, atom, ctr, src in fields:
+            a('<tr><td class="fld">%s</td><td class="in">%s</td>'
+              % (esc(label),
+                 ('<span class="ct %s">%s</span>' % (atom_badge(atom)[1], ctr))
+                 if ctr else ""))
+            for c in cols:
+                a(clip_cell(runs, c, atom, src))
             a('</tr>')
     # closing summary rows
     a('<tr class="grp is-new"><td colspan="%d">Outcome</td></tr>' % (len(cols) + 2))
@@ -769,11 +833,14 @@ def matrix_section(runs):
       'their fields as numbered keys rather than names, but the rig records the <em>value</em> '
       'either way &mdash; and the string <code>aigc_label_type</code> appears in exactly one '
       'export across all nine clips.</p>')
-    a('<p class="cap"><b>Deliberately not in this table:</b> the audio encoder string '
-      '(<code>id3/TSSE</code>) tracks the backing-music file TikTok loads, not your video &mdash; '
-      'clips sharing a track share the value, so it says nothing about the clip. Thumbnail '
-      'properties are interface bitmaps. Filesystem dates cover TikTok&rsquo;s own drafts and '
-      'exports as well as your file. All of it is in the ledger.</p>')
+    a('<p class="cap"><b>Two rows that look like findings and are not.</b> The audio encoder '
+      'string (<code>id3/TSSE</code>) tracks the backing-music file TikTok loads rather than '
+      'your video, so clips sharing a track share the value. The <code>itsk</code> block is '
+      'TikTok&rsquo;s own encoder writing to itself. Both are listed because the table claims '
+      'to be complete, not because they say anything about the clip you posted.</p>')
+    a('<p class="cap"><b>Still deliberately out:</b> thumbnail properties, which are interface '
+      'bitmaps rather than your video, and filesystem dates, which cover TikTok&rsquo;s own '
+      'drafts and exports as well as your file. Both are in the ledger.</p>')
     a('<p class="cap">Read clip 2 (STAMPED) against clip 6 (CANARY). Both were faked by hand. Clip 2 put its GPS in an '
       'XMP packet and TikTok read that packet as an opaque blob, parsing no coordinate. Clip 6 '
       'put the same kind of value in a QuickTime key and it came back 18 times. Same rig, one '
