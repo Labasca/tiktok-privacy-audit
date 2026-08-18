@@ -77,3 +77,4 @@ testfiles/image-arms-pulled/
 
 # variance corpus: real captures, home GPS, per-shot UUIDs
 testfiles/variance/
+testfiles/variance-video/

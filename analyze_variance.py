@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Which photo fields are welded to the phone, and which move per shot?
+"""Which capture fields are welded to the phone, and which move per shot?
 
-    python analyze_stills_variance.py photos/
+    python analyze_variance.py photos/          # or a folder of .MOV
 
 Point it at a folder of untouched captures from one device. It reports, for
 every tag any of them carries, whether the value is constant across the whole
@@ -29,15 +29,17 @@ from collections import defaultdict
 # and into any log of this run. The count is the finding; the value is not.
 REDACT = ("GPS", "Serial", "Identifier", "ImageUniqueID", "Owner", "Firmware")
 
-# group: what a difference here would mean for a forgery
-BUCKETS = [
-    ("IFD0", "device identity"),
-    ("ExifIFD", "capture settings"),
-    ("GPS", "position"),
-    ("Apple", "Apple private block"),
-    ("ICC_Profile", "colour"),
-    ("XMP", "sidecar"),
-]
+# What a difference in each group would mean. Groups not listed here are still
+# reported -- stills and video expose entirely different ones, so the set is
+# discovered from the files rather than declared up front.
+MEANING = {
+    "IFD0": "device identity", "ExifIFD": "capture settings", "GPS": "position",
+    "Apple": "Apple private block", "ICC_Profile": "colour", "XMP": "sidecar",
+    "Keys": "the whole metadata surface of a recording",
+    "UserData": "legacy container -- a real recording carries none",
+    "QuickTime": "container and codec", "ItemList": "iTunes-style tags",
+}
+SKIP_GROUPS = ("File", "System", "ExifTool", "Composite", "ICC-header")
 
 
 def redacted(key):
@@ -125,7 +127,8 @@ def main():
                     help="print values for non-identifying fields that vary")
     args = ap.parse_args()
 
-    exts = (".heic", ".heif", ".jpg", ".jpeg", ".png", ".dng")
+    exts = (".heic", ".heif", ".jpg", ".jpeg", ".png", ".dng",
+            ".mov", ".mp4", ".m4v")
     paths = [os.path.join(args.folder, f) for f in sorted(os.listdir(args.folder))
              if f.lower().endswith(exts)]
     if len(paths) < 2:
@@ -147,13 +150,13 @@ def main():
     print("%-38s %-9s %-7s %s" % ("FIELD", "ON", "DISTINCT", "VERDICT"))
     print("-" * 88)
     tally = defaultdict(lambda: [0, 0])
-    for group, meaning in BUCKETS + [("", "other")]:
-        keys = sorted(k for k in values
-                      if (k.split(":")[0].startswith(group) if group
-                          else not any(k.split(":")[0].startswith(g) for g, _ in BUCKETS)))
+    groups = sorted({k.split(":")[0] for k in values},
+                    key=lambda g: (g.startswith("Track"), g))
+    for group in groups:
+        keys = sorted(k for k in values if k.split(":")[0] == group)
         if not keys:
             continue
-        print("\n== %s (%s)" % (group or "other", meaning))
+        print("\n== %s (%s)" % (group, MEANING.get(group, "")))
         for k in keys:
             d = len(values[k])
             const = d == 1
@@ -172,10 +175,36 @@ def main():
 
     print("\n" + "=" * 88)
     print("SUMMARY")
-    for group, meaning in BUCKETS:
+    for group in groups:
         c, v = tally[group]
         if c or v:
-            print("  %-14s %2d constant, %2d varying   (%s)" % (group, c, v, meaning))
+            print("  %-14s %2d constant, %2d varying   (%s)"
+                  % (group, c, v, MEANING.get(group, "")))
+
+
+    # Track layout is what a recording has that a photo does not, and it is
+    # structure rather than a tag. A forgery has to reproduce the shape before
+    # any value in it matters.
+    shapes = {}
+    for d in dumps:
+        name = os.path.basename(d.get("SourceFile", "?"))
+        tracks = sorted({k.split(":")[0] for k in d if k.startswith("Track")},
+                        key=lambda t: int(t[5:]) if t[5:].isdigit() else 0)
+        kinds = [str(d.get("%s:HandlerType" % t, "?")) for t in tracks]
+        if kinds:
+            shapes[name] = kinds
+    if shapes:
+        print("")
+        print("TRACK LAYOUT -- structure, not tags")
+        for name, kinds in shapes.items():
+            print("  %-22s %d tracks: %s" % (name, len(kinds), ", ".join(kinds)))
+        distinct = {tuple(v) for v in shapes.values()}
+        if len(distinct) == 1:
+            print("  every recording has the same shape")
+        else:
+            print("  %d different shapes -- the layout is NOT a constant, so a"
+                  % len(distinct))
+            print("  forgery has to match the shape of the mode it claims to be")
 
     checks, bad, notes = couplings(dumps)
     print("\nCOUPLINGS — fields that must agree with each other")
