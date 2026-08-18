@@ -1197,6 +1197,13 @@ VARIANCE_GROUPS = [
 ]
 
 
+# The three captures, in the order they were taken. Labels rather than file
+# names: what the shot was is the thing that explains why a value moved.
+VARIANCE_SHOTS = [("1\u00d7 wide", "outdoors, wide lens, landscape"),
+                  ("2\u00d7 tele", "same spot seconds later, telephoto"),
+                  ("flash", "indoors, flash fired, portrait")]
+
+
 def variance(paths):
     """Which fields hold still across shots from one phone, and which move."""
     dumps = []
@@ -1214,7 +1221,9 @@ def variance(paths):
                 continue
             seen[k] = seen.get(k, 0) + 1
             vals.setdefault(k, set()).add(str(v))
-    return dict(n=len(dumps), seen=seen, vals=vals)
+    labels = [VARIANCE_SHOTS[i] if i < len(VARIANCE_SHOTS)
+              else ("shot %d" % (i + 1), "") for i in range(len(dumps))]
+    return dict(n=len(dumps), seen=seen, vals=vals, dumps=dumps, labels=labels)
 
 
 def variance_section(var):
@@ -1301,15 +1310,34 @@ def variance_key(var, short):
     return k if k in var["vals"] else None
 
 
-def variance_cell(var, short):
-    """Whether a field held still across the real captures, as a table cell."""
+# A UUID printed in full is an identifier and nothing else -- that it differs
+# is the whole finding. Every other value earns its place by explaining why.
+VARIANCE_REDACT = ("Identifier",)
+
+
+def variance_cells(var, short):
+    """One cell per real capture, then the verdict."""
+    n = var["n"] if var else 0
     k = variance_key(var, short)
     if k is None:
-        return '<td class="off">&mdash;</td>'
-    d = len(var["vals"][k])
-    if d == 1:
-        return '<td class="zero">copy once</td>'
-    return '<td class="cnt">per shot<i>%d of %d differ</i></td>' % (d, var["n"])
+        return '<td class="off">&mdash;</td>' * (n + 1)
+    out = []
+    for d in var["dumps"]:
+        v = d.get(k)
+        if v is None:
+            out.append('<td class="off">&mdash;</td>')
+        elif any(w in k for w in VARIANCE_REDACT):
+            out.append('<td class="on murky">set<i>value withheld</i></td>')
+        else:
+            # the lens strings differ only in their last nine characters, so a
+            # tight truncation here would hide the one thing the row is for
+            t = str(v)
+            out.append('<td class="on rc">%s</td>'
+                       % esc(t[:40] + ("…" if len(t) > 40 else "")))
+    spread = len(var["vals"][k])
+    out.append('<td class="zero">copy once</td>' if spread == 1
+               else '<td class="cnt">per shot<i>%d of %d differ</i></td>' % (spread, n))
+    return "".join(out)
 
 
 def variance_group(var, block):
@@ -1445,15 +1473,17 @@ def images_section(iruns, idumps, var):
     a('<th class="cnr">Field</th>')
     for c in cols:
         a('<th class="%s"><b>%d</b> %s</th>' % (c["cls"], c["n"], esc(c["label"])))
-    a('<th class="cnr">Across 3 real photos<span class="gd"> same phone, varied shots</span>'
-      '</th>')
+    for label, why in (var["labels"] if var else []):
+        a('<th class="is-good"><b>%s</b><span class="gd">%s</span></th>'
+          % (esc(label), esc(why)))
+    a('<th class="cnr">Verdict<span class="gd"> across the three</span></th>')
     a('<th class="cnr">Times read<span class="gd"> range across the five sessions</span>'
       '</th></tr></thead><tbody>')
 
     # what the files are, as the opening group rather than a second table with
     # the same five columns above it
     a('<tr class="grp is-dim"><td colspan="%d">The file itself &nbsp;<span class="gd">'
-      'Before anything was read off it.</span></td></tr>' % (len(cols) + 3))
+      'Before anything was read off it.</span></td></tr>' % (len(cols) + 2 + (var["n"] + 1 if var else 1)))
     fileset = [
         ("container", "", lambda d: d.get("File:FileType")),
         ("stored size", "pixels as written, before any rotation",
@@ -1475,19 +1505,19 @@ def images_section(iruns, idumps, var):
             v = fn(d) if d else None
             a('<td class="on">%s</td>' % esc(str(v)) if v is not None
               else '<td class="off">&mdash;</td>')
-        a('<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>')
+        a('<td class="off">&mdash;</td>' * (var["n"] + 2 if var else 2) + '</tr>')
     a('<tr><td class="fld fx"><b>survived PhotoKit import</b>'
       '<i>imported through the API an app actually uses, then pulled back and diffed</i></td>')
     for c in cols:
         a('<td class="zero">byte-identical</td>')
-    a('<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>')
+    a('<td class="off">&mdash;</td>' * (var["n"] + 2 if var else 2) + '</tr>')
 
     for block, gname, gcls, gdesc in IMAGE_BLOCKS:
         rows = keys.get(block, [])
         if not rows:
             continue
         a('<tr class="grp %s"><td colspan="%d">%s &nbsp;<span class="gd">%s%s</span></td></tr>'
-          % (gcls, len(cols) + 3, esc(gname),
+          % (gcls, len(cols) + 2 + (var["n"] + 1 if var else 1), esc(gname),
              esc(gdesc % len(rows) if "%d" in gdesc else gdesc),
              variance_group(var, block)))
         prev = None
@@ -1505,7 +1535,7 @@ def images_section(iruns, idumps, var):
                 pooled = sorted({v for c in cols for v in ivals(iruns[c["id"]]["tags"], key)})
                 txt = " \u00b7 ".join(pooled)
                 a('<td class="on murky" colspan="%d">%s</td>'
-                  % (len(cols), esc(txt[:74] + ("\u2026" if len(txt) > 74 else ""))))
+                  % (len(cols), esc(txt[:74] + ("…" if len(txt) > 74 else ""))))
             else:
                 found = False
                 for c in cols:
@@ -1521,14 +1551,14 @@ def images_section(iruns, idumps, var):
                       % esc(txt[:30] + ("\u2026" if len(txt) > 30 else "")))
                 if not found and block != "{MakerApple}":
                     unmapped.append(short)
-            a(variance_cell(var, short))
+            a(variance_cells(var, short))
             reads = [m.get("reads") or 0 for m in
                      (iruns[c["id"]]["tags"].get(key) for c in cols) if m]
             a('<td class="cnt">%s&times;</td>'
               % ("%d&ndash;%d" % (min(reads), max(reads))
                  if reads and min(reads) != max(reads) else (reads[0] if reads else 0)))
             a('</tr>')
-    a('<tr class="grp is-dim"><td colspan="%d">Timing</td></tr>' % (len(cols) + 3))
+    a('<tr class="grp is-dim"><td colspan="%d">Timing</td></tr>' % (len(cols) + 2 + (var["n"] + 1 if var else 1)))
     a('<tr><td class="fld fx"><b>first GPS read</b><i>seconds after launch, before anything '
       'was selected</i></td>')
     for c in cols:
@@ -1536,7 +1566,7 @@ def images_section(iruns, idumps, var):
         t = m.get("first_seen_s") if m else None
         a('<td class="%s">%s</td>' % ("on" if t else "off",
                                       ("%.1f s" % t) if t else "&mdash;"))
-    a('<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>')
+    a('<td class="off">&mdash;</td>' * (var["n"] + 2 if var else 2) + '</tr>')
     a('</tbody></table></div>')
     if gloss_missing:
         print("  ! stills fields with no plain-English gloss: %s"
@@ -1848,6 +1878,8 @@ a { color:var(--cool); }
 .mtx td.cnt.big { font-size:30px; line-height:1; text-align:center; width:1%;
   white-space:nowrap; font-variant-numeric:tabular-nums; }
 .mtx td.chips { white-space:normal; min-width:17ch; }
+/* real-capture values: wide enough that the two lens strings stay distinct */
+.mtx td.rc { white-space:normal; max-width:24ch; }
 .mtx td.chips .ct { display:inline-block; margin:0 4px 4px 0; }
 /* field name and its description share one cell, so the table loses a column */
 .mtx td.fx { white-space:normal; min-width:19ch; max-width:34ch; }

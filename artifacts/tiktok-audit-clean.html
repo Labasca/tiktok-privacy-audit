@@ -146,6 +146,8 @@ a { color:var(--cool); }
 .mtx td.cnt.big { font-size:30px; line-height:1; text-align:center; width:1%;
   white-space:nowrap; font-variant-numeric:tabular-nums; }
 .mtx td.chips { white-space:normal; min-width:17ch; }
+/* real-capture values: wide enough that the two lens strings stay distinct */
+.mtx td.rc { white-space:normal; max-width:24ch; }
 .mtx td.chips .ct { display:inline-block; margin:0 4px 4px 0; }
 /* field name and its description share one cell, so the table loses a column */
 .mtx td.fx { white-space:normal; min-width:19ch; max-width:34ch; }
@@ -857,59 +859,62 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <th class="is-new"><b>3</b> CANARY HEIC</th>
 <th class="is-warn"><b>4</b> CANARY XMP</th>
 <th class="is-new"><b>5</b> CANARY JPEG</th>
-<th class="cnr">Across 3 real photos<span class="gd"> same phone, varied shots</span></th>
+<th class="is-good"><b>1× wide</b><span class="gd">outdoors, wide lens, landscape</span></th>
+<th class="is-good"><b>2× tele</b><span class="gd">same spot seconds later, telephoto</span></th>
+<th class="is-good"><b>flash</b><span class="gd">indoors, flash fired, portrait</span></th>
+<th class="cnr">Verdict<span class="gd"> across the three</span></th>
 <th class="cnr">Times read<span class="gd"> range across the five sessions</span></th></tr></thead><tbody>
-<tr class="grp is-dim"><td colspan="8">The file itself &nbsp;<span class="gd">Before anything was read off it.</span></td></tr>
+<tr class="grp is-dim"><td colspan="11">The file itself &nbsp;<span class="gd">Before anything was read off it.</span></td></tr>
 <tr><td class="fld fx"><b>container</b></td>
 <td class="on">JPEG</td>
 <td class="on">HEIC</td>
 <td class="on">HEIC</td>
 <td class="on">JPEG</td>
 <td class="on">JPEG</td>
-<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
 <tr><td class="fld fx"><b>stored size</b><i>pixels as written, before any rotation</i></td>
 <td class="on">1170 x 2532</td>
 <td class="on">4032 x 3024</td>
 <td class="on">4032 x 3024</td>
 <td class="on">1170 x 2532</td>
 <td class="on">1170 x 2532</td>
-<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
 <tr><td class="fld fx"><b>colour profile</b></td>
 <td class="off">&mdash;</td>
 <td class="on">Display P3</td>
 <td class="on">Display P3</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
 <tr><td class="fld fx"><b>identity written in</b><i>which container holds the make and GPS</i></td>
 <td class="off">&mdash;</td>
 <td class="on">EXIF / TIFF</td>
 <td class="on">EXIF / TIFF</td>
 <td class="on">XMP</td>
 <td class="on">EXIF / TIFF</td>
-<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
 <tr><td class="fld fx"><b>Apple maker note</b></td>
 <td class="off">&mdash;</td>
 <td class="on">23 tags</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
 <tr><td class="fld fx"><b>survived PhotoKit import</b><i>imported through the API an app actually uses, then pulled back and diffed</i></td>
 <td class="zero">byte-identical</td>
 <td class="zero">byte-identical</td>
 <td class="zero">byte-identical</td>
 <td class="zero">byte-identical</td>
 <td class="zero">byte-identical</td>
-<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
-<tr class="grp is-bad"><td colspan="8">Device and file identity &nbsp;<span class="gd">Who made the handset, which model, which iOS build. · across 3 real captures: 7 hold still, 2 move</span></td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
+<tr class="grp is-bad"><td colspan="11">Device and file identity &nbsp;<span class="gd">Who made the handset, which model, which iOS build. · across 3 real captures: 7 hold still, 2 move</span></td></tr>
 <tr><td class="fld fx"><b>{TIFF} Make</b><i>handset manufacturer</i></td>
 <td class="off">&mdash;</td>
 <td class="on">Apple</td>
 <td class="on">CANARYMK-9B2E</td>
 <td class="on">CANARYMK-9B4F</td>
 <td class="on">CANARYMK-9B60</td>
-<td class="zero">copy once</td>
+<td class="on rc">Apple</td><td class="on rc">Apple</td><td class="on rc">Apple</td><td class="zero">copy once</td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} Model</b><i>handset model</i></td>
@@ -918,7 +923,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">CANARYMD-9B2E</td>
 <td class="on">CANARYMD-9B4F</td>
 <td class="on">CANARYMD-9B60</td>
-<td class="zero">copy once</td>
+<td class="on rc">iPhone X</td><td class="on rc">iPhone X</td><td class="on rc">iPhone X</td><td class="zero">copy once</td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} Software</b><i>iOS build</i></td>
@@ -927,7 +932,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">CANARYSW-9B2E</td>
 <td class="on">CANARYSW-9B4F</td>
 <td class="on">CANARYSW-9B60</td>
-<td class="zero">copy once</td>
+<td class="on rc">16.7.16</td><td class="on rc">16.7.16</td><td class="on rc">16.7.16</td><td class="zero">copy once</td>
 <td class="cnt">12&ndash;26&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} HostComputer</b><i>the device that wrote the file — a second identifier</i></td>
@@ -936,7 +941,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">iPhone X</td><td class="on rc">iPhone X</td><td class="on rc">iPhone X</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} DateTime</b><i>file write time</i></td>
@@ -945,7 +950,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">2026:08:18 13:02:23</td><td class="on rc">2026:08:18 13:02:29</td><td class="on rc">2026:08:18 13:02:40</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} Orientation</b><i>how the phone was held</i></td>
@@ -954,7 +959,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>2 of 3 differ</i></td>
+<td class="on rc">1</td><td class="on rc">6</td><td class="on rc">6</td><td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">34&ndash;46&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} ResolutionUnit</b><i>resolution unit</i></td>
@@ -963,7 +968,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">2</td><td class="on rc">2</td><td class="on rc">2</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} TileLength</b><i>HEIC tile size — computed on read, not stored</i></td>
@@ -972,7 +977,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">6&ndash;15&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} TileWidth</b></td>
@@ -981,7 +986,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">6&ndash;15&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} XResolution</b><i>stored resolution</i></td>
@@ -990,7 +995,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">72</td><td class="on rc">72</td><td class="on rc">72</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} YResolution</b></td>
@@ -999,17 +1004,17 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">72</td><td class="on rc">72</td><td class="on rc">72</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
-<tr class="grp is-bad"><td colspan="8">Location &nbsp;<span class="gd">Not just a coordinate: altitude, heading, speed and GPS accuracy too. · across 3 real captures: 9 hold still, 5 move</span></td></tr>
+<tr class="grp is-bad"><td colspan="11">Location &nbsp;<span class="gd">Not just a coordinate: altitude, heading, speed and GPS accuracy too. · across 3 real captures: 9 hold still, 5 move</span></td></tr>
 <tr><td class="fld fx"><b>{GPS} Latitude</b><i>latitude</i></td>
 <td class="off">&mdash;</td>
 <td class="on">54.6388972222222</td>
 <td class="on">11.1111</td>
 <td class="on">44.4444</td>
 <td class="on">77.7777</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">54.6388472222222</td><td class="on rc">54.6388805555556</td><td class="on rc">54.6388555555556</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} Longitude</b><i>longitude</i></td>
@@ -1018,7 +1023,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">22.2222</td>
 <td class="on">55.5555</td>
 <td class="on">88.8888</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">24.9350194444444</td><td class="on rc">24.9350444444444</td><td class="on rc">24.9350333333333</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} Altitude</b><i>altitude</i></td>
@@ -1027,7 +1032,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">33.3</td>
 <td class="on">66.6</td>
 <td class="on">99.9</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">162.0365449</td><td class="on rc">162.0394649</td><td class="on rc">162.0088024</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} AltitudeRef</b><i>above or below sea level</i></td>
@@ -1036,7 +1041,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">0</td><td class="on rc">0</td><td class="on rc">0</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} DestBearing</b><i>bearing to destination</i></td>
@@ -1045,7 +1050,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">35.09283445</td><td class="on rc">14.47080803</td><td class="on rc">167.8879395</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} DestBearingRef</b><i>bearing reference</i></td>
@@ -1054,7 +1059,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">T</td><td class="on rc">T</td><td class="on rc">T</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} GPSVersion</b><i>GPS tag version</i></td>
@@ -1063,7 +1068,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">2 3 0 0</td>
 <td class="off">&mdash;</td>
 <td class="on">2 3 0 0</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;12&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} HPositioningError</b><i>GPS accuracy in metres</i></td>
@@ -1072,7 +1077,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">35</td><td class="on rc">35</td><td class="on rc">35</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} ImgDirection</b><i>which way the camera was pointing</i></td>
@@ -1081,7 +1086,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">35.09283445</td><td class="on rc">14.47080803</td><td class="on rc">167.8879395</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} ImgDirectionRef</b><i>true or magnetic north</i></td>
@@ -1090,7 +1095,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">T</td><td class="on rc">T</td><td class="on rc">T</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} LatitudeRef</b><i>hemisphere</i></td>
@@ -1099,7 +1104,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">N</td>
 <td class="on">N</td>
 <td class="on">N</td>
-<td class="zero">copy once</td>
+<td class="on rc">N</td><td class="on rc">N</td><td class="on rc">N</td><td class="zero">copy once</td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} LongitudeRef</b></td>
@@ -1108,7 +1113,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">E</td>
 <td class="on">E</td>
 <td class="on">E</td>
-<td class="zero">copy once</td>
+<td class="on rc">E</td><td class="on rc">E</td><td class="on rc">E</td><td class="zero">copy once</td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} Speed</b><i>how fast you were moving</i></td>
@@ -1117,7 +1122,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">0</td><td class="on rc">0</td><td class="on rc">0</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} SpeedRef</b><i>speed units</i></td>
@@ -1126,17 +1131,17 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">K</td><td class="on rc">K</td><td class="on rc">K</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
-<tr class="grp is-warn"><td colspan="8">Time, lens and exposure &nbsp;<span class="gd">The camera&#x27;s own record of the moment — enough to fingerprint a device and describe the scene. · across 3 real captures: 16 hold still, 16 move</span></td></tr>
+<tr class="grp is-warn"><td colspan="11">Time, lens and exposure &nbsp;<span class="gd">The camera&#x27;s own record of the moment — enough to fingerprint a device and describe the scene. · across 3 real captures: 16 hold still, 16 move</span></td></tr>
 <tr><td class="fld fx"><b>{Exif} DateTimeOriginal</b><i>shutter time</i></td>
 <td class="off">&mdash;</td>
 <td class="on">2026:08:17 20:49:42</td>
 <td class="on">2025:02:03 04:05:06</td>
 <td class="on">2025:02:03 04:05:06</td>
 <td class="on">2025:02:03 04:05:06</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">2026:08:18 13:02:23</td><td class="on rc">2026:08:18 13:02:29</td><td class="on rc">2026:08:18 13:02:40</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} DateTimeDigitized</b><i>digitised time</i></td>
@@ -1145,7 +1150,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">2025:02:03 04:05:06</td>
 <td class="off">&mdash;</td>
 <td class="on">2025:02:03 04:05:06</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">2026:08:18 13:02:23</td><td class="on rc">2026:08:18 13:02:29</td><td class="on rc">2026:08:18 13:02:40</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">8&ndash;18&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} OffsetTime</b><i>timezone — places you geographically on its own</i></td>
@@ -1154,7 +1159,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">+03:00</td><td class="on rc">+03:00</td><td class="on rc">+03:00</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} OffsetTimeOriginal</b></td>
@@ -1163,7 +1168,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">+03:00</td><td class="on rc">+03:00</td><td class="on rc">+03:00</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} OffsetTimeDigitized</b></td>
@@ -1172,7 +1177,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">+03:00</td><td class="on rc">+03:00</td><td class="on rc">+03:00</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} SubsecTimeOriginal</b><i>sub-second — makes the timestamp near-unique</i></td>
@@ -1181,7 +1186,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">500</td><td class="on rc">587</td><td class="on rc">802</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} SubsecTimeDigitized</b></td>
@@ -1190,7 +1195,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">500</td><td class="on rc">587</td><td class="on rc">802</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ApertureValue</b><i>aperture, log form</i></td>
@@ -1199,7 +1204,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>2 of 3 differ</i></td>
+<td class="on rc">1.79999999993144</td><td class="on rc">2.40000000027649</td><td class="on rc">1.79999999993144</td><td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} BrightnessValue</b><i>scene brightness — indoors or out</i></td>
@@ -1208,7 +1213,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">8.637835166</td><td class="on rc">8.827300613</td><td class="on rc">3.620482286</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ColorSpace</b><i>colour space</i></td>
@@ -1217,7 +1222,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">65535</td>
 <td class="off">&mdash;</td>
 <td class="on">65535</td>
-<td class="zero">copy once</td>
+<td class="on rc">65535</td><td class="on rc">65535</td><td class="on rc">65535</td><td class="zero">copy once</td>
 <td class="cnt">8&ndash;18&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ComponentsConfiguration</b><i>channel order</i></td>
@@ -1226,7 +1231,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">1 2 3 0</td>
 <td class="off">&mdash;</td>
 <td class="on">1 2 3 0</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;12&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ExifVersion</b><i>EXIF version</i></td>
@@ -1235,7 +1240,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">0232</td>
 <td class="off">&mdash;</td>
 <td class="on">0232</td>
-<td class="zero">copy once</td>
+<td class="on rc">0232</td><td class="on rc">0232</td><td class="on rc">0232</td><td class="zero">copy once</td>
 <td class="cnt">8&ndash;18&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ExposureBiasValue</b><i>exposure compensation</i></td>
@@ -1244,7 +1249,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">0</td><td class="on rc">0</td><td class="on rc">0</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ExposureMode</b><i>exposure mode</i></td>
@@ -1253,7 +1258,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">0</td><td class="on rc">0</td><td class="on rc">0</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ExposureProgram</b><i>exposure program</i></td>
@@ -1262,7 +1267,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">2</td><td class="on rc">2</td><td class="on rc">2</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ExposureTime</b><i>shutter speed</i></td>
@@ -1271,7 +1276,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">0.0012300123</td><td class="on rc">0.002816901408</td><td class="on rc">0.02127659574</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} FNumber</b><i>aperture</i></td>
@@ -1280,7 +1285,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>2 of 3 differ</i></td>
+<td class="on rc">1.8</td><td class="on rc">2.4</td><td class="on rc">1.8</td><td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} Flash</b><i>whether the flash fired</i></td>
@@ -1289,7 +1294,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>2 of 3 differ</i></td>
+<td class="on rc">16</td><td class="on rc">16</td><td class="on rc">9</td><td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} FocalLenIn35mmFilm</b><i>focal length, 35mm equivalent</i></td>
@@ -1298,7 +1303,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">43</td><td class="on rc">83</td><td class="on rc">42</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} FocalLength</b><i>focal length</i></td>
@@ -1307,7 +1312,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>2 of 3 differ</i></td>
+<td class="on rc">4</td><td class="on rc">6</td><td class="on rc">4</td><td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ISOSpeedRatings</b><i>sensor gain, tracks available light</i></td>
@@ -1316,7 +1321,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>2 of 3 differ</i></td>
+<td class="on rc">20</td><td class="on rc">16</td><td class="on rc">20</td><td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} LensMake</b><i>lens maker</i></td>
@@ -1325,7 +1330,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">Apple</td><td class="on rc">Apple</td><td class="on rc">Apple</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} LensModel</b><i>which of the two rear lenses fired — it changes per shot</i></td>
@@ -1334,7 +1339,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>2 of 3 differ</i></td>
+<td class="on rc">iPhone X back dual camera 4mm f/1.8</td><td class="on rc">iPhone X back dual camera 6mm f/2.4</td><td class="on rc">iPhone X back dual camera 4mm f/1.8</td><td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} LensSpecification</b><i>focal range and max aperture</i></td>
@@ -1343,7 +1348,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">4 6 1.8 2.4</td><td class="on rc">4 6 1.8 2.4</td><td class="on rc">4 6 1.8 2.4</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} MeteringMode</b><i>metering mode</i></td>
@@ -1352,7 +1357,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">5</td><td class="on rc">5</td><td class="on rc">5</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} PixelXDimension</b><i>full-resolution width</i></td>
@@ -1361,7 +1366,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">4032</td><td class="on rc">4032</td><td class="on rc">4032</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} PixelYDimension</b><i>full-resolution height</i></td>
@@ -1370,7 +1375,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">3024</td><td class="on rc">3024</td><td class="on rc">3024</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} SceneType</b><i>directly photographed, or a scan</i></td>
@@ -1379,7 +1384,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">1</td><td class="on rc">1</td><td class="on rc">1</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} SensingMethod</b><i>sensor type</i></td>
@@ -1388,7 +1393,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">2</td><td class="on rc">2</td><td class="on rc">2</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ShutterSpeedValue</b><i>shutter, log form</i></td>
@@ -1397,7 +1402,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">0.00123000000605118</td><td class="on rc">0.00281399999822043</td><td class="on rc">0.0214729999715846</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} SubjectArea</b><i>where the subject sat in the frame</i></td>
@@ -1406,7 +1411,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on rc">2013 1504 2215 1327</td><td class="on rc">2014 1501 2215 1327</td><td class="on rc">2013 1510 2217 1332</td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} WhiteBalance</b><i>white balance</i></td>
@@ -1415,17 +1420,17 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="zero">copy once</td>
+<td class="on rc">0</td><td class="on rc">0</td><td class="on rc">0</td><td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
-<tr class="grp is-new"><td colspan="8">Apple&#x27;s private block &nbsp;<span class="gd">35 mostly undocumented tags Apple writes for itself, read verbatim. · across 3 real captures: 10 hold still, 12 move</span></td></tr>
+<tr class="grp is-new"><td colspan="11">Apple&#x27;s private block &nbsp;<span class="gd">35 mostly undocumented tags Apple writes for itself, read verbatim. · across 3 real captures: 10 hold still, 12 move</span></td></tr>
 <tr><td class="fld fx"><b>{MakerApple} 1</b></td>
 <td class="off">&mdash;</td>
 <td class="on">14</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 2</b></td>
@@ -1434,7 +1439,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 3</b></td>
@@ -1443,7 +1448,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 4</b></td>
@@ -1452,7 +1457,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 5</b></td>
@@ -1461,7 +1466,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 6</b></td>
@@ -1470,7 +1475,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 7</b></td>
@@ -1479,7 +1484,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 8</b></td>
@@ -1488,7 +1493,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 12</b></td>
@@ -1497,7 +1502,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 13</b></td>
@@ -1506,7 +1511,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 14</b></td>
@@ -1515,7 +1520,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 15</b></td>
@@ -1524,7 +1529,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 16</b></td>
@@ -1533,7 +1538,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 17</b><i>ContentIdentifier — Live Photos only, absent otherwise</i></td>
@@ -1542,7 +1547,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 20</b></td>
@@ -1551,7 +1556,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 23</b></td>
@@ -1560,7 +1565,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 25</b></td>
@@ -1569,7 +1574,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 26</b></td>
@@ -1578,7 +1583,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 31</b></td>
@@ -1587,7 +1592,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 32</b><i>a third UUID, unnamed</i></td>
@@ -1596,7 +1601,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 33</b></td>
@@ -1605,7 +1610,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 35</b></td>
@@ -1614,7 +1619,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 37</b></td>
@@ -1623,7 +1628,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 38</b></td>
@@ -1632,7 +1637,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 39</b></td>
@@ -1641,7 +1646,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 43</b><i>PhotoIdentifier — unique to every shot, Live or not</i></td>
@@ -1650,7 +1655,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="cnt">per shot<i>3 of 3 differ</i></td>
+<td class="on murky">set<i>value withheld</i></td><td class="on murky">set<i>value withheld</i></td><td class="on murky">set<i>value withheld</i></td><td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 45</b></td>
@@ -1659,7 +1664,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 46</b></td>
@@ -1668,7 +1673,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 47</b></td>
@@ -1677,7 +1682,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 54</b></td>
@@ -1686,7 +1691,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 55</b></td>
@@ -1695,7 +1700,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 59</b></td>
@@ -1704,7 +1709,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 60</b></td>
@@ -1713,7 +1718,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 65</b></td>
@@ -1722,7 +1727,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 74</b></td>
@@ -1731,73 +1736,73 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
-<tr class="grp is-dim"><td colspan="8">Bitmap geometry &nbsp;<span class="gd">Computed for every bitmap the app draws, interface chrome included, so no value here belongs to one photo — which is why Figma appears among the software strings.</span></td></tr>
+<tr class="grp is-dim"><td colspan="11">Bitmap geometry &nbsp;<span class="gd">Computed for every bitmap the app draws, interface chrome included, so no value here belongs to one photo — which is why Figma appears among the software strings.</span></td></tr>
 <tr><td class="fld fx"><b>ColorModel</b><i>colour model</i></td>
 <td class="on murky" colspan="5">RGB</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">94&ndash;140&times;</td>
 </tr>
 <tr><td class="fld fx"><b>DPIHeight</b><i>DPI</i></td>
 <td class="on murky" colspan="5">216 · 288 · 72</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">24&ndash;57&times;</td>
 </tr>
 <tr><td class="fld fx"><b>DPIWidth</b></td>
 <td class="on murky" colspan="5">216 · 288 · 72</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">24&ndash;57&times;</td>
 </tr>
 <tr><td class="fld fx"><b>Depth</b><i>bit depth</i></td>
 <td class="on murky" colspan="5">8</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">94&ndash;140&times;</td>
 </tr>
 <tr><td class="fld fx"><b>HasAlpha</b><i>has transparency</i></td>
 <td class="on murky" colspan="5">1</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">16&ndash;57&times;</td>
 </tr>
 <tr><td class="fld fx"><b>IsIndexed</b><i>indexed palette</i></td>
 <td class="on murky" colspan="5">1</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">19&ndash;23&times;</td>
 </tr>
 <tr><td class="fld fx"><b>Orientation</b><i>orientation</i></td>
 <td class="on murky" colspan="5">1 · 6</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">34&ndash;46&times;</td>
 </tr>
 <tr><td class="fld fx"><b>PixelHeight</b><i>bitmap height</i></td>
 <td class="on murky" colspan="5">100 · 120 · 132 · 144 · 162 · 168 · 170 · 1920 · 200 · 2080 · 249 · 2532 ·…</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">94&ndash;140&times;</td>
 </tr>
 <tr><td class="fld fx"><b>PixelWidth</b><i>bitmap width</i></td>
 <td class="on murky" colspan="5">100 · 1170 · 120 · 144 · 1440 · 145 · 162 · 168 · 200 · 2160 · 270 · 28 · …</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">94&ndash;140&times;</td>
 </tr>
 <tr><td class="fld fx"><b>PrimaryImage</b><i>primary image in the container</i></td>
 <td class="on murky" colspan="5">1</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">21&ndash;32&times;</td>
 </tr>
 <tr><td class="fld fx"><b>ProfileName</b><i>colour profile</i></td>
 <td class="on murky" colspan="5">Display P3 · sRGB · sRGB IEC61966-2.1</td>
-<td class="off">&mdash;</td>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td>
 <td class="cnt">91&ndash;135&times;</td>
 </tr>
-<tr class="grp is-dim"><td colspan="8">Timing</td></tr>
+<tr class="grp is-dim"><td colspan="11">Timing</td></tr>
 <tr><td class="fld fx"><b>first GPS read</b><i>seconds after launch, before anything was selected</i></td>
 <td class="on">6.8 s</td>
 <td class="on">6.1 s</td>
 <td class="on">6.7 s</td>
 <td class="on">35.7 s</td>
 <td class="on">7.6 s</td>
-<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
 </tbody></table></div>
 <p class="cap"><b>Photo 2 is the only column with a full house</b>, because it is the only genuine capture. Lens, exposure, sub-second timing, compass bearing and the Apple block are things a camera writes and a forgery has to reproduce &mdash; and photo 3, built from that very image, has the entire camera-settings group empty. That gap is the tell.</p>
 <p class="cap"><b>The three UUIDs in the Apple block are the sharpest thing here.</b> A coordinate can be faked and a timestamp moved, but <code>ContentIdentifier</code> and <code>PhotoIdentifier</code> exist to be unique to one shot. Copying a real maker note onto other files &mdash; the obvious way to make a photo look camera-shot &mdash; stamps every one of them with the same supposedly-unique id.</p>
