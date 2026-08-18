@@ -527,6 +527,13 @@ def main():
                if f.lower().endswith((".heic", ".jpg", ".jpeg", ".heif"))]
               if os.path.isdir(vdir) else [])
     var = variance(vpaths)
+    vvdir = os.path.join(ROOT, VARIANCE_VIDEO_DIR)
+    vvpaths = ([os.path.join(VARIANCE_VIDEO_DIR, f) for f in sorted(os.listdir(vvdir))
+                if f.lower().endswith((".mov", ".mp4"))]
+               if os.path.isdir(vvdir) else [])
+    vvar = variance(vvpaths)
+    print("video corpus: %s"
+          % ("%d recordings" % vvar["n"] if vvar else "absent, column will say so"))
     print("variance corpus: %s"
           % ("%d photos" % var["n"] if var else "absent, section will say so"))
     missing = [r["label"] for r in IMAGE_RUNS if idumps.get(r["key"]) is None]
@@ -605,7 +612,7 @@ def main():
     w('</ul></div></section>')
 
     # --------------------------------------------------------- THE TABLE
-    w(matrix_section(runs))
+    w(matrix_section(runs, vvar))
 
     # ------------------------------------------------------ what they check
     w(census_section(runs))
@@ -621,6 +628,12 @@ def main():
 
     # ------------------------------------------------------- the pass test
     w(passtest_section(runs))
+
+    # the shape of a real recording, which is structure rather than metadata
+    w('<section><h2>What a real recording is shaped like</h2>')
+    w(track_layout(vvar) or '<p class="cap">Not built: the recordings are not in the '
+      'repository, being captures of a real place.</p>')
+    w('</section>')
 
     w('</div>')  # end page: video
 
@@ -756,7 +769,77 @@ def leftover_groups(runs, cols):
     return out
 
 
-def matrix_section(runs):
+# A QuickTime atom and the exiftool tag holding the same value. Only the six
+# Keys atoms a real recording carries can be lined up; everything else in the
+# clip table is either TikTok's own writing or a container a capture never has.
+VIDEO_VARIANCE_KEY = {
+    "mdta/com.apple.quicktime.make": "Keys:Make",
+    "mdta/com.apple.quicktime.model": "Keys:Model",
+    "mdta/com.apple.quicktime.software": "Keys:Software",
+    "mdta/com.apple.quicktime.creationdate": "Keys:CreationDate",
+    "mdta/com.apple.quicktime.location.ISO6709": "Keys:GPSCoordinates",
+    "mdta/com.apple.quicktime.location.accuracy.horizontal":
+        "Keys:LocationAccuracyHorizontal",
+    "codec": "Track1:CompressorID",
+}
+
+
+def video_variance_cell(vvar, atom):
+    """Whether an atom holds still across real recordings, as a table cell."""
+    k = VIDEO_VARIANCE_KEY.get(atom)
+    if not vvar or not k or k not in vvar["vals"]:
+        return '<td class="off">&mdash;</td>'
+    d = len(vvar["vals"][k])
+    if d == 1:
+        return '<td class="zero">copy once</td>'
+    return '<td class="cnt">per shot<i>%d of %d differ</i></td>' % (d, vvar["n"])
+
+
+def track_layout(vvar):
+    """The shape of a recording, which is structure rather than any tag."""
+    if not vvar:
+        return ""
+    shapes = []
+    for name, d in zip(vvar["names"], vvar["dumps"]):
+        tracks = sorted({k.split(":")[0] for k in d if k.startswith("Track")},
+                        key=lambda t: int(t[5:]) if t[5:].isdigit() else 0)
+        shapes.append((name, [str(d.get("%s:HandlerType" % t, "?")) for t in tracks],
+                       str(d.get("Track1:VideoFrameRate", "?"))))
+    if not any(k for _n, k, _f in shapes):
+        return ""
+    o = []
+    a = o.append
+    a('<div class="panel is-warn"><h3>A recording\u2019s shape is not one shape</h3>')
+    a('<p>Everything else on this page is metadata. This is structure &mdash; how many tracks '
+      'the file has and what each one is for &mdash; and it has to be right before any value '
+      'inside it matters.</p>')
+    a('<div class="mtx-wrap"><table class="mtx compact"><thead><tr>'
+      '<th class="cnr">Recording</th><th class="cnr">Frame rate</th>'
+      '<th class="cnr">Tracks</th><th class="cnr">Layout</th></tr></thead><tbody>')
+    for name, kinds, fps in shapes:
+        meta = kinds.count("meta")
+        a('<tr><td class="fld">%s</td><td class="on">%s fps</td>'
+          '<td class="%s">%d</td><td class="on">%s</td></tr>'
+          % (esc(name), esc(fps[:6]), "zero" if meta else "cnt", len(kinds),
+             esc(", ".join(kinds))))
+    a('</tbody></table></div>')
+    distinct = {tuple(k) for _n, k, _f in shapes}
+    if len(distinct) > 1:
+        a('<p class="cap"><b>Slow motion drops the metadata tracks entirely.</b> A normal '
+          '1080p30 capture carries five tracks &mdash; video, audio and three timed-metadata '
+          '(<code>mebx</code>) tracks holding per-frame gyroscope and exposure data. A 240&nbsp;'
+          'fps capture carries two. So there is no single native shape to imitate; there is a '
+          'shape per recording mode, and a forgery has to match the one it claims to be.</p>')
+        a('<p class="cap">That has a practical consequence for the playbook above. Those '
+          '<code>mebx</code> tracks are the one part ffmpeg cannot write &mdash; it emits a '
+          'plain sample table where a real recording has proper <code>mebx</code> sample '
+          'entries, which is why rebuilding one convincingly looked like it needed '
+          '<code>AVAssetWriter</code> on the device. A slow-motion clip has none to rebuild.</p>')
+    a('</div>')
+    return "\n".join(o)
+
+
+def matrix_section(runs, vvar):
     cols = [r for r in RUNS if r["key"] != "publish" and r.get("table", True)]
     o = []
     a = o.append
@@ -772,12 +855,14 @@ def matrix_section(runs):
         a('<th class="%s"><em>%s</em><b>%d</b> %s%s</th>'
           % (c["cls"], esc(c["origin"]), c["n"], esc(c["label"]),
              '<u class="blend">blended</u>' if c.get("blended") else ''))
+    a('<th class="cnr" rowspan="2">Across 3 real recordings'
+      '<span class="gd"> same phone, different modes</span></th>')
     a('</tr><tr>')
     for c in cols:
         a('<th class="sub">%s</th>' % esc(c["note"]))
     a('</tr></thead><tbody>')
     for gname, gcls, fields in TABLE_GROUPS:
-        a('<tr class="grp %s"><td colspan="%d">%s</td></tr>' % (gcls, len(cols) + 2, esc(gname)))
+        a('<tr class="grp %s"><td colspan="%d">%s</td></tr>' % (gcls, len(cols) + 3, esc(gname)))
         for field in fields:
             label, atom, ctr = field[0], field[1], field[2]
             src = field[3] if len(field) > 3 else "input"
@@ -785,12 +870,13 @@ def matrix_section(runs):
               % (esc(label), ctr.lower(), ctr))
             for c in cols:
                 a(clip_cell(runs, c, atom, src))
+            a(video_variance_cell(vvar, atom))
             a('</tr>')
 
     # completeness: the atoms the curated groups above do not name
     for gname, gcls, note, fields in leftover_groups(runs, cols):
         a('<tr class="grp %s"><td colspan="%d">%s &nbsp;<span class="gd">%s</span>'
-          '</td></tr>' % (gcls, len(cols) + 2, esc(gname), esc(note)))
+          '</td></tr>' % (gcls, len(cols) + 3, esc(gname), esc(note)))
         for label, atom, ctr, src in fields:
             a('<tr><td class="fld">%s</td><td class="in">%s</td>'
               % (esc(label),
@@ -798,9 +884,10 @@ def matrix_section(runs):
                  if ctr else ""))
             for c in cols:
                 a(clip_cell(runs, c, atom, src))
+            a(video_variance_cell(vvar, atom))
             a('</tr>')
     # closing summary rows
-    a('<tr class="grp is-new"><td colspan="%d">Outcome</td></tr>' % (len(cols) + 2))
+    a('<tr class="grp is-new"><td colspan="%d">Outcome</td></tr>' % (len(cols) + 3))
     a('<tr><td class="fld">identity fields taken</td><td class="in"></td>')
     for c in cols:
         if c.get("blended"):
@@ -809,13 +896,13 @@ def matrix_section(runs):
         n = len([f for f in runs[c["id"]]["_input"].values()
                  if f["atom"] in PROVENANCE_ATOMS])
         a('<td class="%s">%s</td>' % ("cnt" if n else "off", n if n else "&mdash;"))
-    a('</tr>')
+    a('<td class="off">&mdash;</td></tr>')
     a('<tr><td class="fld">survived the re-encode</td><td class="in"></td>')
     for c in cols:
         a('<td class="%s">%s</td>'
           % ("zero" if c["key"] == "canary" else "off",
              "0 of 10" if c["key"] == "canary" else "not traced"))
-    a('</tr>')
+    a('<td class="off">&mdash;</td></tr>')
     a('</tbody></table></div>')
     a('<div class="keyline">')
     for cls, txt in [("is-good", "Recorded on the phone — the real thing"),
@@ -1248,6 +1335,7 @@ def image_keys(iruns):
 # (which isolates the lens), then indoors with flash in portrait. Enough to
 # move every field that moves.
 VARIANCE_DIR = "testfiles/variance"
+VARIANCE_VIDEO_DIR = "testfiles/variance-video"
 
 # Printing these would put coordinates and per-shot UUIDs on the page. The
 # fact that they vary is the finding; the values are not.
@@ -1273,11 +1361,13 @@ VARIANCE_SHOTS = [("1\u00d7 wide", "outdoors, wide lens, landscape"),
 
 def variance(paths):
     """Which fields hold still across shots from one phone, and which move."""
-    dumps = []
+    dumps, names = [], []
     for path in paths:
         d = exif(path)
         if d:
+            # exif() drops SourceFile, so the file name has to be kept alongside
             dumps.append(d)
+            names.append(os.path.basename(path))
     if len(dumps) < 2:
         return None
     seen, vals = {}, {}
@@ -1290,7 +1380,8 @@ def variance(paths):
             vals.setdefault(k, set()).add(str(v))
     labels = [VARIANCE_SHOTS[i] if i < len(VARIANCE_SHOTS)
               else ("shot %d" % (i + 1), "") for i in range(len(dumps))]
-    return dict(n=len(dumps), seen=seen, vals=vals, dumps=dumps, labels=labels)
+    return dict(n=len(dumps), seen=seen, vals=vals, dumps=dumps, labels=labels,
+                names=names)
 
 
 def variance_section(var):
