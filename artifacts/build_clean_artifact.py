@@ -153,7 +153,7 @@ IMAGE_GLOSS = {
     "{Exif} OffsetTimeDigitized": "timezone — places you geographically on its own",
     "{Exif} SubsecTimeOriginal": "sub-second — makes the timestamp near-unique",
     "{Exif} SubsecTimeDigitized": "sub-second — makes the timestamp near-unique",
-    "{Exif} LensModel": "which lens, and therefore which phone",
+    "{Exif} LensModel": "which of the two rear lenses fired — it changes per shot",
     "{Exif} LensMake": "lens maker",
     "{Exif} LensSpecification": "focal range and max aperture",
     "{Exif} SubjectArea": "where the subject sat in the frame",
@@ -194,8 +194,8 @@ IMAGE_GLOSS = {
     "{GPS} GPSVersion": "GPS tag version",
     # exiftool names two of the three UUIDs in the Apple block; the third it
     # leaves numbered, so neither do we.
-    "{MakerApple} 17": "ContentIdentifier — pairs a Live Photo's still to its clip",
-    "{MakerApple} 43": "PhotoIdentifier — unique to this one shot",
+    "{MakerApple} 17": "ContentIdentifier — Live Photos only, absent otherwise",
+    "{MakerApple} 43": "PhotoIdentifier — unique to every shot, Live or not",
     "{MakerApple} 32": "a third UUID, unnamed",
     "ColorModel": "colour model", "Depth": "bit depth",
     "PixelWidth": "bitmap width", "PixelHeight": "bitmap height",
@@ -522,6 +522,13 @@ def main():
     print("dumping denominators with exiftool ...")
     dumps = {r["key"]: exif(r["dump"][0]) for r in RUNS if r["dump"]}
     idumps = {r["key"]: exif(r["file"]) for r in IMAGE_RUNS}
+    vdir = os.path.join(ROOT, VARIANCE_DIR)
+    vpaths = ([os.path.join(VARIANCE_DIR, f) for f in sorted(os.listdir(vdir))
+               if f.lower().endswith((".heic", ".jpg", ".jpeg", ".heif"))]
+              if os.path.isdir(vdir) else [])
+    var = variance(vpaths)
+    print("variance corpus: %s"
+          % ("%d photos" % var["n"] if var else "absent, section will say so"))
     missing = [r["label"] for r in IMAGE_RUNS if idumps.get(r["key"]) is None]
     if missing:
         print("  ! stills denominator unavailable for: %s" % ", ".join(missing))
@@ -627,7 +634,7 @@ def main():
     secs = [m["first_seen_s"] for m in first_gps if m and m.get("first_seen_s")]
     w('<div class="tiles">')
     for cls, big, small in [
-            ("is-bad", "4 of 4", "unposted photos it still read"),
+            ("is-bad", "7 of 7", "unposted photos it still read"),
             ("", str(sum(len(v) for v in ikeys.values())), "fields it read off a photo"),
             ("is-warn", "%.1f s" % min(secs) if secs else "?", "before you chose anything"),
             ("is-new", str(len(ikeys.get("{MakerApple}", []))), "private Apple tags"),
@@ -635,6 +642,7 @@ def main():
         w('<div class="tile %s"><b>%s</b><span>%s</span></div>' % (cls, big, small))
     w('</div>')
     w(images_section(iruns, idumps))
+    w(variance_section(var))
     w('</div>')  # end page: photos
 
     # ------------------------------------------------- method, shared by both
@@ -1169,6 +1177,131 @@ def image_keys(iruns):
     return out
 
 
+# Three real captures, deliberately varied: same spot wide then 2x tele
+# (which isolates the lens), then indoors with flash in portrait. Enough to
+# move every field that moves.
+VARIANCE_DIR = "testfiles/variance"
+
+# Printing these would put coordinates and per-shot UUIDs on the page. The
+# fact that they vary is the finding; the values are not.
+VARIANCE_REDACT = ("GPS", "Identifier", "Serial", "AccelerationVector",
+                   "RunTimeValue", "SubjectArea")
+
+# What a forgery has to do about each group, which is the point of the table.
+VARIANCE_GROUPS = [
+    ("IFD0", "Device identity", "is-bad"),
+    ("ExifIFD", "Camera settings", "is-warn"),
+    ("GPS", "Position", "is-bad"),
+    ("Apple", "Apple private block", "is-new"),
+    ("ICC_Profile", "Colour profile", "is-dim"),
+]
+
+
+def variance(paths):
+    """Which fields hold still across shots from one phone, and which move."""
+    dumps = []
+    for path in paths:
+        d = exif(path)
+        if d:
+            dumps.append(d)
+    if len(dumps) < 2:
+        return None
+    seen, vals = {}, {}
+    for d in dumps:
+        for k, v in d.items():
+            g = k.split(":")[0]
+            if g in ("File", "Composite", "ICC-header", "Meta", "QuickTime", "XMP-x"):
+                continue
+            seen[k] = seen.get(k, 0) + 1
+            vals.setdefault(k, set()).add(str(v))
+    return dict(n=len(dumps), seen=seen, vals=vals)
+
+
+def variance_section(var):
+    if not var:
+        return ('<section><h2>What a forgery has to generate, and what it can copy</h2>'
+                '<p class="cap">Not built: the corpus of real captures is not in the '
+                'repository, being personal photographs.</p></section>')
+    o = []
+    a = o.append
+    n = var["n"]
+    a('<section><h2>What a forgery has to generate, and what it can copy</h2>')
+    a('<p>Everything above is what TikTok <em>reads</em>. This is the consequence. '
+      'Three real captures off the same phone, chosen to move as much as possible &mdash; '
+      'the same spot at 1&times; then 2&times; to isolate the lens, then indoors with flash in '
+      'portrait. A field that holds still across all three is welded to the device and can be '
+      'copied once. A field that moves has to be generated afresh for every image, and '
+      'generated <em>consistently</em>, because several of them are arithmetically tied to '
+      'each other.</p>')
+    a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr>')
+    a('<th class="cnr">Field</th><th class="cnr">Across %d real photos</th>'
+      '<th class="cnr">What that means for a forgery</th></tr></thead><tbody>' % n)
+    tally = {}
+    for group, gname, gcls in VARIANCE_GROUPS:
+        keys = sorted(k for k in var["vals"] if k.split(":")[0] == group)
+        if not keys:
+            continue
+        const = [k for k in keys if len(var["vals"][k]) == 1]
+        move = [k for k in keys if len(var["vals"][k]) > 1]
+        tally[group] = (len(const), len(move))
+        a('<tr class="grp %s"><td colspan="3">%s &nbsp;<span class="gd">'
+          '%d hold still, %d move</span></td></tr>'
+          % (gcls, esc(gname), len(const), len(move)))
+        for k in move:
+            d = len(var["vals"][k])
+            # a real character, not an entity: this string goes through esc()
+            show = "" if any(w in k for w in VARIANCE_REDACT) else                 " · ".join(sorted(var["vals"][k])[:3])
+            a('<tr><td class="fld fx"><b>%s</b>%s</td>'
+              '<td class="on">%d distinct%s</td>'
+              '<td class="cnt">generate per shot</td></tr>'
+              % (esc(k.split(":")[1]),
+                 ('<i>%s</i>' % esc(show[:52])) if show else "",
+                 d, "" if d < n else " &mdash; every photo differs"))
+        if const:
+            a('<tr><td class="fld fx"><b>%d fields hold still</b><i>%s</i></td>'
+              '<td class="off">1 value each</td>'
+              '<td class="zero">copy once from the device</td></tr>'
+              % (len(const), esc(", ".join(sorted(x.split(":")[1] for x in const))[:150])))
+    a('</tbody></table></div>')
+    a('<p class="cap"><b>The lens is the one that surprised us.</b> This audit treated '
+      '<code>LensModel</code> as a property of the handset. It is not &mdash; the two rear '
+      'cameras report <code>4mm f/1.8</code> and <code>6mm f/2.4</code>, and switching lens '
+      'drags <code>FNumber</code>, <code>FocalLength</code> and <code>ApertureValue</code> with '
+      'it. A file pairing a 4&nbsp;mm focal length with f/2.4 is wrong by construction, no '
+      'reference file needed to see it.</p>')
+    a('<p class="cap"><b>The frame is always landscape.</b> <code>ExifImageWidth</code> and '
+      '<code>ExifImageHeight</code> never move: every capture is stored 4032&times;3024 and a '
+      'portrait photo is expressed purely as <code>Orientation&nbsp;6</code> &mdash; the same '
+      'trick a real recording uses when it stores video landscape with a rotation matrix.</p>')
+    a('<div class="panel is-warn"><h3>Four fields that cannot be filled in independently</h3>'
+      '<ul>')
+    for head, body in [
+        ("ShutterSpeedValue and ApertureValue are the other two spellings of ExposureTime "
+         "and FNumber.",
+         "Stored as APEX, so the same quantity in log form. They must agree &mdash; and, "
+         "because APEX is a rational that does not round-trip exactly, they must agree "
+         "<em>inexactly</em>. On a real capture the pair reads 0.25 against 0.249994. Writing "
+         "both from one float gives exact equality, which no genuine file has."),
+        ("GPSDateStamp has to be the same day as DateTimeOriginal.",
+         "Two dates, two blocks, one moment. Also the three OffsetTime spellings, which have "
+         "to carry the same timezone."),
+        ("RunTimeValue is a nanosecond counter since the phone booted.",
+         "It moves every shot while RunTimeEpoch, RunTimeScale and RunTimeFlags hold still, so "
+         "across a set it has to increase monotonically and by roughly the gaps between the "
+         "timestamps you claim."),
+        ("AccelerationVector is the accelerometer at the moment of capture.",
+         "It has to be consistent with the Orientation on the same file. A portrait photo whose "
+         "gravity vector says landscape is contradicting itself."),
+    ]:
+        a('<li><b>%s</b> %s</li>' % (head, body))
+    a('</ul></div>')
+    a('<p class="cap">All four held on all three photos, so a forgery has to hold them too. '
+      'The check is in <code>analyze_stills_variance.py</code>; the photos themselves stay out '
+      'of the repository.</p>')
+    a('</section>')
+    return "\n".join(o)
+
+
 def images_section(iruns, idumps):
     o = []
     a = o.append
@@ -1401,9 +1534,11 @@ def images_section(iruns, idumps):
       'was read rests on its unique canary appearing in the session. Sound here because every '
       'arm differs &mdash; but inference from the value set, not a per-file trace. It is also '
       'why the values above are read back off the files rather than taken from the capture.</li>')
-    a('<li><b>The roll held five photos, not five hundred.</b> Whether the picker sweeps the '
-      'entire library or only what it renders is untested &mdash; five items all fit on '
-      'screen.</li>')
+    a('<li><b>The roll held eight photos, not five hundred.</b> Three later sessions ran '
+      'against a bigger library &mdash; eight images, seven of them carrying GPS &mdash; and '
+      'took all seven every time, so the sweep is not capped at five. Whether it reaches an '
+      'entire library or only what the grid renders is still open; settling it needs a roll of '
+      'a few hundred and one more posting window.</li>')
     a('<li><b>Photos 2 and 3 are not in the repository.</b> They are a real capture and a '
       'restamped copy of it: personal pixels, home GPS, and maker-note UUIDs.</li>')
     a('</ul></div>')

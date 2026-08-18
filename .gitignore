@@ -74,3 +74,6 @@ testfiles/reference-*
 testfiles/image-arms/img-2-camera.*
 testfiles/image-arms/img-3-canary.*
 testfiles/image-arms-pulled/
+
+# variance corpus: real captures, home GPS, per-shot UUIDs
+testfiles/variance/
