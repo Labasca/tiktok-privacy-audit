@@ -641,7 +641,7 @@ def main():
             ("is-bad", "3", "per-shot UUIDs among them")]:
         w('<div class="tile %s"><b>%s</b><span>%s</span></div>' % (cls, big, small))
     w('</div>')
-    w(images_section(iruns, idumps))
+    w(images_section(iruns, idumps, var))
     w(variance_section(var))
     w('</div>')  # end page: photos
 
@@ -1218,91 +1218,114 @@ def variance(paths):
 
 
 def variance_section(var):
-    if not var:
-        return ('<section><h2>What a forgery has to generate, and what it can copy</h2>'
-                '<p class="cap">Not built: the corpus of real captures is not in the '
-                'repository, being personal photographs.</p></section>')
+    """What the corpus said that a per-field column cannot say.
+
+    The constant-or-varying verdict now lives in the main table, one column
+    per field. What is left here is the part that is about relationships
+    between fields, which no single row can carry.
+    """
     o = []
     a = o.append
-    n = var["n"]
-    a('<section><h2>What a forgery has to generate, and what it can copy</h2>')
-    a('<p>Everything above is what TikTok <em>reads</em>. This is the consequence. '
-      'Three real captures off the same phone, chosen to move as much as possible &mdash; '
-      'the same spot at 1&times; then 2&times; to isolate the lens, then indoors with flash in '
-      'portrait. A field that holds still across all three is welded to the device and can be '
-      'copied once. A field that moves has to be generated afresh for every image, and '
-      'generated <em>consistently</em>, because several of them are arithmetically tied to '
-      'each other.</p>')
-    a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr>')
-    a('<th class="cnr">Field</th><th class="cnr">Across %d real photos</th>'
-      '<th class="cnr">What that means for a forgery</th></tr></thead><tbody>' % n)
-    tally = {}
-    for group, gname, gcls in VARIANCE_GROUPS:
-        keys = sorted(k for k in var["vals"] if k.split(":")[0] == group)
-        if not keys:
-            continue
-        const = [k for k in keys if len(var["vals"][k]) == 1]
-        move = [k for k in keys if len(var["vals"][k]) > 1]
-        tally[group] = (len(const), len(move))
-        a('<tr class="grp %s"><td colspan="3">%s &nbsp;<span class="gd">'
-          '%d hold still, %d move</span></td></tr>'
-          % (gcls, esc(gname), len(const), len(move)))
-        for k in move:
-            d = len(var["vals"][k])
-            # a real character, not an entity: this string goes through esc()
-            show = "" if any(w in k for w in VARIANCE_REDACT) else                 " · ".join(sorted(var["vals"][k])[:3])
-            a('<tr><td class="fld fx"><b>%s</b>%s</td>'
-              '<td class="on">%d distinct%s</td>'
-              '<td class="cnt">generate per shot</td></tr>'
-              % (esc(k.split(":")[1]),
-                 ('<i>%s</i>' % esc(show[:52])) if show else "",
-                 d, "" if d < n else " &mdash; every photo differs"))
-        if const:
-            a('<tr><td class="fld fx"><b>%d fields hold still</b><i>%s</i></td>'
-              '<td class="off">1 value each</td>'
-              '<td class="zero">copy once from the device</td></tr>'
-              % (len(const), esc(", ".join(sorted(x.split(":")[1] for x in const))[:150])))
-    a('</tbody></table></div>')
-    a('<p class="cap"><b>The lens is the one that surprised us.</b> This audit treated '
-      '<code>LensModel</code> as a property of the handset. It is not &mdash; the two rear '
-      'cameras report <code>4mm f/1.8</code> and <code>6mm f/2.4</code>, and switching lens '
-      'drags <code>FNumber</code>, <code>FocalLength</code> and <code>ApertureValue</code> with '
-      'it. A file pairing a 4&nbsp;mm focal length with f/2.4 is wrong by construction, no '
-      'reference file needed to see it.</p>')
-    a('<p class="cap"><b>The frame is always landscape.</b> <code>ExifImageWidth</code> and '
-      '<code>ExifImageHeight</code> never move: every capture is stored 4032&times;3024 and a '
-      'portrait photo is expressed purely as <code>Orientation&nbsp;6</code> &mdash; the same '
-      'trick a real recording uses when it stores video landscape with a rotation matrix.</p>')
-    a('<div class="panel is-warn"><h3>Four fields that cannot be filled in independently</h3>'
-      '<ul>')
+    a('<section><h2>Fields that cannot be filled in independently</h2>')
+    if not var:
+        a('<p class="cap">Not built: the corpus of real captures is not in the repository, '
+          'being personal photographs.</p></section>')
+        return "\n".join(o)
+    a('<p>Knowing which fields move is not enough to write one. Several are two spellings of a '
+      'single quantity, or dates that have to agree, or counters that have to keep counting. '
+      'Get one of those wrong and the file is inconsistent <em>with itself</em> &mdash; wrong by '
+      'arithmetic, visible without any reference file to compare against.</p>')
+    a('<div class="panel is-warn"><ul>')
     for head, body in [
         ("ShutterSpeedValue and ApertureValue are the other two spellings of ExposureTime "
          "and FNumber.",
-         "Stored as APEX, so the same quantity in log form. They must agree &mdash; and, "
-         "because APEX is a rational that does not round-trip exactly, they must agree "
+         "Stored as APEX, the same quantities in log form. They must agree &mdash; and, because "
+         "APEX is a rational that does not round-trip exactly, they must agree "
          "<em>inexactly</em>. On a real capture the pair reads 0.25 against 0.249994. Writing "
          "both from one float gives exact equality, which no genuine file has."),
         ("GPSDateStamp has to be the same day as DateTimeOriginal.",
-         "Two dates, two blocks, one moment. Also the three OffsetTime spellings, which have "
-         "to carry the same timezone."),
-        ("RunTimeValue is a nanosecond counter since the phone booted.",
+         "Two dates in two different blocks describing one moment. Likewise the three "
+         "OffsetTime spellings, which all have to carry the same timezone."),
+        ("RunTimeValue is a nanosecond counter since the phone last booted.",
          "It moves every shot while RunTimeEpoch, RunTimeScale and RunTimeFlags hold still, so "
-         "across a set it has to increase monotonically and by roughly the gaps between the "
-         "timestamps you claim."),
-        ("AccelerationVector is the accelerometer at the moment of capture.",
+         "across a set of photos it has to increase monotonically and by roughly the gaps "
+         "between the timestamps being claimed."),
+        ("AccelerationVector is the accelerometer reading at the moment of capture.",
          "It has to be consistent with the Orientation on the same file. A portrait photo whose "
          "gravity vector says landscape is contradicting itself."),
+        ("The lens is a bundle, not a field.",
+         "The two rear cameras report <code>4mm f/1.8</code> and <code>6mm f/2.4</code>, so "
+         "LensModel, FNumber, FocalLength and ApertureValue move together. A file pairing a "
+         "4&nbsp;mm focal length with f/2.4 describes a camera that does not exist."),
+        ("The frame is always landscape.",
+         "ExifImageWidth and ExifImageHeight never move: every capture is stored "
+         "4032&times;3024 and a portrait photo is expressed purely as "
+         "<code>Orientation&nbsp;6</code> &mdash; the same trick a real recording uses when it "
+         "stores video landscape with a rotation matrix."),
     ]:
         a('<li><b>%s</b> %s</li>' % (head, body))
     a('</ul></div>')
-    a('<p class="cap">All four held on all three photos, so a forgery has to hold them too. '
-      'The check is in <code>analyze_stills_variance.py</code>; the photos themselves stay out '
-      'of the repository.</p>')
+    a('<p class="cap">All of these held on all three captures, so a forgery has to hold them '
+      'too. The check is in <code>analyze_stills_variance.py</code>. Values of identifying '
+      'fields are never printed &mdash; that a coordinate or a UUID varies is the finding, what '
+      'it says is not &mdash; and the photographs themselves stay out of the repository.</p>')
     a('</section>')
     return "\n".join(o)
 
 
-def images_section(iruns, idumps):
+# Apple's numbered tags carry no names, so only the two exiftool can name line
+# up against the variance corpus. The rest get a group-level count instead.
+APPLE_NUMBERED = {"{MakerApple} 17": "Apple:ContentIdentifier",
+                  "{MakerApple} 43": "Apple:PhotoIdentifier"}
+
+# CGImageSource dictionary -> the exiftool group holding the same tags
+VARIANCE_BLOCK = {"TIFF": "IFD0", "Exif": "ExifIFD", "GPS": "GPS",
+                  "MakerApple": "Apple"}
+
+
+def variance_key(var, short):
+    """The corpus key for a field the rig read, or None if they do not line up."""
+    if not var:
+        return None
+    if short in APPLE_NUMBERED:
+        k = APPLE_NUMBERED[short]
+        return k if k in var["vals"] else None
+    block, _, name = short.partition("} ")
+    grp = VARIANCE_BLOCK.get(block.lstrip("{"))
+    if not grp or not name or grp == "Apple":
+        return None
+    name = IMAGE_EXIF_ALIAS.get(short, name)
+    if grp == "GPS" and not name.startswith("GPS"):
+        name = "GPS" + name
+    k = "%s:%s" % (grp, name)
+    return k if k in var["vals"] else None
+
+
+def variance_cell(var, short):
+    """Whether a field held still across the real captures, as a table cell."""
+    k = variance_key(var, short)
+    if k is None:
+        return '<td class="off">&mdash;</td>'
+    d = len(var["vals"][k])
+    if d == 1:
+        return '<td class="zero">copy once</td>'
+    return '<td class="cnt">per shot<i>%d of %d differ</i></td>' % (d, var["n"])
+
+
+def variance_group(var, block):
+    """How a whole dictionary behaved, where rows cannot be lined up one by one."""
+    grp = VARIANCE_BLOCK.get(block.strip("{}"))
+    if not var or not grp:
+        return ""
+    keys = [k for k in var["vals"] if k.split(":")[0] == grp]
+    if not keys:
+        return ""
+    const = len([k for k in keys if len(var["vals"][k]) == 1])
+    return " · across %d real captures: %d hold still, %d move" % (
+        var["n"], const, len(keys) - const)
+
+
+def images_section(iruns, idumps, var):
     o = []
     a = o.append
     cols = IMAGE_RUNS
@@ -1414,17 +1437,23 @@ def images_section(iruns, idumps):
       'value that photo actually carries</b>, read back off the file with exiftool; a dash means '
       'it does not have the field at all. Photos 2 and 3 are the same picture: 3 is that photo '
       'with its identity stripped off and a fake one written back on.</p>' % total)
+    a('<p>The last column turns the list into a specification. Three genuine captures off the '
+      'same phone &mdash; one spot at 1&times; then 2&times; to isolate the lens, then indoors '
+      'with flash in portrait &mdash; say which fields are welded to the device and can be '
+      'copied once, and which move every time and have to be generated afresh.</p>')
     a('<div class="mtx-wrap wide"><table class="mtx"><thead><tr>')
     a('<th class="cnr">Field</th>')
     for c in cols:
         a('<th class="%s"><b>%d</b> %s</th>' % (c["cls"], c["n"], esc(c["label"])))
+    a('<th class="cnr">Across 3 real photos<span class="gd"> same phone, varied shots</span>'
+      '</th>')
     a('<th class="cnr">Times read<span class="gd"> range across the five sessions</span>'
       '</th></tr></thead><tbody>')
 
     # what the files are, as the opening group rather than a second table with
     # the same five columns above it
     a('<tr class="grp is-dim"><td colspan="%d">The file itself &nbsp;<span class="gd">'
-      'Before anything was read off it.</span></td></tr>' % (len(cols) + 2))
+      'Before anything was read off it.</span></td></tr>' % (len(cols) + 3))
     fileset = [
         ("container", "", lambda d: d.get("File:FileType")),
         ("stored size", "pixels as written, before any rotation",
@@ -1446,20 +1475,21 @@ def images_section(iruns, idumps):
             v = fn(d) if d else None
             a('<td class="on">%s</td>' % esc(str(v)) if v is not None
               else '<td class="off">&mdash;</td>')
-        a('<td class="off">&mdash;</td></tr>')
+        a('<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>')
     a('<tr><td class="fld fx"><b>survived PhotoKit import</b>'
       '<i>imported through the API an app actually uses, then pulled back and diffed</i></td>')
     for c in cols:
         a('<td class="zero">byte-identical</td>')
-    a('<td class="off">&mdash;</td></tr>')
+    a('<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>')
 
     for block, gname, gcls, gdesc in IMAGE_BLOCKS:
         rows = keys.get(block, [])
         if not rows:
             continue
-        a('<tr class="grp %s"><td colspan="%d">%s &nbsp;<span class="gd">%s</span></td></tr>'
-          % (gcls, len(cols) + 2, esc(gname),
-             esc(gdesc % len(rows) if "%d" in gdesc else gdesc)))
+        a('<tr class="grp %s"><td colspan="%d">%s &nbsp;<span class="gd">%s%s</span></td></tr>'
+          % (gcls, len(cols) + 3, esc(gname),
+             esc(gdesc % len(rows) if "%d" in gdesc else gdesc),
+             variance_group(var, block)))
         prev = None
         for key, short in rows:
             g = IMAGE_GLOSS.get(short, "")
@@ -1491,13 +1521,14 @@ def images_section(iruns, idumps):
                       % esc(txt[:30] + ("\u2026" if len(txt) > 30 else "")))
                 if not found and block != "{MakerApple}":
                     unmapped.append(short)
+            a(variance_cell(var, short))
             reads = [m.get("reads") or 0 for m in
                      (iruns[c["id"]]["tags"].get(key) for c in cols) if m]
             a('<td class="cnt">%s&times;</td>'
               % ("%d&ndash;%d" % (min(reads), max(reads))
                  if reads and min(reads) != max(reads) else (reads[0] if reads else 0)))
             a('</tr>')
-    a('<tr class="grp is-dim"><td colspan="%d">Timing</td></tr>' % (len(cols) + 2))
+    a('<tr class="grp is-dim"><td colspan="%d">Timing</td></tr>' % (len(cols) + 3))
     a('<tr><td class="fld fx"><b>first GPS read</b><i>seconds after launch, before anything '
       'was selected</i></td>')
     for c in cols:
@@ -1505,7 +1536,7 @@ def images_section(iruns, idumps):
         t = m.get("first_seen_s") if m else None
         a('<td class="%s">%s</td>' % ("on" if t else "off",
                                       ("%.1f s" % t) if t else "&mdash;"))
-    a('<td class="off">&mdash;</td></tr>')
+    a('<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>')
     a('</tbody></table></div>')
     if gloss_missing:
         print("  ! stills fields with no plain-English gloss: %s"

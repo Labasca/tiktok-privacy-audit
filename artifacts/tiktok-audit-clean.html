@@ -849,6 +849,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 </tbody></table></div></div>
 </section><section><h2>Every field it read, and what each photo said</h2>
 <p>What the five files are, then the complete list of what TikTok pulled off them &mdash; <b>103 distinct fields</b> across the five dictionaries <code>CGImageSource</code> hands back, generated from the run files so it cannot go out of date. Each column is <b>the value that photo actually carries</b>, read back off the file with exiftool; a dash means it does not have the field at all. Photos 2 and 3 are the same picture: 3 is that photo with its identity stripped off and a fake one written back on.</p>
+<p>The last column turns the list into a specification. Three genuine captures off the same phone &mdash; one spot at 1&times; then 2&times; to isolate the lens, then indoors with flash in portrait &mdash; say which fields are welded to the device and can be copied once, and which move every time and have to be generated afresh.</p>
 <div class="mtx-wrap wide"><table class="mtx"><thead><tr>
 <th class="cnr">Field</th>
 <th class="is-dim"><b>1</b> CLEAN</th>
@@ -856,57 +857,59 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <th class="is-new"><b>3</b> CANARY HEIC</th>
 <th class="is-warn"><b>4</b> CANARY XMP</th>
 <th class="is-new"><b>5</b> CANARY JPEG</th>
+<th class="cnr">Across 3 real photos<span class="gd"> same phone, varied shots</span></th>
 <th class="cnr">Times read<span class="gd"> range across the five sessions</span></th></tr></thead><tbody>
-<tr class="grp is-dim"><td colspan="7">The file itself &nbsp;<span class="gd">Before anything was read off it.</span></td></tr>
+<tr class="grp is-dim"><td colspan="8">The file itself &nbsp;<span class="gd">Before anything was read off it.</span></td></tr>
 <tr><td class="fld fx"><b>container</b></td>
 <td class="on">JPEG</td>
 <td class="on">HEIC</td>
 <td class="on">HEIC</td>
 <td class="on">JPEG</td>
 <td class="on">JPEG</td>
-<td class="off">&mdash;</td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
 <tr><td class="fld fx"><b>stored size</b><i>pixels as written, before any rotation</i></td>
 <td class="on">1170 x 2532</td>
 <td class="on">4032 x 3024</td>
 <td class="on">4032 x 3024</td>
 <td class="on">1170 x 2532</td>
 <td class="on">1170 x 2532</td>
-<td class="off">&mdash;</td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
 <tr><td class="fld fx"><b>colour profile</b></td>
 <td class="off">&mdash;</td>
 <td class="on">Display P3</td>
 <td class="on">Display P3</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
 <tr><td class="fld fx"><b>identity written in</b><i>which container holds the make and GPS</i></td>
 <td class="off">&mdash;</td>
 <td class="on">EXIF / TIFF</td>
 <td class="on">EXIF / TIFF</td>
 <td class="on">XMP</td>
 <td class="on">EXIF / TIFF</td>
-<td class="off">&mdash;</td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
 <tr><td class="fld fx"><b>Apple maker note</b></td>
 <td class="off">&mdash;</td>
 <td class="on">23 tags</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
-<td class="off">&mdash;</td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
 <tr><td class="fld fx"><b>survived PhotoKit import</b><i>imported through the API an app actually uses, then pulled back and diffed</i></td>
 <td class="zero">byte-identical</td>
 <td class="zero">byte-identical</td>
 <td class="zero">byte-identical</td>
 <td class="zero">byte-identical</td>
 <td class="zero">byte-identical</td>
-<td class="off">&mdash;</td></tr>
-<tr class="grp is-bad"><td colspan="7">Device and file identity &nbsp;<span class="gd">Who made the handset, which model, which iOS build.</span></td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
+<tr class="grp is-bad"><td colspan="8">Device and file identity &nbsp;<span class="gd">Who made the handset, which model, which iOS build. · across 3 real captures: 7 hold still, 2 move</span></td></tr>
 <tr><td class="fld fx"><b>{TIFF} Make</b><i>handset manufacturer</i></td>
 <td class="off">&mdash;</td>
 <td class="on">Apple</td>
 <td class="on">CANARYMK-9B2E</td>
 <td class="on">CANARYMK-9B4F</td>
 <td class="on">CANARYMK-9B60</td>
+<td class="zero">copy once</td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} Model</b><i>handset model</i></td>
@@ -915,6 +918,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">CANARYMD-9B2E</td>
 <td class="on">CANARYMD-9B4F</td>
 <td class="on">CANARYMD-9B60</td>
+<td class="zero">copy once</td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} Software</b><i>iOS build</i></td>
@@ -923,6 +927,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">CANARYSW-9B2E</td>
 <td class="on">CANARYSW-9B4F</td>
 <td class="on">CANARYSW-9B60</td>
+<td class="zero">copy once</td>
 <td class="cnt">12&ndash;26&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} HostComputer</b><i>the device that wrote the file — a second identifier</i></td>
@@ -931,6 +936,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} DateTime</b><i>file write time</i></td>
@@ -939,6 +945,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} Orientation</b><i>how the phone was held</i></td>
@@ -947,6 +954,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">34&ndash;46&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} ResolutionUnit</b><i>resolution unit</i></td>
@@ -955,9 +963,11 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} TileLength</b><i>HEIC tile size — computed on read, not stored</i></td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -971,6 +981,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">6&ndash;15&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} XResolution</b><i>stored resolution</i></td>
@@ -979,6 +990,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{TIFF} YResolution</b></td>
@@ -987,15 +999,17 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
-<tr class="grp is-bad"><td colspan="7">Location &nbsp;<span class="gd">Not just a coordinate: altitude, heading, speed and GPS accuracy too.</span></td></tr>
+<tr class="grp is-bad"><td colspan="8">Location &nbsp;<span class="gd">Not just a coordinate: altitude, heading, speed and GPS accuracy too. · across 3 real captures: 9 hold still, 5 move</span></td></tr>
 <tr><td class="fld fx"><b>{GPS} Latitude</b><i>latitude</i></td>
 <td class="off">&mdash;</td>
 <td class="on">54.6388972222222</td>
 <td class="on">11.1111</td>
 <td class="on">44.4444</td>
 <td class="on">77.7777</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} Longitude</b><i>longitude</i></td>
@@ -1004,6 +1018,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">22.2222</td>
 <td class="on">55.5555</td>
 <td class="on">88.8888</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} Altitude</b><i>altitude</i></td>
@@ -1012,6 +1027,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">33.3</td>
 <td class="on">66.6</td>
 <td class="on">99.9</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} AltitudeRef</b><i>above or below sea level</i></td>
@@ -1020,6 +1036,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} DestBearing</b><i>bearing to destination</i></td>
@@ -1028,6 +1045,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} DestBearingRef</b><i>bearing reference</i></td>
@@ -1036,6 +1054,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} GPSVersion</b><i>GPS tag version</i></td>
@@ -1044,6 +1063,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">2 3 0 0</td>
 <td class="off">&mdash;</td>
 <td class="on">2 3 0 0</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;12&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} HPositioningError</b><i>GPS accuracy in metres</i></td>
@@ -1052,6 +1072,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} ImgDirection</b><i>which way the camera was pointing</i></td>
@@ -1060,6 +1081,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} ImgDirectionRef</b><i>true or magnetic north</i></td>
@@ -1068,6 +1090,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} LatitudeRef</b><i>hemisphere</i></td>
@@ -1076,6 +1099,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">N</td>
 <td class="on">N</td>
 <td class="on">N</td>
+<td class="zero">copy once</td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} LongitudeRef</b></td>
@@ -1084,6 +1108,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">E</td>
 <td class="on">E</td>
 <td class="on">E</td>
+<td class="zero">copy once</td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} Speed</b><i>how fast you were moving</i></td>
@@ -1092,6 +1117,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{GPS} SpeedRef</b><i>speed units</i></td>
@@ -1100,15 +1126,17 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
-<tr class="grp is-warn"><td colspan="7">Time, lens and exposure &nbsp;<span class="gd">The camera&#x27;s own record of the moment — enough to fingerprint a device and describe the scene.</span></td></tr>
+<tr class="grp is-warn"><td colspan="8">Time, lens and exposure &nbsp;<span class="gd">The camera&#x27;s own record of the moment — enough to fingerprint a device and describe the scene. · across 3 real captures: 16 hold still, 16 move</span></td></tr>
 <tr><td class="fld fx"><b>{Exif} DateTimeOriginal</b><i>shutter time</i></td>
 <td class="off">&mdash;</td>
 <td class="on">2026:08:17 20:49:42</td>
 <td class="on">2025:02:03 04:05:06</td>
 <td class="on">2025:02:03 04:05:06</td>
 <td class="on">2025:02:03 04:05:06</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">10&ndash;21&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} DateTimeDigitized</b><i>digitised time</i></td>
@@ -1117,6 +1145,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">2025:02:03 04:05:06</td>
 <td class="off">&mdash;</td>
 <td class="on">2025:02:03 04:05:06</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">8&ndash;18&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} OffsetTime</b><i>timezone — places you geographically on its own</i></td>
@@ -1125,6 +1154,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} OffsetTimeOriginal</b></td>
@@ -1133,6 +1163,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} OffsetTimeDigitized</b></td>
@@ -1141,6 +1172,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} SubsecTimeOriginal</b><i>sub-second — makes the timestamp near-unique</i></td>
@@ -1149,6 +1181,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} SubsecTimeDigitized</b></td>
@@ -1157,6 +1190,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ApertureValue</b><i>aperture, log form</i></td>
@@ -1165,6 +1199,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} BrightnessValue</b><i>scene brightness — indoors or out</i></td>
@@ -1173,6 +1208,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ColorSpace</b><i>colour space</i></td>
@@ -1181,6 +1217,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">65535</td>
 <td class="off">&mdash;</td>
 <td class="on">65535</td>
+<td class="zero">copy once</td>
 <td class="cnt">8&ndash;18&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ComponentsConfiguration</b><i>channel order</i></td>
@@ -1189,6 +1226,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">1 2 3 0</td>
 <td class="off">&mdash;</td>
 <td class="on">1 2 3 0</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;12&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ExifVersion</b><i>EXIF version</i></td>
@@ -1197,6 +1235,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="on">0232</td>
 <td class="off">&mdash;</td>
 <td class="on">0232</td>
+<td class="zero">copy once</td>
 <td class="cnt">8&ndash;18&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ExposureBiasValue</b><i>exposure compensation</i></td>
@@ -1205,6 +1244,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ExposureMode</b><i>exposure mode</i></td>
@@ -1213,6 +1253,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ExposureProgram</b><i>exposure program</i></td>
@@ -1221,6 +1262,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ExposureTime</b><i>shutter speed</i></td>
@@ -1229,6 +1271,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} FNumber</b><i>aperture</i></td>
@@ -1237,6 +1280,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} Flash</b><i>whether the flash fired</i></td>
@@ -1245,6 +1289,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} FocalLenIn35mmFilm</b><i>focal length, 35mm equivalent</i></td>
@@ -1253,6 +1298,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} FocalLength</b><i>focal length</i></td>
@@ -1261,6 +1307,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ISOSpeedRatings</b><i>sensor gain, tracks available light</i></td>
@@ -1269,6 +1316,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} LensMake</b><i>lens maker</i></td>
@@ -1277,6 +1325,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} LensModel</b><i>which of the two rear lenses fired — it changes per shot</i></td>
@@ -1285,6 +1334,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>2 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} LensSpecification</b><i>focal range and max aperture</i></td>
@@ -1293,6 +1343,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} MeteringMode</b><i>metering mode</i></td>
@@ -1301,6 +1352,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} PixelXDimension</b><i>full-resolution width</i></td>
@@ -1309,6 +1361,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} PixelYDimension</b><i>full-resolution height</i></td>
@@ -1317,6 +1370,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} SceneType</b><i>directly photographed, or a scan</i></td>
@@ -1325,6 +1379,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} SensingMethod</b><i>sensor type</i></td>
@@ -1333,6 +1388,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} ShutterSpeedValue</b><i>shutter, log form</i></td>
@@ -1341,6 +1397,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} SubjectArea</b><i>where the subject sat in the frame</i></td>
@@ -1349,6 +1406,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{Exif} WhiteBalance</b><i>white balance</i></td>
@@ -1357,12 +1415,14 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="zero">copy once</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
-<tr class="grp is-new"><td colspan="7">Apple&#x27;s private block &nbsp;<span class="gd">35 mostly undocumented tags Apple writes for itself, read verbatim.</span></td></tr>
+<tr class="grp is-new"><td colspan="8">Apple&#x27;s private block &nbsp;<span class="gd">35 mostly undocumented tags Apple writes for itself, read verbatim. · across 3 real captures: 10 hold still, 12 move</span></td></tr>
 <tr><td class="fld fx"><b>{MakerApple} 1</b></td>
 <td class="off">&mdash;</td>
 <td class="on">14</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1374,11 +1434,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 3</b></td>
 <td class="off">&mdash;</td>
 <td class="on">{ epoch = 0; flags = 1; timesc…</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1390,11 +1452,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 5</b></td>
 <td class="off">&mdash;</td>
 <td class="on">89</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1406,11 +1470,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 7</b></td>
 <td class="off">&mdash;</td>
 <td class="on">1</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1422,11 +1488,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 12</b></td>
 <td class="off">&mdash;</td>
 <td class="on">( &quot;2.53125&quot;, &quot;1.390625&quot; )</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1438,11 +1506,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 14</b></td>
 <td class="off">&mdash;</td>
 <td class="on">0</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1454,11 +1524,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 16</b></td>
 <td class="off">&mdash;</td>
 <td class="on">1</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1470,11 +1542,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 20</b></td>
 <td class="off">&mdash;</td>
 <td class="on">5</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1486,11 +1560,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 25</b></td>
 <td class="off">&mdash;</td>
 <td class="on">0</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1502,11 +1578,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 31</b></td>
 <td class="off">&mdash;</td>
 <td class="on">0</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1518,11 +1596,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 33</b></td>
 <td class="off">&mdash;</td>
 <td class="on">0</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1534,11 +1614,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 37</b></td>
 <td class="off">&mdash;</td>
 <td class="on">0</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1550,11 +1632,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 39</b></td>
 <td class="off">&mdash;</td>
 <td class="on">0</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1566,11 +1650,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="cnt">per shot<i>3 of 3 differ</i></td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 45</b></td>
 <td class="off">&mdash;</td>
 <td class="on">6694</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1582,11 +1668,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 47</b></td>
 <td class="off">&mdash;</td>
 <td class="on">0</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1598,11 +1686,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 55</b></td>
 <td class="off">&mdash;</td>
 <td class="on">0</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1614,11 +1704,13 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 60</b></td>
 <td class="off">&mdash;</td>
 <td class="on">4</td>
+<td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
@@ -1630,6 +1722,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
 <tr><td class="fld fx"><b>{MakerApple} 74</b></td>
@@ -1638,61 +1731,73 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
 <td class="off">&mdash;</td>
+<td class="off">&mdash;</td>
 <td class="cnt">4&ndash;11&times;</td>
 </tr>
-<tr class="grp is-dim"><td colspan="7">Bitmap geometry &nbsp;<span class="gd">Computed for every bitmap the app draws, interface chrome included, so no value here belongs to one photo — which is why Figma appears among the software strings.</span></td></tr>
+<tr class="grp is-dim"><td colspan="8">Bitmap geometry &nbsp;<span class="gd">Computed for every bitmap the app draws, interface chrome included, so no value here belongs to one photo — which is why Figma appears among the software strings.</span></td></tr>
 <tr><td class="fld fx"><b>ColorModel</b><i>colour model</i></td>
 <td class="on murky" colspan="5">RGB</td>
+<td class="off">&mdash;</td>
 <td class="cnt">94&ndash;140&times;</td>
 </tr>
 <tr><td class="fld fx"><b>DPIHeight</b><i>DPI</i></td>
 <td class="on murky" colspan="5">216 · 288 · 72</td>
+<td class="off">&mdash;</td>
 <td class="cnt">24&ndash;57&times;</td>
 </tr>
 <tr><td class="fld fx"><b>DPIWidth</b></td>
 <td class="on murky" colspan="5">216 · 288 · 72</td>
+<td class="off">&mdash;</td>
 <td class="cnt">24&ndash;57&times;</td>
 </tr>
 <tr><td class="fld fx"><b>Depth</b><i>bit depth</i></td>
 <td class="on murky" colspan="5">8</td>
+<td class="off">&mdash;</td>
 <td class="cnt">94&ndash;140&times;</td>
 </tr>
 <tr><td class="fld fx"><b>HasAlpha</b><i>has transparency</i></td>
 <td class="on murky" colspan="5">1</td>
+<td class="off">&mdash;</td>
 <td class="cnt">16&ndash;57&times;</td>
 </tr>
 <tr><td class="fld fx"><b>IsIndexed</b><i>indexed palette</i></td>
 <td class="on murky" colspan="5">1</td>
+<td class="off">&mdash;</td>
 <td class="cnt">19&ndash;23&times;</td>
 </tr>
 <tr><td class="fld fx"><b>Orientation</b><i>orientation</i></td>
 <td class="on murky" colspan="5">1 · 6</td>
+<td class="off">&mdash;</td>
 <td class="cnt">34&ndash;46&times;</td>
 </tr>
 <tr><td class="fld fx"><b>PixelHeight</b><i>bitmap height</i></td>
 <td class="on murky" colspan="5">100 · 120 · 132 · 144 · 162 · 168 · 170 · 1920 · 200 · 2080 · 249 · 2532 ·…</td>
+<td class="off">&mdash;</td>
 <td class="cnt">94&ndash;140&times;</td>
 </tr>
 <tr><td class="fld fx"><b>PixelWidth</b><i>bitmap width</i></td>
 <td class="on murky" colspan="5">100 · 1170 · 120 · 144 · 1440 · 145 · 162 · 168 · 200 · 2160 · 270 · 28 · …</td>
+<td class="off">&mdash;</td>
 <td class="cnt">94&ndash;140&times;</td>
 </tr>
 <tr><td class="fld fx"><b>PrimaryImage</b><i>primary image in the container</i></td>
 <td class="on murky" colspan="5">1</td>
+<td class="off">&mdash;</td>
 <td class="cnt">21&ndash;32&times;</td>
 </tr>
 <tr><td class="fld fx"><b>ProfileName</b><i>colour profile</i></td>
 <td class="on murky" colspan="5">Display P3 · sRGB · sRGB IEC61966-2.1</td>
+<td class="off">&mdash;</td>
 <td class="cnt">91&ndash;135&times;</td>
 </tr>
-<tr class="grp is-dim"><td colspan="7">Timing</td></tr>
+<tr class="grp is-dim"><td colspan="8">Timing</td></tr>
 <tr><td class="fld fx"><b>first GPS read</b><i>seconds after launch, before anything was selected</i></td>
 <td class="on">6.8 s</td>
 <td class="on">6.1 s</td>
 <td class="on">6.7 s</td>
 <td class="on">35.7 s</td>
 <td class="on">7.6 s</td>
-<td class="off">&mdash;</td></tr>
+<td class="off">&mdash;</td><td class="off">&mdash;</td></tr>
 </tbody></table></div>
 <p class="cap"><b>Photo 2 is the only column with a full house</b>, because it is the only genuine capture. Lens, exposure, sub-second timing, compass bearing and the Apple block are things a camera writes and a forgery has to reproduce &mdash; and photo 3, built from that very image, has the entire camera-settings group empty. That gap is the tell.</p>
 <p class="cap"><b>The three UUIDs in the Apple block are the sharpest thing here.</b> A coordinate can be faked and a timestamp moved, but <code>ContentIdentifier</code> and <code>PhotoIdentifier</code> exist to be unique to one shot. Copying a real maker note onto other files &mdash; the obvious way to make a photo look camera-shot &mdash; stamps every one of them with the same supposedly-unique id.</p>
@@ -1703,65 +1808,17 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <li><b>Photos 2 and 3 are not in the repository.</b> They are a real capture and a restamped copy of it: personal pixels, home GPS, and maker-note UUIDs.</li>
 </ul></div>
 </section>
-<section><h2>What a forgery has to generate, and what it can copy</h2>
-<p>Everything above is what TikTok <em>reads</em>. This is the consequence. Three real captures off the same phone, chosen to move as much as possible &mdash; the same spot at 1&times; then 2&times; to isolate the lens, then indoors with flash in portrait. A field that holds still across all three is welded to the device and can be copied once. A field that moves has to be generated afresh for every image, and generated <em>consistently</em>, because several of them are arithmetically tied to each other.</p>
-<div class="mtx-wrap wide"><table class="mtx"><thead><tr>
-<th class="cnr">Field</th><th class="cnr">Across 3 real photos</th><th class="cnr">What that means for a forgery</th></tr></thead><tbody>
-<tr class="grp is-bad"><td colspan="3">Device identity &nbsp;<span class="gd">7 hold still, 2 move</span></td></tr>
-<tr><td class="fld fx"><b>ModifyDate</b><i>2026:08:18 13:02:23 · 2026:08:18 13:02:29 · 2026:08:</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>Orientation</b><i>1 · 6</i></td><td class="on">2 distinct</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>7 fields hold still</b><i>HostComputer, Make, Model, ResolutionUnit, Software, XResolution, YResolution</i></td><td class="off">1 value each</td><td class="zero">copy once from the device</td></tr>
-<tr class="grp is-warn"><td colspan="3">Camera settings &nbsp;<span class="gd">16 hold still, 16 move</span></td></tr>
-<tr><td class="fld fx"><b>ApertureValue</b><i>1.79999999993144 · 2.40000000027649</i></td><td class="on">2 distinct</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>BrightnessValue</b><i>3.620482286 · 8.637835166 · 8.827300613</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>CreateDate</b><i>2026:08:18 13:02:23 · 2026:08:18 13:02:29 · 2026:08:</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>DateTimeOriginal</b><i>2026:08:18 13:02:23 · 2026:08:18 13:02:29 · 2026:08:</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>DigitalZoomRatio</b><i>1.502982107 · 1.530364372 · 1.608510638</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>ExposureTime</b><i>0.0012300123 · 0.002816901408 · 0.02127659574</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>FNumber</b><i>1.8 · 2.4</i></td><td class="on">2 distinct</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>Flash</b><i>16 · 9</i></td><td class="on">2 distinct</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>FocalLength</b><i>4 · 6</i></td><td class="on">2 distinct</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>FocalLengthIn35mmFormat</b><i>42 · 43 · 83</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>ISO</b><i>16 · 20</i></td><td class="on">2 distinct</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>LensModel</b><i>iPhone X back dual camera 4mm f/1.8 · iPhone X back </i></td><td class="on">2 distinct</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>ShutterSpeedValue</b><i>0.00123000000605118 · 0.00281399999822043 · 0.021472</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>SubSecTimeDigitized</b><i>500 · 587 · 802</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>SubSecTimeOriginal</b><i>500 · 587 · 802</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>SubjectArea</b></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>16 fields hold still</b><i>ColorSpace, ExifImageHeight, ExifImageWidth, ExifVersion, ExposureCompensation, ExposureMode, ExposureProgram, LensInfo, LensMake, MeteringMode, Offse</i></td><td class="off">1 value each</td><td class="zero">copy once from the device</td></tr>
-<tr class="grp is-bad"><td colspan="3">Position &nbsp;<span class="gd">9 hold still, 5 move</span></td></tr>
-<tr><td class="fld fx"><b>GPSAltitude</b></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>GPSDestBearing</b></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>GPSImgDirection</b></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>GPSLatitude</b></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>GPSLongitude</b></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>9 fields hold still</b><i>GPSAltitudeRef, GPSDateStamp, GPSDestBearingRef, GPSHPositioningError, GPSImgDirectionRef, GPSLatitudeRef, GPSLongitudeRef, GPSSpeed, GPSSpeedRef</i></td><td class="off">1 value each</td><td class="zero">copy once from the device</td></tr>
-<tr class="grp is-new"><td colspan="3">Apple private block &nbsp;<span class="gd">10 hold still, 12 move</span></td></tr>
-<tr><td class="fld fx"><b>AEAverage</b><i>184 · 193 · 73</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>AEStable</b><i>0 · 1</i></td><td class="on">2 distinct</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>AETarget</b><i>184 · 198 · 204</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>AFPerformance</b><i>1330 536871055 · 228 536870995 · 8 536870987</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>AccelerationVector</b></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>ColorTemperature</b><i>3060 · 5452 · 5525</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>FocusDistanceRange</b><i>0.2421875 0.80859375 · 0.9765625 2.13671875 · 1.1640</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>FocusPosition</b><i>234 · 47 · 77</i></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>ImageCaptureType</b><i>1 · 2</i></td><td class="on">2 distinct</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>LivePhotoVideoIndex</b><i>0 · 8192</i></td><td class="on">2 distinct</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>PhotoIdentifier</b></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>RunTimeValue</b></td><td class="on">3 distinct &mdash; every photo differs</td><td class="cnt">generate per shot</td></tr>
-<tr><td class="fld fx"><b>10 fields hold still</b><i>AFStable, CameraType, HDRHeadroom, MakerNoteVersion, OISMode, PhotosAppFeatureFlags, RunTimeEpoch, RunTimeFlags, RunTimeScale, SignalToNoiseRatio</i></td><td class="off">1 value each</td><td class="zero">copy once from the device</td></tr>
-<tr class="grp is-dim"><td colspan="3">Colour profile &nbsp;<span class="gd">10 hold still, 0 move</span></td></tr>
-<tr><td class="fld fx"><b>10 fields hold still</b><i>BlueMatrixColumn, BlueTRC, ChromaticAdaptation, GreenMatrixColumn, GreenTRC, MediaWhitePoint, ProfileCopyright, ProfileDescription, RedMatrixColumn, R</i></td><td class="off">1 value each</td><td class="zero">copy once from the device</td></tr>
-</tbody></table></div>
-<p class="cap"><b>The lens is the one that surprised us.</b> This audit treated <code>LensModel</code> as a property of the handset. It is not &mdash; the two rear cameras report <code>4mm f/1.8</code> and <code>6mm f/2.4</code>, and switching lens drags <code>FNumber</code>, <code>FocalLength</code> and <code>ApertureValue</code> with it. A file pairing a 4&nbsp;mm focal length with f/2.4 is wrong by construction, no reference file needed to see it.</p>
-<p class="cap"><b>The frame is always landscape.</b> <code>ExifImageWidth</code> and <code>ExifImageHeight</code> never move: every capture is stored 4032&times;3024 and a portrait photo is expressed purely as <code>Orientation&nbsp;6</code> &mdash; the same trick a real recording uses when it stores video landscape with a rotation matrix.</p>
-<div class="panel is-warn"><h3>Four fields that cannot be filled in independently</h3><ul>
-<li><b>ShutterSpeedValue and ApertureValue are the other two spellings of ExposureTime and FNumber.</b> Stored as APEX, so the same quantity in log form. They must agree &mdash; and, because APEX is a rational that does not round-trip exactly, they must agree <em>inexactly</em>. On a real capture the pair reads 0.25 against 0.249994. Writing both from one float gives exact equality, which no genuine file has.</li>
-<li><b>GPSDateStamp has to be the same day as DateTimeOriginal.</b> Two dates, two blocks, one moment. Also the three OffsetTime spellings, which have to carry the same timezone.</li>
-<li><b>RunTimeValue is a nanosecond counter since the phone booted.</b> It moves every shot while RunTimeEpoch, RunTimeScale and RunTimeFlags hold still, so across a set it has to increase monotonically and by roughly the gaps between the timestamps you claim.</li>
-<li><b>AccelerationVector is the accelerometer at the moment of capture.</b> It has to be consistent with the Orientation on the same file. A portrait photo whose gravity vector says landscape is contradicting itself.</li>
+<section><h2>Fields that cannot be filled in independently</h2>
+<p>Knowing which fields move is not enough to write one. Several are two spellings of a single quantity, or dates that have to agree, or counters that have to keep counting. Get one of those wrong and the file is inconsistent <em>with itself</em> &mdash; wrong by arithmetic, visible without any reference file to compare against.</p>
+<div class="panel is-warn"><ul>
+<li><b>ShutterSpeedValue and ApertureValue are the other two spellings of ExposureTime and FNumber.</b> Stored as APEX, the same quantities in log form. They must agree &mdash; and, because APEX is a rational that does not round-trip exactly, they must agree <em>inexactly</em>. On a real capture the pair reads 0.25 against 0.249994. Writing both from one float gives exact equality, which no genuine file has.</li>
+<li><b>GPSDateStamp has to be the same day as DateTimeOriginal.</b> Two dates in two different blocks describing one moment. Likewise the three OffsetTime spellings, which all have to carry the same timezone.</li>
+<li><b>RunTimeValue is a nanosecond counter since the phone last booted.</b> It moves every shot while RunTimeEpoch, RunTimeScale and RunTimeFlags hold still, so across a set of photos it has to increase monotonically and by roughly the gaps between the timestamps being claimed.</li>
+<li><b>AccelerationVector is the accelerometer reading at the moment of capture.</b> It has to be consistent with the Orientation on the same file. A portrait photo whose gravity vector says landscape is contradicting itself.</li>
+<li><b>The lens is a bundle, not a field.</b> The two rear cameras report <code>4mm f/1.8</code> and <code>6mm f/2.4</code>, so LensModel, FNumber, FocalLength and ApertureValue move together. A file pairing a 4&nbsp;mm focal length with f/2.4 describes a camera that does not exist.</li>
+<li><b>The frame is always landscape.</b> ExifImageWidth and ExifImageHeight never move: every capture is stored 4032&times;3024 and a portrait photo is expressed purely as <code>Orientation&nbsp;6</code> &mdash; the same trick a real recording uses when it stores video landscape with a rotation matrix.</li>
 </ul></div>
-<p class="cap">All four held on all three photos, so a forgery has to hold them too. The check is in <code>analyze_stills_variance.py</code>; the photos themselves stay out of the repository.</p>
+<p class="cap">All of these held on all three captures, so a forgery has to hold them too. The check is in <code>analyze_stills_variance.py</code>. Values of identifying fields are never printed &mdash; that a coordinate or a UUID varies is the finding, what it says is not &mdash; and the photographs themselves stay out of the repository.</p>
 </section>
 </div>
 <section><h2>How it was measured</h2>
