@@ -630,6 +630,7 @@ def main():
     w(passtest_section(runs))
 
     # the shape of a real recording, which is structure rather than metadata
+    w(sweep_video_section())
     w('<section><h2>What a real recording is shaped like</h2>')
     w(track_layout(vvar) or '<p class="cap">Not built: the recordings are not in the '
       'repository, being captures of a real place.</p>')
@@ -656,6 +657,7 @@ def main():
     w('</div>')
     w(images_section(iruns, idumps, var))
     w(variance_section(var))
+    w(sweep_roll_section())
     w('</div>')  # end page: photos
 
     # ------------------------------------------------- method, shared by both
@@ -1511,6 +1513,107 @@ def variance_group(var, block):
         var["n"], const, len(keys) - const)
 
 
+# The two experiments that closed the open questions rather than adding rows.
+SWEEP_VIDEO_RUNS = [("video-sweep-A", "green clip", "CANARYMK-SWEEPA"),
+                    ("video-sweep-B", "purple clip", "CANARYMK-SWEEPB")]
+SWEEP_ROLL_RUN = "roll-sweep"
+SWEEP_ROLL_TOTAL = 300
+
+
+def sweep_video_section():
+    """Two clips, each posted once, each looking for the other."""
+    try:
+        data = {rid: load_run(rid)["tags"] for rid, _l, _m in SWEEP_VIDEO_RUNS}
+    except (OSError, KeyError):
+        return ""
+    key = "INPUT com.apple.quicktime.mdta mdta/com.apple.quicktime.make"
+    o = []
+    a = o.append
+    a('<section><h2>Does it do this to clips as well?</h2>')
+    a('<p>Every clip on this page was posted from an emptied camera roll, one file at a time. '
+      'That is the one condition under which a sweep of the roll is invisible, so the question '
+      'went unanswered for nine arms. Two clips settle it: each carries a canary the other does '
+      'not, and each was posted in its own session.</p>')
+    a('<div class="mtx-wrap"><table class="mtx compact"><thead><tr>'
+      '<th class="cnr">Session</th><th class="cnr">Posted</th>'
+      '<th class="cnr">Read its own canary</th>'
+      '<th class="cnr">Read the other clip&rsquo;s</th>'
+      '<th class="cnr">Distinct locations read</th></tr></thead><tbody>')
+    for rid, label, mine in SWEEP_VIDEO_RUNS:
+        t = data[rid]
+        makes = set(ivals(t, key))
+        other = [m for _r, _l, m in SWEEP_VIDEO_RUNS if m != mine][0]
+        gps = ivals(t, "INPUT com.apple.quicktime.mdta "
+                       "mdta/com.apple.quicktime.location.ISO6709")
+        a('<tr><td class="fld">%s</td><td class="on">%s</td>'
+          '<td class="%s">%s</td><td class="%s">%s</td><td class="cnt">%d</td></tr>'
+          % (esc(rid.replace("video-sweep-", "clip ")), esc(label),
+             "on" if mine in makes else "off", "read" if mine in makes else "&mdash;",
+             "cnt" if other in makes else "off",
+             "read" if other in makes else "&mdash;", len(gps)))
+    a('</tbody></table></div>')
+    a('<p class="cap"><b>Both directions, same answer.</b> Posting either clip, TikTok read the '
+      'other one &mdash; and three of the phone&rsquo;s real recordings alongside it, visible as '
+      'five distinct coordinates in a roll that held five clips. Video sweeps the camera roll '
+      'exactly as the photo picker does, so nothing about the clip findings is confined to the '
+      'file you chose.</p>')
+    a('<p class="cap">This also retires an assumption. Clip 8 showed picker-walk values in its '
+      'column and was marked <em>blended</em> as a defect of setup. It was not a defect; it was '
+      'this behaviour, showing up by accident a dozen arms before anyone tested for it.</p>')
+    a('</section>')
+    return "\n".join(o)
+
+
+def sweep_roll_section():
+    """Three hundred numbered stills: where does the sweep stop?"""
+    import re as _re
+    try:
+        t = load_run(SWEEP_ROLL_RUN)["tags"]
+    except OSError:
+        return ""
+    idx = sorted({int(m.group(1)) for v in ivals(t, "image {TIFF} Make")
+                  for m in [_re.fullmatch(r"CANARY-(\d{4})", v)] if m})
+    if not idx:
+        return ""
+    lo, hi = min(idx), max(idx)
+    gaps = [i for i in range(lo, hi + 1) if i not in idx]
+    o = []
+    a = o.append
+    a('<section><h2>Where the sweep stops</h2>')
+    a('<p>Everything above was measured in a roll of five to eight photos, which is small '
+      'enough that reading all of it proves nothing about a real library. Three hundred stills '
+      'went in, each carrying its own index twice over &mdash; once as a name a search finds, '
+      'once as a coordinate that sorts &mdash; and one unrelated file was posted.</p>')
+    a('<div class="tiles">')
+    for cls, big, small in [("is-good", "%d" % len(idx), "of %d read" % SWEEP_ROLL_TOTAL),
+                            ("is-good", "%d" % (SWEEP_ROLL_TOTAL - len(idx)),
+                             "never touched"),
+                            ("is-bad", "~%d" % (hi - lo + 1), "assets deep it reaches"),
+                            ("is-dim", "%d" % len(gaps), "gaps inside that block")]:
+        a('<div class="tile %s"><b>%s</b><span>%s</span></div>' % (cls, big, small))
+    a('</div>')
+    a('<p><b>The sweep is bounded.</b> It read the newest %d files in the roll and stopped. '
+      'The remaining %d were sitting in the same library, indexed and available, and were never '
+      'touched. Both channels agree on the figure independently, which is the check that stops '
+      'a silent failure looking like a bound.</p>' % (len(idx), SWEEP_ROLL_TOTAL - len(idx)))
+    a('<div class="panel is-warn"><h3>What a bound does and does not buy you</h3><ul>')
+    a('<li><b>Only the top of the roll is exposed.</b> Roughly %d assets deep, on this handset '
+      'in this session. Below that, files cost nothing however many there are.</li>'
+      % (hi - lo + 1))
+    a('<li><b>It is not a hiding place.</b> A roll whose newest %d items are all the same kind '
+      'of file is fully exposed no matter how large the library is. Burial under volume does '
+      'not work; keeping the top of the roll coherent does.</li>' % (hi - lo + 1))
+    a('<li><b>%d gaps sit inside the block that was read.</b> So this is a neighbourhood rather '
+      'than a constant, and a number to design margin around rather than to trust exactly.</li>'
+      % len(gaps))
+    a('<li><b>Nobody scrolled.</b> The posted file was picked immediately, so this measures the '
+      'default reach of opening the picker. A user who scrolls renders more of the grid, and '
+      'there is no reason to think the bound survives that.</li>')
+    a('</ul></div>')
+    a('</section>')
+    return "\n".join(o)
+
+
 def images_section(iruns, idumps, var):
     o = []
     a = o.append
@@ -1753,11 +1856,9 @@ def images_section(iruns, idumps, var):
       'was read rests on its unique canary appearing in the session. Sound here because every '
       'arm differs &mdash; but inference from the value set, not a per-file trace. It is also '
       'why the values above are read back off the files rather than taken from the capture.</li>')
-    a('<li><b>The roll held eight photos, not five hundred.</b> Three later sessions ran '
-      'against a bigger library &mdash; eight images, seven of them carrying GPS &mdash; and '
-      'took all seven every time, so the sweep is not capped at five. Whether it reaches an '
-      'entire library or only what the grid renders is still open; settling it needs a roll of '
-      'a few hundred and one more posting window.</li>')
+    a('<li><b>Answered, below: the sweep is bounded.</b> These runs used a roll of eight, '
+      'which is entirely inside the bound, so every figure above stands. A separate run with '
+      'three hundred files found the reach and it is nearer sixty than three hundred.</li>')
     a('<li><b>Photos 2 and 3 are not in the repository.</b> They are a real capture and a '
       'restamped copy of it: personal pixels, home GPS, and maker-note UUIDs.</li>')
     a('</ul></div>')

@@ -1484,6 +1484,15 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 </div>
 <p class="cap">Reproduced by <code>nativize.py</code> in the repo: it copies every field from a real capture, re-encodes to <code>hvc1</code> at the reference&rsquo;s size and rate, strips anything the reference lacks, then diffs the result against it.</p>
 </section>
+<section><h2>Does it do this to clips as well?</h2>
+<p>Every clip on this page was posted from an emptied camera roll, one file at a time. That is the one condition under which a sweep of the roll is invisible, so the question went unanswered for nine arms. Two clips settle it: each carries a canary the other does not, and each was posted in its own session.</p>
+<div class="mtx-wrap"><table class="mtx compact"><thead><tr><th class="cnr">Session</th><th class="cnr">Posted</th><th class="cnr">Read its own canary</th><th class="cnr">Read the other clip&rsquo;s</th><th class="cnr">Distinct locations read</th></tr></thead><tbody>
+<tr><td class="fld">clip A</td><td class="on">green clip</td><td class="on">read</td><td class="cnt">read</td><td class="cnt">5</td></tr>
+<tr><td class="fld">clip B</td><td class="on">purple clip</td><td class="on">read</td><td class="cnt">read</td><td class="cnt">5</td></tr>
+</tbody></table></div>
+<p class="cap"><b>Both directions, same answer.</b> Posting either clip, TikTok read the other one &mdash; and three of the phone&rsquo;s real recordings alongside it, visible as five distinct coordinates in a roll that held five clips. Video sweeps the camera roll exactly as the photo picker does, so nothing about the clip findings is confined to the file you chose.</p>
+<p class="cap">This also retires an assumption. Clip 8 showed picker-walk values in its column and was marked <em>blended</em> as a defect of setup. It was not a defect; it was this behaviour, showing up by accident a dozen arms before anyone tested for it.</p>
+</section>
 <section><h2>What a real recording is shaped like</h2>
 <div class="panel is-warn"><h3>A recording’s shape is not one shape</h3>
 <p>Everything else on this page is metadata. This is structure &mdash; how many tracks the file has and what each one is for &mdash; and it has to be right before any value inside it matters.</p>
@@ -2555,7 +2564,7 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <div class="panel is-dim"><h3>What the stills runs do not show</h3><ul>
 <li><b>No upload body was captured on any of the five.</b> Between three and seven request bodies per run, all of it launch telemetry &mdash; nothing from the post itself. What reaches the CDN for a photo is unmeasured, exactly as it is for the clips.</li>
 <li><b>Reads are attributed by value, not by file handle.</b> The rig records values per tag key with no note of which file they came from, so the claim that a non-selected photo was read rests on its unique canary appearing in the session. Sound here because every arm differs &mdash; but inference from the value set, not a per-file trace. It is also why the values above are read back off the files rather than taken from the capture.</li>
-<li><b>The roll held eight photos, not five hundred.</b> Three later sessions ran against a bigger library &mdash; eight images, seven of them carrying GPS &mdash; and took all seven every time, so the sweep is not capped at five. Whether it reaches an entire library or only what the grid renders is still open; settling it needs a roll of a few hundred and one more posting window.</li>
+<li><b>Answered, below: the sweep is bounded.</b> These runs used a roll of eight, which is entirely inside the bound, so every figure above stands. A separate run with three hundred files found the reach and it is nearer sixty than three hundred.</li>
 <li><b>Photos 2 and 3 are not in the repository.</b> They are a real capture and a restamped copy of it: personal pixels, home GPS, and maker-note UUIDs.</li>
 </ul></div>
 </section>
@@ -2570,6 +2579,22 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <li><b>The frame is always landscape.</b> ExifImageWidth and ExifImageHeight never move: every capture is stored 4032&times;3024 and a portrait photo is expressed purely as <code>Orientation&nbsp;6</code> &mdash; the same trick a real recording uses when it stores video landscape with a rotation matrix.</li>
 </ul></div>
 <p class="cap">All of these held on all three captures, so a forgery has to hold them too. The check is in <code>analyze_stills_variance.py</code>. Values of identifying fields are never printed &mdash; that a coordinate or a UUID varies is the finding, what it says is not &mdash; and the photographs themselves stay out of the repository.</p>
+</section>
+<section><h2>Where the sweep stops</h2>
+<p>Everything above was measured in a roll of five to eight photos, which is small enough that reading all of it proves nothing about a real library. Three hundred stills went in, each carrying its own index twice over &mdash; once as a name a search finds, once as a coordinate that sorts &mdash; and one unrelated file was posted.</p>
+<div class="tiles">
+<div class="tile is-good"><b>54</b><span>of 300 read</span></div>
+<div class="tile is-good"><b>246</b><span>never touched</span></div>
+<div class="tile is-bad"><b>~63</b><span>assets deep it reaches</span></div>
+<div class="tile is-dim"><b>9</b><span>gaps inside that block</span></div>
+</div>
+<p><b>The sweep is bounded.</b> It read the newest 54 files in the roll and stopped. The remaining 246 were sitting in the same library, indexed and available, and were never touched. Both channels agree on the figure independently, which is the check that stops a silent failure looking like a bound.</p>
+<div class="panel is-warn"><h3>What a bound does and does not buy you</h3><ul>
+<li><b>Only the top of the roll is exposed.</b> Roughly 63 assets deep, on this handset in this session. Below that, files cost nothing however many there are.</li>
+<li><b>It is not a hiding place.</b> A roll whose newest 63 items are all the same kind of file is fully exposed no matter how large the library is. Burial under volume does not work; keeping the top of the roll coherent does.</li>
+<li><b>9 gaps sit inside the block that was read.</b> So this is a neighbourhood rather than a constant, and a number to design margin around rather than to trust exactly.</li>
+<li><b>Nobody scrolled.</b> The posted file was picked immediately, so this measures the default reach of opening the picker. A user who scrolls renders more of the grid, and there is no reason to think the bound survives that.</li>
+</ul></div>
 </section>
 </div>
 <section><h2>How it was measured</h2>

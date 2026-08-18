@@ -34,6 +34,8 @@ EXTS = {"image": (".heic", ".heif", ".jpg", ".jpeg", ".png"),
 # PhotoKit takes a batch as one transaction; too large a one is slow to commit
 # and gives no partial progress if it fails.
 CHUNK = 60
+# Above this many files, send one archive instead of one ssh handshake each.
+TAR_ABOVE = 20
 
 
 def sh(cmd, timeout=90):
@@ -48,13 +50,26 @@ def attach(frida):
     if not pid:
         sys.exit("TikTok is not running. Open it, leave it in the foreground, "
                  "and run this again.")
-    for n in range(4):
+    for n in range(3):
         try:
             return dev.attach(pid), pid
         except frida.TransportError as e:
             print("  attach attempt %d: %s" % (n + 1, e))
             time.sleep(3)
-    sys.exit("could not attach to pid %d. Bring TikTok to the foreground." % pid)
+    # A running-but-suspended app refuses every attach, and no amount of
+    # uiopen wakes it if the screen is off. Spawning starts it resumed, which
+    # is how run_observe never meets this problem.
+    print("  attach kept timing out; spawning a fresh instance instead")
+    try:
+        dev.kill(pid)
+        time.sleep(2)
+    except Exception:                                          # noqa: BLE001
+        pass
+    npid = dev.spawn([BUNDLE])
+    session = dev.attach(npid)
+    dev.resume(npid)
+    time.sleep(5)
+    return session, npid
 
 
 def load_script(session, on_message):
@@ -126,15 +141,35 @@ def main():
             sys.exit("no %s files in %s" % (args.kind, args.dir))
 
         dirs = script.exports_sync.app_dirs()
-        print("staging %d file(s) into the app sandbox ..." % len(files))
-        for n, f in enumerate(files, 1):
-            remote = "%s/%s" % (dirs["tmp"], os.path.basename(f))
-            r = scp_put(Path(f), remote)
+        staged = ["%s/%s" % (dirs["tmp"], os.path.basename(f)) for f in files]
+        if len(files) > TAR_ABOVE:
+            # 300 scp invocations is 300 ssh handshakes. One archive is one.
+            import tarfile
+            import tempfile
+            print("archiving %d file(s) ..." % len(files))
+            tmp = os.path.join(tempfile.gettempdir(), "media-import.tar")
+            with tarfile.open(tmp, "w") as tf:
+                for f in files:
+                    tf.add(f, arcname=os.path.basename(f))
+            remote_tar = "%s/_import.tar" % dirs["tmp"]
+            print("  %.1f MB -> device" % (os.path.getsize(tmp) / 1e6))
+            r = scp_put(Path(tmp), remote_tar)
+            os.remove(tmp)
             if r.returncode != 0:
-                sys.exit("scp failed for %s: %s" % (f, r.stderr or ""))
-            staged.append(remote)
-            if n % 25 == 0 or n == len(files):
-                print("  %d/%d" % (n, len(files)))
+                sys.exit("scp of the archive failed: %s" % (r.stderr or ""))
+            x = sh("cd '%s' && tar -xf _import.tar && rm -f _import.tar && ls | wc -l"
+                   % dirs["tmp"], timeout=180)
+            if x.returncode != 0:
+                sys.exit("extract failed: %s" % (x.stderr or ""))
+            print("  extracted, %s files now staged" % (x.stdout or "?").strip())
+        else:
+            print("staging %d file(s) into the app sandbox ..." % len(files))
+            for n, f in enumerate(files, 1):
+                r = scp_put(Path(f), staged[n - 1])
+                if r.returncode != 0:
+                    sys.exit("scp failed for %s: %s" % (f, r.stderr or ""))
+                if n % 25 == 0 or n == len(files):
+                    print("  %d/%d" % (n, len(files)))
         sh("chown mobile:mobile '%s'/* ; chmod 644 '%s'/*" % (dirs["tmp"], dirs["tmp"]))
 
         ids = []
