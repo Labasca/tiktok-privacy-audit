@@ -1,5 +1,5 @@
 📦
-94535 /tools/phkit_probe.js
+96065 /tools/phkit_probe.js
 ✄
 // node_modules/frida-objc-bridge/lib/api.js
 var cachedApi = null;
@@ -2923,8 +2923,50 @@ function appDirs() {
   const home = new frida_objc_bridge_default.Object(NSHomeDirectory()).toString();
   return { home, tmp: home + "/tmp", docs: home + "/Documents" };
 }
+function deleteAssets(ids) {
+  try {
+    const lib = frida_objc_bridge_default.classes.PHPhotoLibrary.sharedPhotoLibrary();
+    const arr = frida_objc_bridge_default.classes.NSMutableArray.alloc().init();
+    for (let i = 0; i < ids.length; i++) {
+      arr.addObject_(frida_objc_bridge_default.classes.NSString.stringWithUTF8String_(
+        Memory.allocUtf8String(ids[i])
+      ));
+    }
+    const fetched = frida_objc_bridge_default.classes.PHAsset.fetchAssetsWithLocalIdentifiers_options_(arr, NULL);
+    post("found", fetched.count() + " of " + ids.length + " still in the library");
+    const changes = new frida_objc_bridge_default.Block({
+      retType: "void",
+      argTypes: [],
+      implementation: function() {
+        try {
+          frida_objc_bridge_default.classes.PHAssetChangeRequest.deleteAssets_(fetched);
+        } catch (e) {
+          post("error", "inside performChanges: " + e.message);
+        }
+      }
+    });
+    const done = new frida_objc_bridge_default.Block({
+      retType: "void",
+      argTypes: ["bool", "object"],
+      implementation: function(ok, err) {
+        post("result", ok ? "success" : "failed");
+        if (!ok && err !== null) {
+          try {
+            post("error", err.localizedDescription().toString());
+          } catch (e) {
+          }
+        }
+      }
+    });
+    lib.performChanges_completionHandler_(changes, done);
+    post("submitted", "deletion queued -- iOS will ask the user to confirm");
+  } catch (e) {
+    post("error", e.message);
+  }
+}
 rpc.exports = {
   runImport,
   runImportBatch,
+  deleteAssets,
   appDirs
 };

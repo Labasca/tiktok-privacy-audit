@@ -75,8 +75,44 @@ function appDirs() {
   return { home: home, tmp: home + '/tmp', docs: home + '/Documents' };
 }
 
+
+// Putting three hundred files into somebody's real camera roll is only
+// acceptable if they come out again, so deletion is part of the tool.
+function deleteAssets(ids) {
+try {
+  const lib = ObjC.classes.PHPhotoLibrary.sharedPhotoLibrary();
+  const arr = ObjC.classes.NSMutableArray.alloc().init();
+  for (let i = 0; i < ids.length; i++) {
+    arr.addObject_(ObjC.classes.NSString.stringWithUTF8String_(
+      Memory.allocUtf8String(ids[i])));
+  }
+  const fetched = ObjC.classes.PHAsset
+    .fetchAssetsWithLocalIdentifiers_options_(arr, NULL);
+  post('found', fetched.count() + ' of ' + ids.length + ' still in the library');
+  const changes = new ObjC.Block({
+    retType: 'void', argTypes: [],
+    implementation: function () {
+      try { ObjC.classes.PHAssetChangeRequest.deleteAssets_(fetched); }
+      catch (e) { post('error', 'inside performChanges: ' + e.message); }
+    }
+  });
+  const done = new ObjC.Block({
+    retType: 'void', argTypes: ['bool', 'object'],
+    implementation: function (ok, err) {
+      post('result', ok ? 'success' : 'failed');
+      if (!ok && err !== null) {
+        try { post('error', err.localizedDescription().toString()); } catch (e) {}
+      }
+    }
+  });
+  lib.performChanges_completionHandler_(changes, done);
+  post('submitted', 'deletion queued -- iOS will ask the user to confirm');
+} catch (e) { post('error', e.message); }
+}
+
 rpc.exports = {
   runImport: runImport,
   runImportBatch: runImportBatch,
+  deleteAssets: deleteAssets,
   appDirs: appDirs
 };
