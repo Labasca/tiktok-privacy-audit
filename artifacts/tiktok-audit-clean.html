@@ -1493,6 +1493,29 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <p class="cap"><b>Both directions, same answer.</b> Posting either clip, TikTok read the other one &mdash; and three of the phone&rsquo;s real recordings alongside it, visible as five distinct coordinates in a roll that held five clips. Video sweeps the camera roll exactly as the photo picker does, so nothing about the clip findings is confined to the file you chose.</p>
 <p class="cap">This also retires an assumption. Clip 8 showed picker-walk values in its column and was marked <em>blended</em> as a defect of setup. It was not a defect; it was this behaviour, showing up by accident a dozen arms before anyone tested for it.</p>
 </section>
+<section><h2>The part of a recording nothing on this page could see</h2>
+<p>A photo carries a hundred fields and a recording carries six. That gap looked like a finding for most of this audit, and it was not: it was the instrument. Everything above reads a file&rsquo;s <em>container</em> metadata, and a recording keeps almost nothing there. What it keeps instead is three timed-metadata tracks running the full length of the clip, and they declare this:</p>
+<div class="mtx-wrap"><table class="mtx compact"><thead><tr><th class="cnr">Key declared in the mebx tracks</th><th class="cnr">What it holds</th></tr></thead><tbody>
+<tr><td class="fld"><code>com.apple.quicktime.detected-face</code></td><td class="on">that a face was found, per frame</td></tr>
+<tr><td class="fld"><code>com.apple.quicktime.detected-face.bounds</code></td><td class="on">where in the frame it sat</td></tr>
+<tr><td class="fld"><code>com.apple.quicktime.detected-face.face-id</code></td><td class="on">an identifier for that face across the clip</td></tr>
+<tr><td class="fld"><code>com.apple.quicktime.detected-face.roll-angle</code></td><td class="on">how far the head was tilted</td></tr>
+<tr><td class="fld"><code>com.apple.quicktime.detected-face.yaw-angle</code></td><td class="on">how far it was turned</td></tr>
+<tr><td class="fld"><code>com.apple.quicktime.live-photo-info</code></td><td class="on">per-frame Live Photo state</td></tr>
+<tr><td class="fld"><code>com.apple.quicktime.video-orientation</code></td><td class="on">orientation, per frame</td></tr>
+</tbody></table></div>
+<p class="cap">exiftool reports <b>822 tags</b> on a real recording when told to open the embedded tracks, against <b>200</b> when not &mdash; and it can only decode one of the three. A 6.8-second clip holds 203 per-frame samples in that one track alone. Your phone writes this into every recording it makes, whether or not anything ever reads it.</p>
+<div class="panel is-good"><h3>TikTok neither reads it nor uploads it</h3>
+<p>Two ways to reach those samples exist: an <code>AVAssetReader</code> over the metadata track, or <code>AVPlayerItemMetadataOutput</code>. Both were hooked and both stayed silent across a complete post &mdash; picker, compose, encode and upload. And the file TikTok actually sends is its own re-encode, which was pulled off the phone and compared:</p>
+<div class="mtx-wrap"><table class="mtx compact"><thead><tr><th class="cnr">&nbsp;</th><th class="cnr">Tracks</th><th class="cnr">mebx</th><th class="cnr">Apple keys</th></tr></thead><tbody>
+<tr><td class="fld">the recording you posted</td><td class="cnt">5</td><td class="cnt">3</td><td class="on">14, including every face key</td></tr>
+<tr><td class="fld">what TikTok uploaded</td><td class="zero">2</td><td class="zero">0</td><td class="on">2, both written by TikTok</td></tr>
+</tbody></table></div>
+<p class="cap">The re-encode drops to video and audio and keeps nothing else. This is measured rather than inferred, which matters: the earlier re-encode on this page came from a synthetic clip that never had metadata tracks to lose, so it could not tell a strip apart from an absence. This input had three and the output has none.</p>
+</div>
+<div class="panel is-warn"><h3>Where it does go</h3>
+<p>The face data is Apple&rsquo;s, not TikTok&rsquo;s, and it is in the file on the phone. Anything that takes the original bytes rather than a re-encode carries it along &mdash; AirDrop, email, a cloud drive that stores what it is given, a backup. TikTok is the case that was measured here, and TikTok strips it. That says nothing about anywhere else the same file goes.</p></div>
+</section>
 <section><h2>What a real recording is shaped like</h2>
 <div class="panel is-warn"><h3>A recording’s shape is not one shape</h3>
 <p>Everything else on this page is metadata. This is structure &mdash; how many tracks the file has and what each one is for &mdash; and it has to be right before any value inside it matters.</p>

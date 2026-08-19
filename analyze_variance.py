@@ -35,7 +35,7 @@ REDACT = ("GPS", "Serial", "Identifier", "ImageUniqueID", "Owner", "Firmware")
 MEANING = {
     "IFD0": "device identity", "ExifIFD": "capture settings", "GPS": "position",
     "Apple": "Apple private block", "ICC_Profile": "colour", "XMP": "sidecar",
-    "Keys": "the whole metadata surface of a recording",
+    "Keys": "the container's metadata -- not the whole file; see the mebx tracks",
     "UserData": "legacy container -- a real recording carries none",
     "QuickTime": "container and codec", "ItemList": "iTunes-style tags",
 }

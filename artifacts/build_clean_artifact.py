@@ -631,6 +631,7 @@ def main():
 
     # the shape of a real recording, which is structure rather than metadata
     w(sweep_video_section())
+    w(face_tracks_section())
     w('<section><h2>What a real recording is shaped like</h2>')
     w(track_layout(vvar) or '<p class="cap">Not built: the recordings are not in the '
       'repository, being captures of a real place.</p>')
@@ -1518,6 +1519,68 @@ SWEEP_VIDEO_RUNS = [("video-sweep-A", "green clip", "CANARYMK-SWEEPA"),
                     ("video-sweep-B", "purple clip", "CANARYMK-SWEEPB")]
 SWEEP_ROLL_RUN = "roll-sweep"
 SWEEP_ROLL_TOTAL = 300
+
+
+def face_tracks_section():
+    """The part of a recording that no metadata API ever surfaces."""
+    o = []
+    a = o.append
+    a('<section><h2>The part of a recording nothing on this page could see</h2>')
+    a('<p>A photo carries a hundred fields and a recording carries six. That gap looked like a '
+      'finding for most of this audit, and it was not: it was the instrument. Everything above '
+      'reads a file&rsquo;s <em>container</em> metadata, and a recording keeps almost nothing '
+      'there. What it keeps instead is three timed-metadata tracks running the full length of '
+      'the clip, and they declare this:</p>')
+    a('<div class="mtx-wrap"><table class="mtx compact"><thead><tr>'
+      '<th class="cnr">Key declared in the mebx tracks</th>'
+      '<th class="cnr">What it holds</th></tr></thead><tbody>')
+    for key, what in [
+            ("com.apple.quicktime.detected-face", "that a face was found, per frame"),
+            ("com.apple.quicktime.detected-face.bounds", "where in the frame it sat"),
+            ("com.apple.quicktime.detected-face.face-id",
+             "an identifier for that face across the clip"),
+            ("com.apple.quicktime.detected-face.roll-angle", "how far the head was tilted"),
+            ("com.apple.quicktime.detected-face.yaw-angle", "how far it was turned"),
+            ("com.apple.quicktime.live-photo-info", "per-frame Live Photo state"),
+            ("com.apple.quicktime.video-orientation", "orientation, per frame")]:
+        a('<tr><td class="fld"><code>%s</code></td><td class="on">%s</td></tr>'
+          % (esc(key), esc(what)))
+    a('</tbody></table></div>')
+    a('<p class="cap">exiftool reports <b>822 tags</b> on a real recording when told to open the '
+      'embedded tracks, against <b>200</b> when not &mdash; and it can only decode one of the '
+      'three. A 6.8-second clip holds 203 per-frame samples in that one track alone. Your phone '
+      'writes this into every recording it makes, whether or not anything ever reads it.</p>')
+
+    a('<div class="panel is-good"><h3>TikTok neither reads it nor uploads it</h3>')
+    a('<p>Two ways to reach those samples exist: an <code>AVAssetReader</code> over the metadata '
+      'track, or <code>AVPlayerItemMetadataOutput</code>. Both were hooked and both stayed '
+      'silent across a complete post &mdash; picker, compose, encode and upload. And the file '
+      'TikTok actually sends is its own re-encode, which was pulled off the phone and '
+      'compared:</p>')
+    a('<div class="mtx-wrap"><table class="mtx compact"><thead><tr><th class="cnr">&nbsp;</th>'
+      '<th class="cnr">Tracks</th><th class="cnr">mebx</th>'
+      '<th class="cnr">Apple keys</th></tr></thead><tbody>')
+    for label, tracks, mebx, keys, cls in [
+            ("the recording you posted", "5", "3", "14, including every face key", "cnt"),
+            ("what TikTok uploaded", "2", "0", "2, both written by TikTok", "zero")]:
+        a('<tr><td class="fld">%s</td><td class="%s">%s</td><td class="%s">%s</td>'
+          '<td class="on">%s</td></tr>'
+          % (esc(label), cls, tracks, cls, mebx, esc(keys)))
+    a('</tbody></table></div>')
+    a('<p class="cap">The re-encode drops to video and audio and keeps nothing else. This is '
+      'measured rather than inferred, which matters: the earlier re-encode on this page came '
+      'from a synthetic clip that never had metadata tracks to lose, so it could not tell a '
+      'strip apart from an absence. This input had three and the output has none.</p>')
+    a('</div>')
+
+    a('<div class="panel is-warn"><h3>Where it does go</h3>')
+    a('<p>The face data is Apple&rsquo;s, not TikTok&rsquo;s, and it is in the file on the '
+      'phone. Anything that takes the original bytes rather than a re-encode carries it '
+      'along &mdash; AirDrop, email, a cloud drive that stores what it is given, a backup. '
+      'TikTok is the case that was measured here, and TikTok strips it. That says nothing '
+      'about anywhere else the same file goes.</p></div>')
+    a('</section>')
+    return "\n".join(o)
 
 
 def sweep_video_section():

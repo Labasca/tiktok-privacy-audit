@@ -2272,6 +2272,69 @@ if (!ObjC.available) {
       }
     });
   });
+  // 3c-bis. The timed-metadata tracks. A recording carries three mebx tracks
+  // alongside the picture and sound, spanning the whole duration, and they
+  // declare com.apple.quicktime.detected-face with per-frame bounds, a
+  // face-id, and roll and yaw angles. None of that reaches AVAsset.metadata,
+  // which is why the clip table looks so much thinner than the photo one: the
+  // container carries six atoms and the tracks carry the rest.
+  //
+  // Reading those samples needs an AVAssetReader over the metadata track, or
+  // AVPlayerItemMetadataOutput. Hooking the moment either is pointed at a
+  // metadata track answers whether TikTok goes looking, without paying the
+  // cost of following every sample buffer.
+  ['AVAsset', 'AVURLAsset'].forEach(function (cls) {
+    mediaHook(cls, '- tracksWithMediaType:', {
+      onEnter: function (args) {
+        try {
+          if (_selfRead) return;
+          this._mt = String(new ObjC.Object(args[2]));
+        } catch (e) {}
+      },
+      onLeave: function (ret) {
+        try {
+          if (_selfRead || !this._mt) return;
+          // 'mebx' is the sample format; the media type of those tracks is
+          // 'meta'. Asking for it at all is the signal worth recording.
+          if (this._mt !== 'meta' && this._mt !== 'mebx') return;
+          let n = 0;
+          try { n = new ObjC.Object(ret).count(); } catch (e) {}
+          emit('MEDIA', 'asked for the timed-metadata tracks',
+               this._mt + ', ' + n + ' returned');
+        } catch (e) {}
+      }
+    });
+  });
+  mediaHook('AVAssetReaderTrackOutput', '- initWithTrack:outputSettings:', {
+    onEnter: function (args) {
+      try {
+        if (_selfRead) return;
+        const track = new ObjC.Object(args[2]);
+        const mt = String(track.mediaType());
+        emit('MEDIA', 'built a sample reader over a track', mt);
+        if (mt === 'meta' || mt === 'mebx') {
+          emit('MEDIA_TAG', 'reading timed metadata samples',
+               'per-frame track, this is where detected-face lives');
+        }
+      } catch (e) {}
+    }
+  });
+  ['- initWithIdentifiers:'].forEach(function (sel) {
+    mediaHook('AVPlayerItemMetadataOutput', sel, {
+      onEnter: function (args) {
+        try {
+          if (_selfRead) return;
+          let ids = '(all identifiers)';
+          try {
+            const a = new ObjC.Object(args[2]);
+            if (!a.isNull || !a.isNull()) ids = String(a);
+          } catch (e) {}
+          emit('MEDIA_TAG', 'subscribed to timed metadata', ids.slice(0, 120));
+        } catch (e) {}
+      }
+    });
+  });
+
   ['AVAssetExportSession', 'AVAssetWriter'].forEach(function (cls) {
     mediaHook(cls, '- setOutputURL:', {
       onEnter: function (args) {
