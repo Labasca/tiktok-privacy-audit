@@ -61,6 +61,10 @@ RUNS = [
          cls="is-warn", origin="FIRST TRY", note="same idea, but ffmpeg signed it",
          src="IMG_0034.MOV", src_bytes=13989093, export=None, dump=None,
          blended=True, table=False),
+    dict(id="mebx-test", n=10, key="recording", label="RECORDING", cls="is-good",
+         origin="I FILMED IT", note="shot today, 1080p30, three metadata tracks",
+         src="IMG_0047.MOV", src_bytes=6689542, export=6658254, dump=None,
+         blended=True),
     dict(id="unique-6-publish", n=None, key="publish", label="WIRE", cls="is-bad",
          origin="CAPTURED IT", note="TLS hook on the canary re-post",
          src="export_1786728350292.mov", src_bytes=34375, export=34384, dump=None),
@@ -262,6 +266,7 @@ PHASES = [
     ("track", "TRACK", "Track-level codec."),
     ("file", "FILE", "Filesystem stat on files TikTok touched."),
     ("image", "IMAGE", "CGImage properties. UI chrome and thumbnails, not the video."),
+    ("resource", "RESOURCE", "Type of the asset actually handed to the encoder."),
 ]
 
 PROVENANCE_ATOMS = {
@@ -493,10 +498,11 @@ def main():
     expect = {"unique-1-solo": 67, "unique-2-solo": 92, "unique-3-sintel": 78,
               "unique-4-bunny": 94, "unique-5-camera": 85, "unique-6-canary-2": 106,
               "unique-6-publish": 40, "unique-8-ai-2": 86, "unique-9-stripped": 90,
-              "unique-10-nativized": 75, "unique-11-nativized-solo": 85}
+              "unique-10-nativized": 75, "unique-11-nativized-solo": 85,
+              "mebx-test": 170}
     for rid, n in expect.items():
         assert runs[rid]["tag_count"] == n, "%s drifted" % rid
-    assert raw_total == 898, "raw tag total drifted: %d" % raw_total
+    assert raw_total == 1068, "raw tag total drifted: %d" % raw_total
     orphans = [(r, f["atom"]) for r in runs for f in runs[r]["_facts"] if f["phase"] == "?"]
     assert not orphans, "facts in an unrecognised phase would vanish from the ledger: %r" % orphans
     unsplit = [(r, f["atom"]) for r in runs for f in runs[r]["_facts"]
@@ -914,11 +920,14 @@ def matrix_section(runs, vvar):
                      ("is-dim", "Generated or downloaded — nothing to take")]:
         a('<span class="%s"><i></i>%s</span>' % (cls, txt))
     a('</div>')
-    a('<p class="cap"><b>Clip 8 (AI STRIPPED) is blended.</b> Its Recents still held four clips, so the picker '
-      'deep-walked all of them and its INPUT column mixes files &mdash; including a leftover '
-      'TikTok export, which is why a TEEditor JSON string shows up under device software. Only '
-      'its <em>written</em> row is attributable to the clip that was posted. Every other column '
-      'had exactly one item in Recents.</p>')
+    a('<p class="cap"><b>Two columns are blended, and marked so.</b> Clip 8 (AI STRIPPED) had '
+      'four clips in Recents and clip 10 (RECORDING) had a dozen, so for both the picker '
+      'deep-walked the roll and their INPUT columns mix files &mdash; clip 8 picks up a leftover '
+      'TikTok export, which is why a TEEditor JSON string appears under device software, and '
+      'clip 10 picks up the sweep canaries. We now know why: the picker reads every clip in the '
+      'roll, which the two-clip experiment below settles. For both columns only the '
+      '<em>written</em> row is attributable to the file that was posted. The other seven had '
+      'exactly one item in Recents.</p>')
     a('<p class="cap"><b>On the AI-label row,</b> a dash is real evidence. Most exports report '
       'their fields as numbered keys rather than names, but the rig records the <em>value</em> '
       'either way &mdash; and the string <code>aigc_label_type</code> appears in exactly one '
