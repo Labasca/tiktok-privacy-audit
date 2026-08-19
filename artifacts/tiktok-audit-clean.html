@@ -268,7 +268,7 @@ details > details { margin:0 15px 10px; background:var(--sunk); }
 <div class="tile "><b>898</b><span>things it read</span></div>
 <div class="tile is-bad"><b>10</b><span>identity fields it took</span></div>
 <div class="tile is-warn"><b>18&times;</b><span>times it re-read your GPS</span></div>
-<div class="tile is-good"><b>0</b><span>survived the re-encode</span></div>
+<div class="tile is-good"><b>0</b><span>survived the rebuild</span></div>
 <div class="tile is-new"><b>1</b><span>AI label it added</span></div>
 </div>
 <section><h2>Read this before the table</h2>
@@ -1285,7 +1285,7 @@ details > details { margin:0 15px 10px; background:var(--sunk); }
 <td class="off">n/a</td>
 <td class="cnt">6</td>
 <td class="off">&mdash;</td></tr>
-<tr><td class="fld">survived the re-encode</td><td class="in"></td>
+<tr><td class="fld">survived the rebuild</td><td class="in"></td>
 <td class="off">not traced</td>
 <td class="off">not traced</td>
 <td class="off">not traced</td>
@@ -1332,7 +1332,7 @@ details > details { margin:0 15px 10px; background:var(--sunk); }
 <div class="arw">&#8594;</div>
 <div class="stg is-new"><b>10</b><span>read by TikTok</span><em>every one, 2&times; at the picker then 18&times; on compose</em></div>
 <div class="arw">&#8594;</div>
-<div class="stg is-bad"><b>0</b><span>survive the re-encode</span><em>measured on the pulled file: only TEEditor / Lavf57.71.100 remain</em></div>
+<div class="stg is-bad"><b>0</b><span>survive the rebuild</span><em>the streams are copied untouched and the container is rebuilt without them</em></div>
 <div class="arw">&#8594;</div>
 <div class="stg is-dim"><b>?</b><span>on the wire</span><em>never captured &mdash; we logged the request headers, not the 34 KB body</em></div>
 </div>
@@ -1512,6 +1512,16 @@ ffmpeg -i clip.mov -c:v hevc_videotoolbox -tag:v hvc1 \
 <tr><td class="fld">what TikTok uploaded</td><td class="zero">2</td><td class="zero">0</td><td class="on">2, both written by TikTok</td></tr>
 </tbody></table></div>
 <p class="cap">The re-encode drops to video and audio and keeps nothing else. This is measured rather than inferred, which matters: the earlier re-encode on this page came from a synthetic clip that never had metadata tracks to lose, so it could not tell a strip apart from an absence. This input had three and the output has none.</p>
+</div>
+<div class="panel is-bad"><h3>It is not a re-encode. It is a rebuild.</h3>
+<p>Losing metadata to a transcode would be collateral damage. This is not that. The same post that answered the face question also gave the first side-by-side of a <em>real</em> recording against the file TikTok made from it, and the picture is unambiguous:</p>
+<div class="mtx-wrap"><table class="mtx compact"><thead><tr><th class="cnr">&nbsp;</th><th class="cnr">Codec</th><th class="cnr">Size</th><th class="cnr">Frame rate</th><th class="cnr">Media payload</th></tr></thead><tbody>
+<tr><td class="fld">your recording</td><td class="on">hvc1</td><td class="on">1920&times;1080</td><td class="on">30.007 fps</td><td class="on">6 677 964 B</td></tr>
+<tr><td class="fld">what TikTok uploaded</td><td class="on">hvc1</td><td class="on">1920&times;1080</td><td class="on">30.007 fps</td><td class="on">6 648 714 B</td></tr>
+</tbody></table></div>
+<p class="cap"><b>30.007 is the tell.</b> No encoder produces that &mdash; a real transcode lands on exactly 30. It survives, <code>hvc1</code> survives where most platforms convert HEVC to H.264, and the media payload comes out <b>0.4% smaller</b>. TikTok&rsquo;s own export agrees, writing <code>te_is_reencode: 0</code> and <code>isFastImport: 1</code> into the file.</p>
+<p class="cap"><b>29 250 bytes were removed, and that is essentially the three metadata tracks.</b> Your video and audio are copied through untouched. What TikTok does is rebuild the container around them without your Keys atoms and without the timed-metadata tracks &mdash; so the stripping is a decision, not a side effect of compression. Same outcome as a re-encode would give, arrived at deliberately.</p>
+<p class="cap">Two things it writes every time and that are not new to this run: the movie-header dates are zeroed to <code>0000:00:00</code>, and a 32-character <code>Copyright</code> hash is stamped in. The older canary export carries both.</p>
 </div>
 <div class="panel is-warn"><h3>Where it does go</h3>
 <p>The face data is Apple&rsquo;s, not TikTok&rsquo;s, and it is in the file on the phone. Anything that takes the original bytes rather than a re-encode carries it along &mdash; AirDrop, email, a cloud drive that stores what it is given, a backup. TikTok is the case that was measured here, and TikTok strips it. That says nothing about anywhere else the same file goes.</p></div>

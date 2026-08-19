@@ -583,7 +583,7 @@ def main():
     for cls, big, small in [("", "898", "things it read"),
                             ("is-bad", "10", "identity fields it took"),
                             ("is-warn", "18&times;", "times it re-read your GPS"),
-                            ("is-good", "0", "survived the re-encode"),
+                            ("is-good", "0", "survived the rebuild"),
                             ("is-new", "1", "AI label it added")]:
         w('<div class="tile %s"><b>%s</b><span>%s</span></div>' % (cls, big, small))
     w('</div>')
@@ -900,7 +900,7 @@ def matrix_section(runs, vvar):
                  if f["atom"] in PROVENANCE_ATOMS])
         a('<td class="%s">%s</td>' % ("cnt" if n else "off", n if n else "&mdash;"))
     a('<td class="off">&mdash;</td></tr>')
-    a('<tr><td class="fld">survived the re-encode</td><td class="in"></td>')
+    a('<tr><td class="fld">survived the rebuild</td><td class="in"></td>')
     for c in cols:
         a('<td class="%s">%s</td>'
           % ("zero" if c["key"] == "canary" else "off",
@@ -992,8 +992,8 @@ def funnel_section(canary_ids):
                                               "all present after the Photos import"),
             ("is-new", str(n), "read by TikTok", "every one, 2&times; at the picker then "
                                                  "18&times; on compose"),
-            ("is-bad", "0", "survive the re-encode", "measured on the pulled file: only "
-                                                     "TEEditor / Lavf57.71.100 remain"),
+            ("is-bad", "0", "survive the rebuild", "the streams are copied untouched and "
+                                                   "the container is rebuilt without them"),
             ("is-dim", "?", "on the wire", "never captured &mdash; we logged the request "
                                            "headers, not the 34 KB body")]):
         if i:
@@ -1571,6 +1571,35 @@ def face_tracks_section():
       'measured rather than inferred, which matters: the earlier re-encode on this page came '
       'from a synthetic clip that never had metadata tracks to lose, so it could not tell a '
       'strip apart from an absence. This input had three and the output has none.</p>')
+    a('</div>')
+
+    a('<div class="panel is-bad"><h3>It is not a re-encode. It is a rebuild.</h3>')
+    a('<p>Losing metadata to a transcode would be collateral damage. This is not that. The same '
+      'post that answered the face question also gave the first side-by-side of a <em>real</em> '
+      'recording against the file TikTok made from it, and the picture is unambiguous:</p>')
+    a('<div class="mtx-wrap"><table class="mtx compact"><thead><tr><th class="cnr">&nbsp;</th>'
+      '<th class="cnr">Codec</th><th class="cnr">Size</th><th class="cnr">Frame rate</th>'
+      '<th class="cnr">Media payload</th></tr></thead><tbody>')
+    for label, codec, dim, fps, payload in [
+            ("your recording", "hvc1", "1920&times;1080", "30.007 fps", "6 677 964 B"),
+            ("what TikTok uploaded", "hvc1", "1920&times;1080", "30.007 fps", "6 648 714 B")]:
+        a('<tr><td class="fld">%s</td><td class="on">%s</td><td class="on">%s</td>'
+          '<td class="on">%s</td><td class="on">%s</td></tr>'
+          % (esc(label), codec, dim, fps, payload))
+    a('</tbody></table></div>')
+    a('<p class="cap"><b>30.007 is the tell.</b> No encoder produces that &mdash; a real '
+      'transcode lands on exactly 30. It survives, <code>hvc1</code> survives where most '
+      'platforms convert HEVC to H.264, and the media payload comes out <b>0.4% smaller</b>. '
+      'TikTok&rsquo;s own export agrees, writing <code>te_is_reencode: 0</code> and '
+      '<code>isFastImport: 1</code> into the file.</p>')
+    a('<p class="cap"><b>29 250 bytes were removed, and that is essentially the three metadata '
+      'tracks.</b> Your video and audio are copied through untouched. What TikTok does is '
+      'rebuild the container around them without your Keys atoms and without the timed-metadata '
+      'tracks &mdash; so the stripping is a decision, not a side effect of compression. Same '
+      'outcome as a re-encode would give, arrived at deliberately.</p>')
+    a('<p class="cap">Two things it writes every time and that are not new to this run: the '
+      'movie-header dates are zeroed to <code>0000:00:00</code>, and a 32-character '
+      '<code>Copyright</code> hash is stamped in. The older canary export carries both.</p>')
     a('</div>')
 
     a('<div class="panel is-warn"><h3>Where it does go</h3>')
