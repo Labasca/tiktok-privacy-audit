@@ -1,7 +1,7 @@
 # TikTok privacy audit, read-only. Windows launcher + supervisor.
 #
 # Usage:  .\tiktok-audit.ps1 [seconds] [-Full] [-Deep] [-Touch] [-Attach]
-#                                      [-Publish] [-Quiet] [-Stream] [-Run NAME]  (default 40)
+#                       [-Publish] [-Net] [-Quiet] [-Stream] [-Run NAME]  (default 40)
 #
 # -Run NAME writes this run's artifacts to runs\NAME\ instead of overwriting the
 # ones in the project root. Use it for every run that will be compared against
@@ -27,12 +27,17 @@
 # hook, no -Full carousel. Use it on the compose screen with -Attach.
 # -Deep adds the stat/access/statfs probes, which are the
 # highest volume and lowest value in the set.
+# -Net spends the entire window on the network group and arms nothing else.
+# -Full samples that group twice for under a second, which is enough to prove a
+# mechanism is in use and never enough to enumerate what it touched. Use -Net
+# for the address list, ideally with -Attach so the launch burst is included.
 #
 # Requires: the project venv (.venv) with the pinned Frida client, and Apple's
 # usbmux layer (iTunes or the Apple Devices app) so Frida can see the iPhone.
 param([int]$Duration = 40, [switch]$Full, [switch]$Touch, [switch]$Deep,
-      [switch]$Attach, [switch]$Publish, [switch]$Stream, [switch]$Quiet,
-      [string]$Run = "")
+      [switch]$Attach, [switch]$Publish, [switch]$Net, [switch]$Reach,
+      [switch]$Wan, [switch]$Stream,
+      [switch]$Quiet, [string]$Run = "")
 
 Set-Location -Path $PSScriptRoot
 
@@ -93,6 +98,9 @@ $env:TIKTOK_AUDIT_TOUCH = if ($Touch) { "1" } else { "" }
 $env:TIKTOK_AUDIT_DEEP = if ($Deep) { "1" } else { "" }
 $env:TIKTOK_AUDIT_ATTACH = if ($Attach) { "1" } else { "" }
 $env:TIKTOK_AUDIT_PUBLISH = if ($Publish) { "1" } else { "" }
+$env:TIKTOK_AUDIT_NET = if ($Net) { "1" } else { "" }
+$env:TIKTOK_AUDIT_REACH = if ($Reach) { "1" } else { "" }
+$env:TIKTOK_AUDIT_WAN = if ($Wan) { "1" } else { "" }
 # A named run redirects every artifact into runs\NAME\ so a second run
 # cannot overwrite the evidence from the first. Empty means the project root.
 $env:TIKTOK_AUDIT_RUN = $Run
@@ -123,6 +131,12 @@ if ($Publish) {
     Write-Host ""
     Write-Host "  -Publish: one SSL_write hook, no net/sys carousel. Sit on Post, then tap." -ForegroundColor Yellow
 }
+if ($Net) {
+    Write-Host ""
+    Write-Host "  -Net: the whole window on the network group, nothing else armed." -ForegroundColor Yellow
+    Write-Host "  This is what enumerates addresses. -Full only samples them." -ForegroundColor DarkGray
+    Write-Host "  Pair it with -Attach and scroll the feed for the widest coverage." -ForegroundColor DarkGray
+}
 
 # clear any stale heartbeat so a leftover file cannot look "fresh"
 $hb = Join-Path $PSScriptRoot "audit.heartbeat"
@@ -130,7 +144,10 @@ Remove-Item $hb -Force -ErrorAction SilentlyContinue
 
 # hard limits for the supervisor. The child self-terminates at $Duration; these
 # are the outer backstops if it does not.
-$DeadlineSec = $Duration + 20     # absolute wall-clock kill
+# Tearing down a large hook set over USB is not instant: a -Full or -Net run
+# measured past 20s between the last event and the report, and the old backstop
+# killed the child mid-write, losing the report for a run that had worked.
+$DeadlineSec = $Duration + 45     # absolute wall-clock kill
 $StaleSec = 6                     # kill if the heartbeat file stops updating
 
 $proc = Start-Process -FilePath $py -ArgumentList "run_observe.py $Duration" `
@@ -163,6 +180,9 @@ finally {
     $env:TIKTOK_AUDIT_DEEP = ""
     $env:TIKTOK_AUDIT_ATTACH = ""
     $env:TIKTOK_AUDIT_PUBLISH = ""
+    $env:TIKTOK_AUDIT_NET = ""
+    $env:TIKTOK_AUDIT_REACH = ""
+    $env:TIKTOK_AUDIT_WAN = ""
     $env:TIKTOK_AUDIT_RUN = ""
     $env:TIKTOK_AUDIT_VERBOSE = ""
     $env:TIKTOK_AUDIT_QUIET = ""

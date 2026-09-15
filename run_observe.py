@@ -88,6 +88,22 @@ ATTACH_ON = _flag("TIKTOK_AUDIT_ATTACH")
 # One SSL_write hook for the publish body. Not -Full: that carousel is what
 # killed TikTok on Post. Armed once and left up. Use with -Attach on compose.
 PUBLISH_ON = _flag("TIKTOK_AUDIT_PUBLISH")
+# The whole window spent on the network group, nothing else armed. -Full samples
+# it twice for under a second each, which proves a mechanism is in use and can
+# never enumerate what it touched. This is the mode for the address list.
+NET_ON = _flag("TIKTOK_AUDIT_NET")
+# The capability sweep: call, from inside TikTok's own process, the things it
+# could have asked for and did not. Answers "what can they get", where the rest
+# of the run answers "what did they take". Off unless asked for.
+REACH_ON = _flag("TIKTOK_AUDIT_REACH")
+# The one sweep probe that puts a packet on the wire, so it is its own switch.
+WAN_ON = _flag("TIKTOK_AUDIT_WAN")
+# After the launch watchdog and after the first probe pass, so a sweep can never
+# be blamed for a scene-deadline kill.
+REACH_AT_S = 13.0
+# The direct-socket probe blocks the script thread for up to two seconds, so it
+# gets its own tick, well clear of the rest of the sweep.
+REACH_WAN_AT_S = 17.0
 
 # 11s, and the number is not arbitrary: scene-create's allowance is 10.00 seconds
 # measured from launch. Arming strictly after it means a probe can never
@@ -111,9 +127,17 @@ if PUBLISH_ON:
     _pub_settle = 2.0 if ATTACH_ON else PROBE_SETTLE_S
     _pub_ms = max(8000, int((DURATION - _pub_settle - 1.0) * 1000))
     PROBE_PLAN += [("publish", _pub_ms)]
+elif NET_ON:
+    # Sampling answers "does it do this at all". It cannot answer "every address
+    # it touched", because two sub-second passes over connect() see two random
+    # slices and miss everything between them. This mode gives up the tls and
+    # sys carousel and spends the whole window on the network group instead.
+    _net_settle = 2.0 if ATTACH_ON else PROBE_SETTLE_S
+    _net_ms = max(8000, int((DURATION - _net_settle - 1.0) * 1000))
+    PROBE_PLAN += [("net", _net_ms)]
 elif _FULL:
     PROBE_PLAN += [("net", 800), ("tls", 600), ("sys", 800)]
-if not PUBLISH_ON:
+if not (PUBLISH_ON or NET_ON):
     if DEEP_ON:
         PROBE_PLAN += [("fs", 700)]
     if TOUCH_ON:
@@ -143,13 +167,16 @@ def probe_schedule(plan, duration, settle=PROBE_SETTLE_S, gap=PROBE_GAP_S,
     cutoffs are what actually end a sample; this is only tidy-up, and it must
     never be the thing the safety depends on, because it travels over USB.
     """
-    if PUBLISH_ON and plan and plan[0][0] == "publish":
+    # Two modes arm a single group for one long window instead of sampling: the
+    # publish catch and the deep network sweep. A carousel is the wrong shape for
+    # both, because what they are waiting for happens when it happens.
+    if plan and (PUBLISH_ON or NET_ON) and plan[0][0] in ("publish", "net"):
         t = 2.0 if ATTACH_ON else settle
-        win = plan[0][1]
+        group, win = plan[0]
         down = min(duration - 0.4, t + win / 1000.0 + 0.35)
         if down <= t:
             return []
-        return [(t, down, "publish", win)]
+        return [(t, down, group, win)]
     out, t, rounds = [], settle, 0
     if not plan:
         return out
@@ -386,7 +413,23 @@ HOSTS = [
     ("isnssdk.com",          "ByteDance",   "first-party API", INFO),
     ("amemv.com",            "ByteDance",   "first-party API", INFO),
     ("musical.ly",           "TikTok",      "legacy first-party", INFO),
-    ("app-analytics-services.com", "Apple", "App Store analytics", WATCH),
+    # Not Apple, despite the name. WHOIS registrant is Google LLC, the addresses
+    # sit in AS15169, and it speaks the same POST /a protobuf as the
+    # app-measurement.com entry above: it is GA4 for Firebase's current
+    # collection endpoint. The -att variant is the path used when App Tracking
+    # Transparency was granted, which is why seeing one and not the other says
+    # something about the ATT answer.
+    ("app-analytics-services.com",     "Google", "Firebase analytics", FLAG),
+    ("app-analytics-services-att.com", "Google", "Firebase analytics, ATT path", FLAG),
+    ("firebaseinstallations.googleapis.com", "Google", "Firebase installation ID", FLAG),
+    ("googleapis.com",       "Google",      "platform service", WATCH),
+    # ByteDance's own resolver and steering layer. A connection here is the app
+    # deciding where to connect next, outside the system resolver entirely.
+    ("bdurl.net",            "ByteDance",   "HTTPDNS, its own resolver", FLAG),
+    ("ttdns2.com",           "ByteDance",   "resolver wrapper domain", FLAG),
+    ("ttlivecdn.com",        "ByteDance",   "live streaming CDN", INFO),
+    ("pstatp.com",           "ByteDance",   "legacy first-party CDN", INFO),
+    ("ipstatp.com",          "ByteDance",   "legacy first-party CDN", INFO),
     ("apple.com",            "Apple",       "platform service", INFO),
     ("icloud.com",           "Apple",       "platform service", INFO),
 ]
@@ -491,6 +534,44 @@ def is_app_tunnel(addrs):
     return False
 
 
+def mask_to_prefix(mask):
+    """255.255.255.0 -> /24. Nobody reads a netmask in dotted quad on sight."""
+    if not mask:
+        return None
+    m = str(mask).replace("netmask ", "").strip()
+    try:
+        ip = ipaddress.ip_address(m.split("%")[0])
+    except ValueError:
+        return m
+    bits = bin(int(ip)).count("1")
+    return "/%d" % bits
+
+
+def mac_from_eui64(addr):
+    """A link-local address is usually dismissed as identifying nothing. That is
+    true of the ones iOS generates opaquely per network, and false of the ones
+    built the old way: those wrap the interface's own MAC around a fixed ff:fe,
+    and a MAC does not change when you join a different network. Returns the
+    MAC if the address was derived from one, else None."""
+    try:
+        ip = ipaddress.ip_address(addr.split("%")[0])
+    except ValueError:
+        return None
+    if ip.version != 6:
+        return None
+    b = ip.packed[8:]
+    if b[3] != 0xFF or b[4] != 0xFE:
+        return None                      # opaque (RFC 7217) or random, no MAC
+    raw = bytes([b[0] ^ 0x02, b[1], b[2], b[5], b[6], b[7]])
+    return ":".join("%02x" % x for x in raw)
+
+
+def masked_mac(mac):
+    """iOS hands every app 02:00:00:00:00:00 instead of the real hardware
+    address. Seeing that is the OS refusing, not the app failing to ask."""
+    return mac in ("02:00:00:00:00:00", "00:00:00:00:00:00")
+
+
 def net_picture(items):
     """Everything the interface scans revealed, sorted into the questions a
     person actually asks: am I on a VPN, which addresses can it see, is my real
@@ -498,12 +579,24 @@ def net_picture(items):
     ifaces = [r for r in items if r.get("src") == "INTERFACE"]
     pic = {"tunnels": [], "lan": [], "carrier": [], "public": [], "hotspot": [],
            "scans": 0, "proxy": 0, "n_ifaces": len(ifaces),
-           "egress": [], "nwpath": [], "ifenum": 0}
+           "egress": [], "nwpath": [], "ifenum": 0,
+           "resolvers": [], "gateways": [], "neighbours": [], "route_reads": 0,
+           "iflist_reads": 0,
+           "hw": [], "derived": [], "masks": {}, "peers": [],
+           "wifi": {}, "proxy_answers": [], "public_echo": [],
+           "reach": {}, "blocked": {}, "wan": [], "hw_sweep": {},
+           "sweep_addr": {}, "nbr": {}, "paths": []}
     for r in items:
         if r["key"] == "getifaddrs":
             pic["scans"] = r["count"]
         elif r.get("src") == "PROXY":
-            pic["proxy"] += r["count"]
+            # the question and the answer arrive as the same KIND; only the
+            # question is a count, the answers are facts
+            if r["key"] in ("proxy config", "VPN status"):
+                pic["proxy"] += r["count"]
+            else:
+                for v in r["values"]:
+                    pic["proxy_answers"].append((r["key"], v))
         elif r.get("src") == "EGRESS":
             # a socket bound to loopback never left the phone
             if addr_kind(r["key"])[2]:
@@ -513,10 +606,67 @@ def net_picture(items):
             pic["nwpath"].append((r["key"], answer, r["count"]))
         elif r.get("src") == "IFENUM":
             pic["ifenum"] += r["count"]
+        elif r.get("src") == "RESOLVER":
+            if r["key"] == "DNS server":
+                for v in r["values"]:
+                    pic["resolvers"].append(norm_addr(v))
+        elif r.get("src") == "ROUTE":
+            # one KIND, three questions: the router, the route table, and a
+            # third route to the interface list that neither getifaddrs nor
+            # ioctl covers
+            if r["key"] == "default gateway":
+                for v in r["values"]:
+                    pic["gateways"].append(norm_addr(v))
+            elif "interface list" in r["key"]:
+                pic["iflist_reads"] += r["count"]
+            else:
+                pic["route_reads"] += r["count"]
+        elif r.get("src") == "NEIGHBOUR":
+            for v in r["values"]:
+                pic["neighbours"].append((norm_addr(r["key"]), v))
+        elif r.get("src") == "IFACE_HW":
+            for v in r["values"]:
+                pic["hw"].append((r["key"], v))
+        elif r.get("src") == "IFACE_MASK":
+            for v in r["values"]:
+                pic["masks"][r["key"]] = v
+        elif r.get("src") == "PUBLIC_IP":
+            pic["public_echo"].append(norm_addr(r["key"]))
+        elif r.get("src") == "INTERFACE_ID":
+            for v in r["values"]:
+                pic["wifi"].setdefault(r["key"], []).append(v)
+        # the capability sweep: what it could have had, and what iOS refused
+        elif r.get("src") == "REACH":
+            for v in r["values"]:
+                pic["reach"].setdefault(r["key"], []).append(v)
+        elif r.get("src") == "REACH_NO":
+            for v in r["values"]:
+                pic["blocked"][r["key"]] = v
+        elif r.get("src") == "REACH_PATH":
+            for v in r["values"]:
+                pic["paths"].append((r["key"], v))
+        elif r.get("src") == "REACH_WAN":
+            for v in r["values"]:
+                pic["wan"].append((norm_addr(r["key"]), v))
+        elif r.get("src") == "REACH_IFACE":
+            for v in r["values"]:
+                pic["hw_sweep"][r["key"]] = v
+        elif r.get("src") == "REACH_IFADDR":
+            for v in r["values"]:
+                pic["sweep_addr"].setdefault(r["key"], v)
+        elif r.get("src") == "REACH_NEIGHBOUR":
+            pic["nbr"][norm_addr(r["key"])] = (r["values"].most_common(1)[0][0]
+                                               if r["values"] else "")
     for r in ifaces:
         addrs = sorted(r["values"])
         role = iface_role(r["key"])
         routable = [a for a in addrs if addr_kind(a)[2]]
+        # done before the tunnel branch below returns, because a tunnel's
+        # link-local carries a MAC as readily as any other interface's
+        for a in addrs:
+            mac = mac_from_eui64(a)
+            if mac:
+                pic["derived"].append((r["key"], norm_addr(a), mac))
         if role in TUNNEL_ROLES and routable:
             pic["tunnels"].append((r["key"], [norm_addr(a) for a in routable],
                                    is_app_tunnel(routable)))
@@ -564,10 +714,65 @@ def net_summary_rows(pic):
         nm, a = pic["public"][0]
         out.append(("Your real public address", a,
                     "readable straight off %s, no server needed" % nm))
+    elif pic["public_echo"]:
+        # Nothing on the device holds it, so the app was told. This is the one
+        # answer here that comes from the far end rather than from the phone.
+        out.append(("Your real public address", sorted(set(pic["public_echo"]))[0],
+                    "not on any interface: its own resolver echoed it back, "
+                    "so the app holds it anyway"))
     else:
         out.append(("Your real public address", "not exposed",
                     "nothing globally routable on the device"
                     + (", no leak past the tunnel" if pic["tunnels"] else "")))
+
+    # The router. Not derivable from any address the phone holds, and the one
+    # fact here that is the same for every device behind it.
+    if pic["gateways"]:
+        gws = sorted(set(pic["gateways"]))
+        out.append(("The router it found", gws[0],
+                    "read out of the routing table, which needs no permission"
+                    + (", plus " + ", ".join(gws[1:]) if len(gws) > 1 else "")))
+    elif pic["route_reads"]:
+        out.append(("Routing table read", "%d times" % pic["route_reads"],
+                    "no default route in what it asked for"))
+
+    if pic["resolvers"]:
+        rs = sorted(set(pic["resolvers"]))
+        out.append(("DNS servers it read", rs[0],
+                    "these name your ISP even when a VPN carries the traffic"
+                    + (", plus " + ", ".join(rs[1:]) if len(rs) > 1 else "")))
+
+    if pic["neighbours"]:
+        out.append(("Other devices on the LAN", "%d seen" % len(set(pic["neighbours"])),
+                    "read from the neighbour cache, no local network prompt"))
+
+    # A MAC survives changing networks, which is the whole difference between it
+    # and every address above.
+    real = [d for d in pic["derived"] if not masked_mac(d[2])]
+    if real:
+        by_mac = {}
+        for name, _addr, mac in real:
+            by_mac.setdefault(mac, set()).add(name)
+        for mac in sorted(by_mac):
+            out.append(("MAC address leaked", mac,
+                        "recoverable from the link-local address on %s"
+                        % ", ".join(sorted(by_mac[mac]))))
+
+    if pic["wifi"]:
+        name = pic["wifi"].get("Wi-Fi network name")
+        bssid = pic["wifi"].get("Wi-Fi router address")
+        if name:
+            out.append(("Wi-Fi network name", name[0], "the SSID you are joined to"))
+        if bssid:
+            out.append(("Wi-Fi router address", bssid[0],
+                        "the BSSID, which public databases map to a street"))
+        answer = pic["wifi"].get("Wi-Fi network identity answer")
+        if answer and not (name or bssid):
+            out.append(("Asked for the Wi-Fi name", "refused", answer[0]))
+
+    if pic["proxy_answers"]:
+        for k, v in pic["proxy_answers"][:4]:
+            out.append((clip(k, 24), clip(v, 26), "what iOS answered"))
 
     if pic["hotspot"]:
         out.append(("Sharing this connection", "yes",
@@ -589,6 +794,10 @@ def net_summary_rows(pic):
     if pic["ifenum"]:
         out.append(("Listed them a second way", "%d times" % pic["ifenum"],
                     "via ioctl, which is a quieter route to the same thing"))
+    if pic["iflist_reads"]:
+        out.append(("Listed them a %s way" % ("third" if pic["ifenum"] else "second"),
+                    "%d times" % pic["iflist_reads"],
+                    "via sysctl over the route socket, which needs no interface name"))
     if pic["proxy"]:
         out.append(("Proxy config asked", "%d times" % pic["proxy"],
                     "a deliberate question to iOS, not a side effect"))
@@ -747,6 +956,16 @@ def scheme_to_app(scheme):
 
 def classify_host(host):
     h = host.lower()
+    # Two labels are checked before the suffix table, because what they do
+    # matters more than whose domain they sit on. Both are server-configurable,
+    # so match the label rather than listing hosts that change without an app
+    # update: dig.* is ByteDance's own HTTP resolver, and tnc* is Network
+    # Control, the endpoint that pushes the domain and address map the app then
+    # steers its next connections by.
+    if h.startswith("dig.") or h.startswith("dig-"):
+        return "ByteDance", "HTTPDNS, its own resolver", FLAG
+    if h.startswith("tnc") and any(m in h for m in ("tiktok", "snssdk", "byted")):
+        return "TikTok", "network control, pushes its routing config", FLAG
     for suffix, owner, what, tier in HOSTS:
         if h == suffix or h.endswith("." + suffix):
             return owner, what, tier
@@ -827,9 +1046,64 @@ def describe(cat, key):
         return ("connection type check", FLAG)
     if cat == "IFENUM":
         return ("second way of listing interfaces", FLAG)
+    if cat == "IFACE_MASK":
+        return ("subnet size", INFO)
+    if cat == "IFACE_HW":
+        return ("hardware address", FLAG)
+    if cat == "IFACE_PEER":
+        return ("far end of the tunnel", FLAG)
+    if cat == "RESOLVER":
+        return ("DNS resolver", FLAG)
+    if cat == "ROUTE":
+        if key == "default gateway":
+            return ("the router on this network", FLAG)
+        if "interface list" in key:
+            return ("third way of listing interfaces", FLAG)
+        return ("routing table read", FLAG)
+    if cat == "NEIGHBOUR":
+        return ("another device on this network", FLAG)
     if cat == "DNS":
         owner, what, tier = classify_host(key)
         return ("%s, %s" % (owner, what), tier)
+    if cat == "DNS_FAIL":
+        return ("name lookup that failed", WATCH)
+    if cat == "DNS_NUMERIC":
+        return ("address it already had", FLAG)
+    if cat == "SOCKTYPE":
+        return ("datagram socket", WATCH)
+    if cat == "REACH":
+        return ("available to it, unasked", FLAG)
+    if cat == "REACH_NO":
+        return ("iOS refused this app", INFO)
+    if cat == "REACH_IFACE":
+        return ("interface, name and hardware address", FLAG)
+    if cat == "REACH_IFADDR":
+        return ("address on that interface", WATCH)
+    if cat == "REACH_NEIGHBOUR":
+        return ("another device on this network", FLAG)
+    if cat == "REACH_PATH":
+        return ("does this path work at all", INFO)
+    if cat == "REACH_WAN":
+        return ("your public address", FLAG)
+    if cat == "PUBLIC_IP":
+        return ("your public address, handed to the app", FLAG)
+    if cat == "HTTPDNS":
+        return ("resolved by ByteDance's own resolver", FLAG)
+    if cat == "DNS_CNAME":
+        return ("canonical name behind it", INFO)
+    if cat == "DNS_REVERSE":
+        return ("reverse lookup", INFO)
+    if cat == "SNI":
+        owner, what, tier = classify_host(key)
+        return ("%s, %s" % (owner, what), tier)
+    if cat == "NW_ENDPOINT":
+        return ("Network.framework endpoint", WATCH)
+    if cat == "UDP_PEER":
+        return ("datagram peer", WATCH)
+    if cat == "PEER":
+        return ("connected peer", WATCH)
+    if cat == "CONNECT_FAIL":
+        return ("socket that never connected", INFO)
     if cat == "CONNECT":
         return ("socket opened", WATCH)
     if cat == "LOCALE":
@@ -970,9 +1244,34 @@ def display_cat(cat, key):
             "EGRESS": "EXPOSURE",
             "NWPATH": "EXPOSURE",
             "IFENUM": "EXPOSURE",
+            "IFACE_MASK": "EXPOSURE",
+            "IFACE_HW": "EXPOSURE",
+            "IFACE_PEER": "EXPOSURE",
+            "RESOLVER": "EXPOSURE",
+            "ROUTE": "EXPOSURE",
+            "NEIGHBOUR": "EXPOSURE",
             "REQUEST": "DEST",
             "CONNECT": "DEST",
+            "CONNECT_FAIL": "DEST",
+            "PEER": "DEST",
+            "UDP_PEER": "DEST",
+            "NW_ENDPOINT": "DEST",
+            "SNI": "DEST",
             "DNS": "DEST",
+            "DNS_FAIL": "DEST",
+            "DNS_NUMERIC": "DEST",
+            "SOCKTYPE": "DEST",
+            "HTTPDNS": "DEST",
+            "PUBLIC_IP": "EXPOSURE",
+            "REACH": "EXPOSURE",
+            "REACH_NO": "EXPOSURE",
+            "REACH_NEIGHBOUR": "EXPOSURE",
+            "REACH_IFACE": "EXPOSURE",
+            "REACH_IFADDR": "EXPOSURE",
+            "REACH_WAN": "EXPOSURE",
+            "REACH_PATH": "EXPOSURE",
+            "DNS_CNAME": "DEST",
+            "DNS_REVERSE": "DEST",
             "LOCALE": "LOCALE",
             "SETTINGS": "LOCALE",
             "CARRIER": "CARRIER",
@@ -1610,62 +1909,352 @@ def collapse_groups(rows):
     return out
 
 
-def render_exposure(p, rows, all_items):
-    """What the scans revealed. Interfaces holding only a link-local address
-    carry no identifying information, so they collapse to a single line."""
-    ifaces = [r for r in rows if r.get("src") == "INTERFACE"]
-    addr_w = max(20, W - 58)
+def render_reach(p, rows, all_items):
+    """What the app could have had for the asking. Every call here was made from
+    inside TikTok's own process, so the sandbox and entitlements that decided
+    each answer were the app's. A refusal is therefore a real result: iOS held
+    the line against THIS app, not merely in principle."""
+    got = [r for r in rows if r.get("src") in ("REACH", "REACH_WAN")]
+    ifaces = [r for r in rows if r.get("src") == "REACH_IFACE"]
+    ifaddrs = [r for r in rows if r.get("src") == "REACH_IFADDR"]
+    denied = [r for r in rows if r.get("src") == "REACH_NO"]
+    nbrs = [r for r in rows if r.get("src") == "REACH_NEIGHBOUR"]
 
-    # the answer sheet first, the raw interface list underneath it
-    pic = net_picture(all_items)
-    q_w, a_w = 24, 26
-    note_w = max(24, W - q_w - a_w - 6)
-    pad = " " * (q_w + a_w + 4)
-    for question, answer, note in net_summary_rows(pic):
-        hot = answer.startswith("yes") or "readable straight off" in note
-        lines = wrap(note, note_w) or [""]
-        if not question and not answer:
-            for ln in lines:
-                p(pad + c(DIM, ln))
-            continue
-        p("  %-*s %s %s" % (
-            q_w, question,
-            (c("1;31", "%-*s" % (a_w, answer)) if hot else "%-*s" % (a_w, answer)),
-            c(DIM, lines[0])))
-        for ln in lines[1:]:
-            p(pad + c(DIM, ln))
+    # anything it also asked for on its own is not news; say so rather than
+    # listing it twice
+    observed = set()
+    for r in all_items:
+        if r.get("src") in ("RESOLVER", "ROUTE", "PROXY", "INTERFACE_ID", "GESTALT"):
+            observed.add(r["key"])
 
-    p("")
-    p("    " + c(DIM, "every interface those %d scans handed over:" % pic["scans"]))
+    name_w = max(26, int(W * 0.40))
+    val_w = max(18, W - name_w - 10)
 
-    live, quiet = [], []
-    for r in ifaces:
-        routable = sorted([a for a in r["values"] if addr_kind(a)[2]],
-                          key=lambda a: (addr_kind(a)[0] != "PUBLIC", a))
-        (live if routable else quiet).append((r, routable))
-
-    def sort_key(item):
-        r, addrs = item
-        return (0 if iface_verdict(r["key"], addrs)[1] == FLAG else 1, r["key"])
-
-    for r, addrs in sorted(live, key=sort_key):
-        verdict, tier = iface_verdict(r["key"], addrs)
-        mark = c("1;31", "!") if tier == FLAG else " "
-        for i, a in enumerate(addrs):
-            kind, ktier, _ = addr_kind(a)
-            p("  %s %-12s %-22s %-*s %s" % (
-                mark if i == 0 else " ",
-                r["key"] if i == 0 else "",
-                (verdict if i == 0 else "")[:22],
-                addr_w, clip(norm_addr(a), addr_w),
-                c("1;31", kind) if ktier == FLAG else c(DIM, kind)))
-
-    if quiet:
-        names = ", ".join(sorted(r["key"] for r, _ in quiet))
+    if got:
+        p("    " + c(DIM, "it never asked for these in this window, and would have got them:"))
+        for r in sorted(got, key=lambda r: (0 if r["tier"] == FLAG else 1, r["key"])):
+            val = r["values"].most_common(1)[0][0] if r["values"] else "available"
+            also = "  (and did ask)" if r["key"] in observed else ""
+            p("  %s %-*s %s%s" % (c("1;31", "!"), name_w, clip(r["key"], name_w),
+                                  clip(val, val_w), c(DIM, also)))
         p("")
-        for ln in wrap("%d further interfaces were visible but held only link-local or "
-                       "loopback addresses, which identify nothing: %s"
-                       % (len(quiet), names), W - 6):
+
+    if ifaces or ifaddrs:
+        p("    " + c(DIM, "every interface and address, via the sysctl route it "
+                          "calls most:"))
+        for r in sorted(ifaces, key=lambda r: r["key"]):
+            v = r["values"].most_common(1)[0][0] if r["values"] else ""
+            masked = "masked" in v
+            p("  %s %-*s %s" % (" " if masked else c("1;31", "!"),
+                                name_w, clip(r["key"], name_w),
+                                c(DIM, v) if masked else c("1;31", v)))
+        for r in sorted(ifaddrs, key=lambda r: r["key"]):
+            v = r["values"].most_common(1)[0][0] if r["values"] else ""
+            p("    %-*s %s" % (name_w, clip(r["key"], name_w), c(DIM, v)))
+        p("")
+
+    if nbrs:
+        p("    " + c(DIM, "every other device it could see on this network:"))
+        for r in sorted(nbrs, key=lambda r: r["key"])[:24]:
+            mac = r["values"].most_common(1)[0][0] if r["values"] else ""
+            p("  %s %-*s %s" % (c("1;31", "!"), name_w, clip(r["key"], name_w), c(DIM, mac)))
+        if len(nbrs) > 24:
+            p("    " + c(DIM, "and %d more" % (len(nbrs) - 24)))
+        p("")
+
+    if denied:
+        p("    " + c(DIM, "asked for on its behalf and refused by iOS:"))
+        for r in sorted(denied, key=lambda r: r["key"]):
+            why = r["values"].most_common(1)[0][0] if r["values"] else "refused"
+            p("    %-*s %s" % (name_w, clip(r["key"], name_w), c(DIM, clip(why, val_w))))
+        p("")
+        for ln in wrap("Those are the protections that actually hold. They were tested with "
+                       "this app's own entitlements, so they say what TikTok cannot have "
+                       "rather than what iOS restricts in general.", W - 6):
+            p("    " + c(DIM, ln))
+
+
+# Rows whose answer is a fact about you rather than a count. The old test read
+# the answer string, which cannot see that a router address matters.
+HOT_QUESTIONS = ("The router it found", "DNS servers it read",
+                 "MAC address leaked", "Wi-Fi router address",
+                 "Wi-Fi network name", "Other devices on the LAN")
+
+
+def render_exposure(p, rows, all_items):
+    """One section for the whole network picture.
+
+    The answer sheet comes first and always lists the same fields, whether the
+    app read them in this window or merely could have. A 45-second sample is a
+    lower bound on behaviour and says nothing about capability, so the two are
+    shown side by side with the provenance of each spelled out:
+
+        read      the app asked for it during this run
+        open      it did not ask, and the same call from its process returned
+                  this anyway
+        blocked   the same call from its process was refused by iOS
+
+    Everything below the sheet appears exactly once. The old layout printed the
+    same address in three places, which made a long report look like a lot of
+    findings rather than a few facts."""
+    pic = net_picture(all_items)
+
+    q_w = max(26, int(W * 0.34))
+    v_w = max(20, int(W * 0.34))
+    note_w = max(30, W - 12)
+
+    def sheet(label, value, how, note=""):
+        if value is None:
+            return
+        colour = {"LEAK": "1;31", "blocked": DIM, "open": "1;33"}.get(how)
+        hot = how in ("LEAK", "open")
+        p("  %s %-*s %s  %s" % (
+            c("1;31", "!") if how == "LEAK" else " ",
+            q_w, clip(label, q_w),
+            (c("1;31", "%-*s" % (v_w, clip(value, v_w))) if hot
+             else "%-*s" % (v_w, clip(value, v_w))),
+            c(colour or DIM, how)))
+        if note:
+            for ln in wrap(note, note_w):
+                p("    " + c(DIM, ln))
+
+    def first(d, *names):
+        for n in names:
+            if d.get(n):
+                v = d[n]
+                return v[0] if isinstance(v, list) else v
+        return None
+
+    # ---- what the phone holds, merged from both routes, deduped ------------
+    ifrows = {}
+    for r in [x for x in rows if x.get("src") == "INTERFACE"]:
+        ifrows.setdefault(r["key"], set()).update(r["values"])
+    for key in pic["sweep_addr"]:
+        parts = key.split("  ")
+        if len(parts) == 2:
+            ifrows.setdefault(parts[0], set()).add(parts[1])
+    own = {norm_addr(a) for addrs in ifrows.values() for a in addrs}
+
+    macs = {(i, a): m for i, a, m in pic["derived"]}
+    leaked = sorted({m for _i, _a, m in pic["derived"] if not masked_mac(m)})
+
+    lan = [a for a in own if addr_kind(a)[0] in ("private", "unique local")]
+    public_on_device = [a for a in own if addr_kind(a)[0] == "PUBLIC"]
+    v6_global = [a for a in own if ":" in a and addr_kind(a)[2]
+                 and not a.lower().startswith("fe80")]
+
+    p("  " + c(DIM, "THE ANSWER SHEET".ljust(q_w) + "  value"))
+    p("")
+
+    # 1. the address the far end records
+    if pic["wan"]:
+        # Several probes, deliberately: the app's own networking, and one that
+        # ignores its proxy settings. Agreement is reassuring; disagreement is
+        # the finding, because it means some of the phone's traffic leaves by a
+        # path the proxy is not on.
+        thru = [a for a, l in pic["wan"] if "ignoring" not in l and ":" not in a]
+        direct = [a for a, l in pic["wan"] if "ignoring" in l]
+        best = (thru or direct or [pic["wan"][0][0]])[0]
+        sheet("Public address a server sees", best, "open",
+              "fetched from inside the app's own process: this is the number "
+              "TikTok's servers record")
+        if thru and direct and direct[0] not in thru:
+            sheet("Address when the proxy is bypassed", direct[0], "LEAK",
+                  "traffic that ignores the app's proxy settings leaves by a "
+                  "different exit, so the tunnel does not cover everything")
+        elif direct and not thru:
+            sheet("Address, proxy settings bypassed", direct[0], "open",
+                  "the app's own networking gave no answer this run, so this is "
+                  "a direct socket and may not be the exit its traffic uses")
+    elif public_on_device:
+        sheet("Public address a server sees", public_on_device[0], "LEAK",
+              "readable straight off an interface, no server needed")
+    elif pic["public_echo"]:
+        sheet("Public address a server sees", sorted(set(pic["public_echo"]))[0],
+              "LEAK", "its own resolver echoed it back")
+    else:
+        # Say why, not just that it is missing. A local proxy explains it, and
+        # the distinction matters: the app being unable to locate itself is a
+        # different fact from the rig failing to ask.
+        local_proxy = any("127.0.0.1" in str(v) for vs in pic["reach"].values()
+                          for v in (vs if isinstance(vs, list) else [vs])) or                       any("127.0.0.1" in v for _k, v in pic["proxy_answers"])
+        tried = len([k for k in pic["blocked"]
+                     if "server sees" in k or "provider" in k or "socket" in k
+                     or "session" in k or "family" in k or "numeric" in k])
+        if local_proxy:
+            sheet("Public address a server sees", "no probe could reach out", "read",
+                  "%d attempts failed, over several transports and destinations. "
+                  "A proxy is running on this phone at 127.0.0.1 and every "
+                  "connection terminates there, so nothing originating in the app "
+                  "gets far enough to be told its own address. The app cannot "
+                  "locate itself either." % max(tried, 1))
+        else:
+            sheet("Public address a server sees", "not determined this run", "read",
+                  "nothing globally routable on the device, and nothing told it")
+
+    for name, outcome in sorted(pic["paths"]):
+        sheet("Control: " + name, clip(outcome, 34),
+              "read" if "completed" in outcome else "blocked")
+
+    # 2. the rest of the position
+    sheet("Address on this network", (sorted(lan) or ["none"])[0], "read")
+    sheet("Default gateway", first(pic["reach"], "default gateway")
+          or (sorted(set(pic["gateways"]))[0] if pic["gateways"] else "not read"),
+          "open" if pic["reach"].get("default gateway") and not pic["gateways"]
+          else "read")
+    sheet("DNS resolver", (sorted(set(pic["resolvers"]))[0] if pic["resolvers"]
+                           else first(pic["reach"], "DNS servers") or "not read"),
+          "read" if pic["resolvers"] else "open")
+    sheet("IPv6 on this network",
+          v6_global[0] if v6_global else
+          ("yes, " + [a for a, _l in pic["wan"] if ":" in a][0]
+           if any(":" in a for a, _l in pic["wan"]) else "none"),
+          "LEAK" if v6_global else "read",
+          "no global v6, so nothing can slip around a v4-only proxy"
+          if not v6_global else "a globally routable v6 is a per-device address")
+
+    if pic["tunnels"]:
+        name, addrs, app_based = pic["tunnels"][0]
+        sheet("On a VPN", "yes, " + name, "LEAK",
+              "app-based tunnel" if app_based else "system tunnel carrying traffic")
+    else:
+        sheet("On a VPN", "no tunnel carrying traffic", "read",
+              "any redirection is upstream of the phone, which the app cannot see")
+    sheet("System proxy",
+          first(pic["reach"], "proxy settings")
+          or (pic["proxy_answers"][0][1] if pic["proxy_answers"] else "not read"),
+          "read")
+
+    # 3. identity that a proxy cannot move
+    ssid = pic["wifi"].get("Wi-Fi network name")
+    if ssid:
+        sheet("Wi-Fi network name", ssid[0], "LEAK")
+    elif "Wi-Fi SSID and BSSID" in pic["blocked"]:
+        sheet("Wi-Fi name and router MAC", "refused by iOS", "blocked",
+              pic["blocked"]["Wi-Fi SSID and BSSID"])
+    if leaked:
+        sheet("Hardware MAC, via link-local", "  ".join(leaked[:2]), "LEAK",
+              "the official API returns 02:00:00:00:00:00, and the link-local "
+              "address on the same call hands the MAC over anyway")
+    if pic["hw_sweep"] or pic["hw"]:
+        sheet("Hardware MAC, official API", "02:00:00:00:00:00", "blocked",
+              "iOS substitutes this for every app, on every interface")
+    region = first(pic["reach"], "gestalt RegionInfo", "gestalt RegionCode")
+    if region:
+        sheet("Sales region, burned in", region, "open",
+              "set at manufacture. No proxy, VPN or setting changes it")
+
+    # 4. the story check: does the device agree with the exit address
+    tz = kb = None
+    for r in all_items:
+        if r["key"] == "timezone" and r["values"]:
+            tz = r["values"].most_common(1)[0][0]
+        if r["key"] == "installed keyboards" and r["values"]:
+            kb = r["values"].most_common(1)[0][0]
+    if tz or region:
+        bits = []
+        if region:
+            bits.append("hardware %s" % region)
+        if tz:
+            bits.append("timezone %s" % tz)
+        if kb:
+            bits.append("keyboards %s" % clip(kb, 40))
+        if pic["wan"]:
+            bits.append("exit %s" % pic["wan"][0][0])
+        p("")
+        p("    " + c(DIM, "story check, all read every launch:"))
+        for b in bits:
+            p("      " + c(DIM, clip(b, W - 14)))
+
+    # ---- the detail, once ---------------------------------------------------
+    p("")
+    p("    " + c(DIM, "every interface and address, deduplicated:"))
+    # interior is W-6; the fixed columns eat 35, so split what is left
+    addr_w = max(24, W - 68)
+    tail_w = max(18, (W - 6) - 35 - addr_w - 1)
+
+    def addr_order(a):
+        kind, _t, routable = addr_kind(a)
+        return (0 if kind == "PUBLIC" else 1 if routable else 2, a)
+
+    for name in sorted(ifrows, key=lambda n: (0 if any(
+            macs.get((n, norm_addr(a))) and not masked_mac(macs[(n, norm_addr(a))])
+            for a in ifrows[n]) else 1, n)):
+        addrs = sorted(ifrows[name], key=addr_order)
+        role = iface_role(name)
+        flagged = any(macs.get((name, norm_addr(a)))
+                      and not masked_mac(macs[(name, norm_addr(a))]) for a in addrs)
+        for i, a in enumerate(addrs):
+            kind = addr_kind(a)[0]
+            na = norm_addr(a)
+            mask = pic["sweep_addr"].get("%s  %s" % (name, a)) or \
+                   pic["masks"].get("%s %s" % (name, a))
+            tail = kind
+            pref = mask_to_prefix(mask)
+            if pref:
+                tail += " " + pref
+            p("  %s %-11s %-18s %-*s %s" % (
+                c("1;31", "!") if (flagged and i == 0) else " ",
+                name if i == 0 else "", (role if i == 0 else "")[:18],
+                addr_w, clip(na, addr_w), c(DIM, clip(tail, tail_w))))
+            mac = macs.get((name, na))
+            if mac and not masked_mac(mac):
+                p("  " + " " * 33 + c("1;31", "contains the MAC " + mac))
+
+    quiet = sorted(n for n in pic["hw_sweep"] if n not in ifrows)
+    if quiet:
+        for ln in wrap("%d further interfaces exist with no address: %s"
+                       % (len(quiet), ", ".join(quiet)), W - 10):
+            p("    " + c(DIM, ln))
+
+    # ---- who else is on the wire, self and multicast removed ---------------
+    others = []
+    for ip, note in pic["nbr"].items():
+        if ip in own or addr_kind(ip)[0] in ("loopback", "link-local"):
+            continue
+        try:
+            if ipaddress.ip_address(ip.split("%")[0]).is_multicast:
+                continue
+        except ValueError:
+            pass
+        others.append((ip, note))
+    if others:
+        p("")
+        p("    " + c(DIM, "other devices it can see on this network:"))
+        for ip, note in sorted(others)[:20]:
+            p("  %s %-*s %s" % (c("1;31", "!"), addr_w + 12, clip(ip, addr_w + 12),
+                                c(DIM, clip(note, max(16, (W - 6) - addr_w - 16)))))
+
+    # ---- what iOS refused, compact -----------------------------------------
+    if pic["blocked"]:
+        p("")
+        p("    " + c(DIM, "asked for on the app's behalf and refused by iOS:"))
+        names = sorted(k.replace("gestalt ", "") for k in pic["blocked"])
+        for ln in wrap(", ".join(names), W - 12):
+            p("      " + c(DIM, ln))
+        for ln in wrap("Tested with this app's own entitlements, so these say "
+                       "what TikTok cannot have rather than what iOS restricts "
+                       "in general.", W - 10):
+            p("    " + c(DIM, ln))
+
+    # ---- how often it asked, moved to the bottom ---------------------------
+    counts = []
+    if pic["scans"]:
+        counts.append("getifaddrs %dx" % pic["scans"])
+    if pic["iflist_reads"]:
+        counts.append("sysctl interface list %dx" % pic["iflist_reads"])
+    if pic["ifenum"]:
+        counts.append("ioctl %dx" % pic["ifenum"])
+    if pic["route_reads"]:
+        counts.append("route table %dx" % pic["route_reads"])
+    if pic["proxy"]:
+        counts.append("proxy config %dx" % pic["proxy"])
+    for name, answer, count in pic["nwpath"]:
+        counts.append("path %s %dx" % (clip(name, 14), count))
+    if counts:
+        p("")
+        for ln in wrap("It asked, in this window: " + ", ".join(counts) + ".",
+                       W - 10):
             p("    " + c(DIM, ln))
 
 
@@ -1983,15 +2572,35 @@ def render_destinations(p, rows, all_items):
     was used, raw sockets where it was not, and the name lookups that let us put
     a hostname back on those raw addresses."""
     urls = [r for r in rows if r.get("src") == "REQUEST"]
-    socks = [r for r in rows if r.get("src") == "CONNECT"]
+    # a TCP connect, a UDP datagram and a peer read are three ways of learning
+    # the same fact, and leaving the last two out made the app look TCP-only
+    socks = [r for r in rows if r.get("src") in ("CONNECT", "PEER", "UDP_PEER")]
     headers = [r for r in rows if r.get("src") == "HEADER"]
     bodies = [r for r in rows if r.get("src") == "BODY"]
     # an address handed to getaddrinfo resolves to itself, which is not a name
     dns = [r for r in rows if r.get("src") == "DNS" and not is_ip_literal(r["key"])]
+    # the same call with a literal address is not a lookup, it is the app
+    # confirming an address it already had from somewhere this rig cannot see
+    literal = [r for r in rows if r.get("src") == "DNS" and is_ip_literal(r["key"])]
+    # measured rather than inferred: the caller set AI_NUMERICHOST, so it was
+    # testing a string it already held, not asking for a name to be resolved
+    numeric = [r for r in rows if r.get("src") == "DNS_NUMERIC"]
+    udp = {norm_addr(r["key"]) for r in rows if r.get("src") == "SOCKTYPE"}
+    httpdns = [r for r in rows if r.get("src") == "HTTPDNS"]
+    sni = [r for r in rows if r.get("src") == "SNI"]
+    nwep = [r for r in rows if r.get("src") == "NW_ENDPOINT"]
+    failed = [r for r in rows if r.get("src") in ("CONNECT_FAIL", "DNS_FAIL")]
+    cnames = [r for r in rows if r.get("src") == "DNS_CNAME"]
 
     # address -> the name it was resolved from
     ip2host = {}
     for r in dns:
+        for addr in r["values"]:
+            ip2host.setdefault(norm_addr(addr), r["key"])
+    for r in [x for x in rows if x.get("src") == "DNS_REVERSE"]:
+        for name in r["values"]:
+            ip2host.setdefault(norm_addr(r["key"]), name)
+    for r in httpdns:
         for addr in r["values"]:
             ip2host.setdefault(norm_addr(addr), r["key"])
 
@@ -2035,6 +2644,12 @@ def render_destinations(p, rows, all_items):
                 masked += r["count"]
             else:
                 note, tier = "not resolved during this window", WATCH
+            # UDP is where QUIC and STUN live, and neither shows up in connect()
+            via = {"UDP_PEER": "UDP", "PEER": "connected socket"}.get(r.get("src"))
+            if addr in udp:
+                via = "QUIC"
+            if via:
+                note = "%s, %s" % (via, note)
             annotated.append((tier, addr, note, r["count"]))
         for tier, addr, note, count in sorted(
                 annotated, key=lambda x: (0 if x[0] == FLAG else 1, -x[3])):
@@ -2055,6 +2670,106 @@ def render_destinations(p, rows, all_items):
             role = endpoint_role(r["key"])
             note = "%s, %s" % (owner, role) if role else "%s, %s" % (owner, what)
             line(r["tier"], r["key"], note, r["count"])
+        for r in sorted(cnames, key=lambda r: -r["count"])[:8]:
+            for canon, _n in r["values"].most_common(1):
+                p("      " + c(DIM, clip("%s is really %s" % (r["key"], canon), W - 8)))
+        p("")
+
+    if literal:
+        p("    " + c(DIM, "addresses it asked the resolver to confirm, "
+                          "having got them somewhere else:"))
+        for r in sorted(literal, key=lambda r: -r["count"])[:20]:
+            addr = norm_addr(r["key"])
+            line(WATCH, addr, "no name was ever looked up for this", r["count"])
+        proof = (" The hint flags on those calls say AI_NUMERICHOST, so this is "
+                 "measured, not inferred: the app was checking a string it already "
+                 "held rather than asking for a lookup." if numeric else "")
+        for ln in wrap("A literal address handed to getaddrinfo is not a lookup. The app "
+                       "already knew the address, which means it came from a channel this "
+                       "rig does not watch: a server-pushed list or a resolver of its own "
+                       "reached over HTTPS." + proof, W - 6):
+            p("    " + c(DIM, ln))
+        p("")
+
+    if httpdns:
+        p("    " + c(DIM, "names resolved by ByteDance's own resolver, not by the phone's:"))
+        for r in sorted(httpdns, key=lambda r: -r["count"]):
+            line(r["tier"], r["key"], ", ".join(sorted(r["values"]))[:60], r["count"])
+        for ln in wrap("These never went near the system resolver, so nothing in the phone's "
+                       "DNS settings applies to them and nothing on the device chose the "
+                       "address. The same reply is what carries the client's own public "
+                       "address back to the app.", W - 6):
+            p("    " + c(DIM, ln))
+        p("")
+
+    if sni:
+        p("    " + c(DIM, "hostnames read off the TLS handshake, before any encryption:"))
+        for r in sorted(sni, key=lambda r: (0 if r["tier"] == FLAG else 1, -r["count"])):
+            owner, what, _t = classify_host(r["key"])
+            line(r["tier"], r["key"], "%s, %s" % (owner, what), r["count"])
+        p("")
+
+    if nwep:
+        p("    " + c(DIM, "endpoints opened through Network.framework, which "
+                          "bypasses all of the above:"))
+        for r in sorted(nwep, key=lambda r: -r["count"])[:20]:
+            kind = r["values"].most_common(1)[0][0] if r["values"] else "endpoint"
+            line(r["tier"], r["key"], kind, r["count"])
+        p("")
+
+    if failed:
+        p("    " + c(DIM, "asked for and did not get:"))
+        for r in sorted(failed, key=lambda r: -r["count"])[:16]:
+            why = r["values"].most_common(1)[0][0] if r["values"] else "failed"
+            line(INFO, r["key"], why, r["count"])
+        p("")
+
+    # The residual. Every address the phone connected to that no resolver this
+    # rig watches ever produced. It is not an inference about a mechanism: it is
+    # the arithmetic of two sets the run already collected, and it is the
+    # cleanest measure of how much resolution happens somewhere else.
+    resolved = set()
+    for r in dns:
+        for a in r["values"]:
+            resolved.add(norm_addr(a))
+    for r in httpdns:                       # resolved, just not by the phone
+        for a in r["values"]:
+            resolved.add(norm_addr(a))
+    reached = set()
+    for r in socks:
+        a = norm_addr(r["key"])
+        if addr_kind(a)[2] and not a.startswith("127."):
+            reached.add(a)
+    # An endpoint Network.framework opened by address counts as reached too, and
+    # it is the path least likely to have gone through the system resolver.
+    for r in nwep:
+        if "address" not in r["values"]:
+            continue
+        try:
+            ipaddress.ip_address(r["key"].split("%")[0])
+        except ValueError:
+            continue
+        a = norm_addr(r["key"])
+        if addr_kind(a)[2] and not a.startswith("127."):
+            reached.add(a)
+    own = {norm_addr(a) for r in all_items if r.get("src") == "INTERFACE"
+           for a in r["values"]}
+    reached -= own                      # the phone's own address is not a peer
+    failed_addrs = {norm_addr(r["key"]) for r in rows if r.get("src") == "CONNECT_FAIL"}
+    residual = sorted(reached - resolved - failed_addrs)
+    if reached:
+        p("    " + c(DIM, "resolution, reconciled:"))
+        line(FLAG if residual else INFO,
+             "%d of %d addresses reached" % (len(residual), len(reached)),
+             "were never produced by any resolver this run watched", len(reached))
+        if residual:
+            for ln in wrap("Those are: " + ", ".join(residual[:12])
+                           + (", and %d more" % (len(residual) - 12) if len(residual) > 12
+                              else "") + ". Something told the app where to connect, and "
+                           "it was not the system resolver, so it is not visible from "
+                           "inside the app's own syscalls.", W - 6):
+                p("    " + c(DIM, ln))
+        p("")
 
     # ByteDance's signing headers are the interesting ones, so surface them
     SIGNING = {"x-argus": "ByteDance request signature",
@@ -2356,9 +3071,16 @@ def caveats(items, rec=None):
     out.append("What was inside any of it. Destinations are captured at the socket, so "
                "TikTok's own traffic is included now, but the contents stay encrypted and "
                "this makes no attempt to open them.")
-    out.append("The public IP its servers recorded. That is observed at their end, not "
-               "readable from the phone. The measured source address above tells you which "
-               "connection carried the traffic that produced it.")
+    if any(r.get("src") == "PUBLIC_IP" for r in items):
+        out.append("Nothing, on this one. The public address usually cannot be read from the "
+                   "phone, but this run caught the app being told it by the resolver it "
+                   "asked, so it is in the report above rather than missing from it.")
+    else:
+        out.append("The public IP its servers recorded. That is observed at their end, not "
+                   "readable from the phone. The measured source address above tells you "
+                   "which connection carried the traffic that produced it. An app can still "
+                   "learn it by being told: a resolver that echoes the client address back "
+                   "would put it in the app's hands, and this run saw no such reply.")
     if any(r.get("src") == "CONNECT" and addr_kind(r["key"])[0]
            in ("benchmark range", "loopback") for r in items):
         out.append("The real destination behind the VPN client. With a proxy running on "
@@ -2699,6 +3421,7 @@ def main():
             % (rounds, "pass" if rounds == 1 else "passes", PROBE_SETTLE_S)))
         console.line("")
     next_arm, pending = 0, None
+    swept, swept_wan = [False], [False]
 
     # The phone-side script flushes every 400ms, empty batch or not, so a silence
     # longer than this means it has wedged. Rather than let a hung frida-server
@@ -2735,6 +3458,25 @@ def main():
                     pass
                 pending = None
                 next_arm += 1
+
+            # --- capability sweep, once ------------------------------------
+            # Runs on the phone's script thread, not an app thread, and holds
+            # the self-read flag throughout so none of it lands in the counts
+            # above as something TikTok did.
+            if REACH_ON and not swept[0] and elapsed >= REACH_AT_S:
+                swept[0] = True
+                try:
+                    script.exports_sync.reach(WAN_ON)
+                except Exception as e:
+                    errors.append(("REACH", "capability sweep failed: %s" % e))
+
+            if (REACH_ON and WAN_ON and not swept_wan[0]
+                    and elapsed >= REACH_WAN_AT_S):
+                swept_wan[0] = True
+                try:
+                    script.exports_sync.reachwan()
+                except Exception as e:
+                    errors.append(("REACH", "direct address probe failed: %s" % e))
 
             filled = int(24 * elapsed / DURATION)
             bar = BAR_ON * filled + BAR_OFF * (24 - filled)

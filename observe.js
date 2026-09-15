@@ -375,6 +375,31 @@ function dangerousExport(name) {
   try { return Module.findGlobalExportByName(name); } catch (e) { return null; }
 }
 
+// The global lookup returns ONE address for a symbol, and TLS symbols are not
+// unique on this phone. Measured inside TikTok: SSL_read exists twice, once in
+// TikTok.app/Frameworks/boringssl.framework (its own statically shipped copy,
+// which the global lookup happens to win) and once in /usr/lib/libboringssl.dylib
+// (the system copy, which is what Network.framework uses). Hooking only the
+// first means every byte that goes out over the nw stack is missed, and this
+// run already showed endpoints opened that way. So: every copy, each labelled
+// by the module it came from, so the report can say which stack carried what.
+function eachExport(name) {
+  const out = [];
+  try {
+    Process.enumerateModules().forEach(function (m) {
+      try {
+        const p = m.findExportByName && m.findExportByName(name);
+        if (p) out.push({ addr: p, mod: m.name });
+      } catch (e) {}
+    });
+  } catch (e) {}
+  if (!out.length) {
+    const p = dangerousExport(name);
+    if (p) out.push({ addr: p, mod: '?' });
+  }
+  return out;
+}
+
 // Darwin utsname is 5 fixed-size char[256] fields back to back.
 const SYS_NAMELEN = 256;
 
@@ -559,23 +584,74 @@ if (!ObjC.available) {
   // so we walk the returned list and decode every interface and address the app
   // was shown: local IPs, the carrier interface, and any VPN tunnel. This is
   // still pure observation, we only read the buffer the kernel already filled.
-  const AF_INET = 2, AF_INET6 = 30, IFF_UP = 0x1;
+  const AF_INET = 2, AF_LINK = 18, AF_INET6 = 30;
+  const IFF_UP = 0x1, IFF_LOOPBACK = 0x8, IFF_POINTOPOINT = 0x10;
   const seenAddrs = new Set();
 
+  // Every caller of this used to sit inside one try that wrapped a whole walk,
+  // so a single unmapped ifa_addr threw away every interface after it and said
+  // nothing. The try belongs here, per address, so one bad entry costs one entry.
   function readSockaddr(sa) {
-    if (sa.isNull()) return null;
-    const family = sa.add(1).readU8();
-    if (family === AF_INET) {
-      const b = new Uint8Array(sa.add(4).readByteArray(4));
-      return b.join('.');
+    try {
+      if (!sa || sa.isNull()) return null;
+      const family = sa.add(1).readU8();
+      if (family === AF_INET) {
+        const b = new Uint8Array(sa.add(4).readByteArray(4));
+        return b.length === 4 ? b.join('.') : null;
+      }
+      if (family === AF_INET6) {
+        const b = new Uint8Array(sa.add(8).readByteArray(16));
+        if (b.length !== 16) return null;
+        // The zone matters: without it every interface's fe80:: address is the
+        // same string, and five tunnels collapse into one row. It arrives one
+        // of two ways. sin6_scope_id is the documented field, but the routing
+        // socket embeds the zone in bytes 2-3 of a link-local address instead
+        // (the old KAME trick), which renders as fe80:8:: and is not an address
+        // anyone has. Pull it back out and put it where it belongs.
+        let scope = 0;
+        try { scope = sa.add(24).readU32(); } catch (e) {}
+        if (b[0] === 0xfe && (b[1] & 0xc0) === 0x80 && (b[2] || b[3])) {
+          if (!scope) scope = (b[2] << 8) | b[3];
+          b[2] = 0; b[3] = 0;
+        }
+        const parts = [];
+        for (let i = 0; i < 16; i += 2) parts.push((((b[i] << 8) | b[i + 1]) >>> 0).toString(16));
+        return v6Canon(parts) + (scope ? '%' + scope : '');
+      }
+      return null;  // AF_LINK is read by readLinkAddr, not here
+    } catch (e) { return null; }
+  }
+
+  // The report diffs addresses across runs and matches them against RFC lists,
+  // so they have to be spelled the one canonical way rather than eight groups.
+  function v6Canon(parts) {
+    let bestAt = -1, bestLen = 0, at = -1, len = 0;
+    for (let i = 0; i < 8; i++) {
+      if (parts[i] === '0') {
+        if (at < 0) { at = i; len = 1; } else len++;
+        if (len > bestLen) { bestLen = len; bestAt = at; }
+      } else { at = -1; len = 0; }
     }
-    if (family === AF_INET6) {
-      const b = new Uint8Array(sa.add(8).readByteArray(16));
-      const parts = [];
-      for (let i = 0; i < 16; i += 2) parts.push((((b[i] << 8) | b[i + 1]) >>> 0).toString(16));
-      return parts.join(':');
-    }
-    return null;  // AF_LINK and friends carry no routable address
+    if (bestLen < 2) return parts.join(':');
+    const head = parts.slice(0, bestAt).join(':');
+    const tail = parts.slice(bestAt + bestLen).join(':');
+    return head + '::' + tail;
+  }
+
+  // AF_LINK carries no routable address, which is why it used to be dropped.
+  // It carries the interface's hardware address instead, which outlives every
+  // IP on this list and every network the phone joins.
+  function readLinkAddr(sa) {
+    try {
+      if (!sa || sa.isNull() || sa.add(1).readU8() !== AF_LINK) return null;
+      const nlen = sa.add(5).readU8(), alen = sa.add(6).readU8();
+      if (alen < 1 || alen > 8) return null;
+      const b = new Uint8Array(sa.add(8).add(nlen).readByteArray(alen));
+      if (b.length !== alen) return null;
+      const hex = [];
+      for (let i = 0; i < b.length; i++) hex.push(('0' + b[i].toString(16)).slice(-2));
+      return hex.join(':');
+    } catch (e) { return null; }
   }
 
   function readPort(sa) {
@@ -598,18 +674,46 @@ if (!ObjC.available) {
       emit('NETWORK', 'getifaddrs', null);
       if (retval.toInt32() !== 0 || this.listp.isNull()) return;
       try {
-        // struct ifaddrs on arm64: next 0, name 8, flags 16, addr 24
+        // struct ifaddrs on arm64: next 0, name 8, flags 16, addr 24,
+        // netmask 32, dstaddr 40, data 48. Only the first four were ever read.
+        // The kernel filled all of them in the same call, so the other three
+        // cost nothing to take and each answers a question the address cannot:
+        // the netmask says how big the LAN is, dstaddr names the far end of a
+        // tunnel, and the AF_LINK entry is where the hardware address lives.
         let cur = this.listp.readPointer();
         let guard = 0;
         while (!cur.isNull() && guard++ < 256) {
           const name = cstr(cur.add(8).readPointer());
           const flags = cur.add(16).readU32();
-          const addr = readSockaddr(cur.add(24).readPointer());
-          if (name && addr && (flags & IFF_UP)) {
+          if (!name || !(flags & IFF_UP)) { cur = cur.readPointer(); continue; }
+
+          const ap = cur.add(24).readPointer();
+          const addr = readSockaddr(ap);
+          if (addr) {
             const tag = name + '|' + addr;
             if (!seenAddrs.has(tag)) {
               seenAddrs.add(tag);
               emit('INTERFACE', name, addr);
+              const mask = readSockaddr(cur.add(32).readPointer());
+              if (mask) emit('IFACE_MASK', name + ' ' + addr, mask);
+            }
+          } else {
+            // No routable address on this entry. On Darwin that is usually the
+            // AF_LINK row, which carries the interface's hardware address.
+            const mac = readLinkAddr(ap);
+            if (mac) {
+              const tag = name + '|hw|' + mac;
+              if (!seenAddrs.has(tag)) { seenAddrs.add(tag); emit('IFACE_HW', name, mac); }
+            }
+          }
+
+          // A point-to-point interface names its peer. For a live VPN that is
+          // the concentrator on the other side of the tunnel.
+          if (flags & IFF_POINTOPOINT) {
+            const peer = readSockaddr(cur.add(40).readPointer());
+            if (peer) {
+              const tag = name + '|peer|' + peer;
+              if (!seenAddrs.has(tag)) { seenAddrs.add(tag); emit('IFACE_PEER', name, peer); }
             }
           }
           cur = cur.readPointer();
@@ -638,8 +742,60 @@ if (!ObjC.available) {
   // per second. They are registered here and attached only when the driver arms
   // the 'net' group, which it does after the scene is up, for well under a
   // second. Nothing in this group is ever live during a watchdog window.
+  // connect() was recorded on the way in, which cannot tell a destination the
+  // phone reached from one it could not. A device with no global IPv6 still
+  // calls connect() on every AAAA it was handed and fails instantly, so an
+  // onEnter-only hook reports addresses that never carried a byte.
+  const EAI = { 2: 'temporary DNS failure', 4: 'permanent DNS failure',
+                7: 'name exists but has no address', 8: 'no such name',
+                11: 'system error', 12: 'bad hints' };
+  const CONN_ERR = { 36: 'in progress', 51: 'network unreachable',
+                     65: 'host unreachable', 61: 'refused', 60: 'timed out',
+                     56: 'already connected', 22: 'rejected by the kernel' };
+  // A connect() to port 443 is TLS or it is QUIC, and the address alone cannot
+  // say which. The socket already knows: SOCK_DGRAM on 443 is QUIC. Buffers are
+  // allocated once, because this runs per connect.
+  const SOL_SOCKET = 0xffff, SO_TYPE = 0x1008;
+  let sockType = function () { return null; };
+  try {
+    const gso = Module.findGlobalExportByName('getsockopt');
+    if (gso) {
+      const _gso = new NativeFunction(gso, 'int',
+                                      ['int', 'int', 'int', 'pointer', 'pointer']);
+      const tbuf = Memory.alloc(8), lbuf = Memory.alloc(4);
+      sockType = function (fd) {
+        try {
+          lbuf.writeU32(4);
+          if (_gso(fd, SOL_SOCKET, SO_TYPE, tbuf, lbuf) !== 0) return null;
+          const t = tbuf.readU32();
+          return t === 2 ? 'UDP' : t === 1 ? 'TCP' : null;
+        } catch (e) { return null; }
+      };
+    }
+  } catch (e) {}
+
   probe('net', dangerousExport('connect'), 120, 'outbound connects', {
-    onEnter: function (args) { reportDest(args[1]); }
+    onEnter: function (args) {
+      this.sa = args[1];
+      reportDest(args[1]);
+      try {
+        // Only the datagram case is recorded. TCP is the assumption, and saying
+        // so for every socket would spend the distinct-event budget on nothing.
+        if (sockType(args[0].toInt32()) === 'UDP') {
+          const a = readSockaddr(args[1]);
+          if (a) emit('SOCKTYPE', a, 'UDP, so QUIC rather than TLS');
+        }
+      } catch (e) {}
+    },
+    onLeave: function (retval) {
+      try {
+        if (retval.toInt32() === 0) return;      // connected outright
+        const e = this.errno;
+        if (e === 36) return;                    // EINPROGRESS, the normal case
+        const addr = readSockaddr(this.sa);
+        if (addr) emit('CONNECT_FAIL', addr, CONN_ERR[e] || ('errno ' + e));
+      } catch (e2) {}
+    }
   });
 
   // Network.framework goes through connectx. In sa_endpoints_t the destination
@@ -670,11 +826,33 @@ if (!ObjC.available) {
     onEnter: function (args) {
       this.host = args[0].isNull() ? null : cstr(args[0]);
       this.res = args[3];
+      // ai_flags is the first field of the hints struct. AI_NUMERICHOST means
+      // the caller is not asking for a lookup at all, it is asking "is this
+      // string already an address". An app that does this is deciding whether
+      // it needs DNS, which is what a client with its own resolver does.
+      this.numeric = false;
+      try {
+        if (!args[2].isNull()) this.numeric = !!(args[2].readU32() & 0x4);
+      } catch (e) {}
     },
     onLeave: function (retval) {
       try {
-        if (retval.toInt32() !== 0 || !this.host || this.res.isNull()) return;
-        // struct addrinfo on Darwin: ai_addr at 32, ai_next at 40
+        if (!this.host) return;
+        // A lookup that failed is still a lookup. It used to vanish here, which
+        // made a blocked or non-existent name indistinguishable from a name the
+        // app never asked about.
+        if (retval.toInt32() !== 0) {
+          const code = retval.toInt32();
+          const why = EAI[code] || ('error ' + code);
+          emit('DNS_FAIL', this.host,
+               this.numeric ? ('not a literal address (' + why + ')') : why);
+          return;
+        }
+        if (this.numeric) emit('DNS_NUMERIC', this.host, 'confirmed as a literal address');
+        if (this.res.isNull()) return;
+        // struct addrinfo on Darwin: ai_canonname at 24, ai_addr at 32,
+        // ai_next at 40. The canonical name is the end of the CNAME chain and
+        // says who really serves a host behind a vanity name.
         let ai = this.res.readPointer();
         let guard = 0;
         const seen = new Set();
@@ -684,10 +862,144 @@ if (!ObjC.available) {
             seen.add(addr);
             emit('DNS', this.host, addr);
           }
+          const cn = ai.add(24).readPointer();
+          if (!cn.isNull()) {
+            const canon = cstr(cn);
+            if (canon && canon !== this.host) emit('DNS_CNAME', this.host, canon);
+          }
           ai = ai.add(40).readPointer();
         }
       } catch (e) {}
     }
+  });
+
+  // --- The rest of the resolver surface ---
+  // getaddrinfo reports failure through its own numbering, not errno.
+  // getaddrinfo is one door of several. A name resolved through any of these
+  // never appears above, and an app that uses its own resolver appears, from
+  // getaddrinfo alone, not to resolve anything at all.
+  probe('net', dangerousExport('getnameinfo'), 60, 'reverse lookups', {
+    onEnter: function (args) { this.sa = args[0]; this.hostbuf = args[2]; },
+    onLeave: function (retval) {
+      try {
+        if (retval.toInt32() !== 0 || this.hostbuf.isNull()) return;
+        const addr = readSockaddr(this.sa), name = cstr(this.hostbuf);
+        if (addr && name) emit('DNS_REVERSE', addr, name);
+      } catch (e) {}
+    }
+  });
+
+  ['gethostbyname', 'gethostbyname2'].forEach(function (sym) {
+    probe('net', dangerousExport(sym), 60, 'legacy name lookups', {
+      onEnter: function (args) { this.host = args[0].isNull() ? null : cstr(args[0]); },
+      onLeave: function (retval) {
+        try {
+          if (!this.host || retval.isNull()) return;
+          // struct hostent: h_length at 20, h_addr_list at 24
+          const len = retval.add(20).readS32();
+          if (len !== 4 && len !== 16) return;
+          let listp = retval.add(24).readPointer(), guard = 0;
+          while (!listp.isNull() && guard++ < 16) {
+            const ap = listp.readPointer();
+            if (ap.isNull()) break;
+            const b = new Uint8Array(ap.readByteArray(len));
+            if (b.length === 4) emit('DNS', this.host, b.join('.'));
+            listp = listp.add(8);
+          }
+        } catch (e) {}
+      }
+    });
+  });
+
+  // Network.framework resolves and connects without going near any of the above.
+  // These two accessors are the choke point every nw_ endpoint passes through.
+  probe('net', dangerousExport('nw_endpoint_get_hostname'), 150, 'nw endpoint names', {
+    onLeave: function (retval) {
+      try {
+        if (retval.isNull()) return;
+        const h = cstr(retval);
+        if (h) emit('NW_ENDPOINT', h, 'name');
+      } catch (e) {}
+    }
+  });
+
+  probe('net', dangerousExport('nw_endpoint_copy_address_string'), 150,
+        'nw endpoint addresses', {
+    onLeave: function (retval) {
+      try {
+        if (retval.isNull()) return;
+        const a = retval.readUtf8String();
+        if (a) emit('NW_ENDPOINT', a, 'address');
+      } catch (e) {}
+    }
+  });
+
+  // --- Peers that connect() never sees ---
+  // Every UDP flow: QUIC, and STUN, which is the one mechanism on the phone
+  // that can hand the app its own public address.
+  probe('net', dangerousExport('sendto'), 60, 'datagrams sent', {
+    onEnter: function (args) {
+      try {
+        const addr = readSockaddr(args[4]);
+        if (addr && !isUnspecified(addr)) {
+          emit('UDP_PEER', addr, String(readPort(args[4])));
+        }
+      } catch (e) {}
+    }
+  });
+
+  probe('net', dangerousExport('recvfrom'), 60, 'datagrams received', {
+    onEnter: function (args) { this.from = args[4]; },
+    onLeave: function (retval) {
+      try {
+        if (retval.toInt32() < 0 || this.from.isNull()) return;
+        const addr = readSockaddr(this.from);
+        if (addr && !isUnspecified(addr)) {
+          emit('UDP_PEER', addr, String(readPort(this.from)));
+        }
+      } catch (e) {}
+    }
+  });
+
+  probe('net', dangerousExport('getpeername'), 120, 'peer address reads', {
+    onEnter: function (args) { this.sa = args[1]; },
+    onLeave: function (retval) {
+      try {
+        if (retval.toInt32() !== 0 || this.sa.isNull()) return;
+        const addr = readSockaddr(this.sa);
+        if (addr && !isUnspecified(addr)) {
+          emit('PEER', addr, String(readPort(this.sa)));
+        }
+      } catch (e) {}
+    }
+  });
+
+  // --- The name on the certificate, before any of it is encrypted ---
+  // SNI is set once per TLS handshake, which is far quieter than SSL_write and
+  // gives the hostname for connections whose bytes are never parsed, including
+  // anything the app's own network stack opens.
+  probe('net', dangerousExport('SSLSetPeerDomainName'), 120, 'TLS SNI (Secure Transport)', {
+    onEnter: function (args) {
+      try {
+        const n = args[2].toInt32();
+        if (n > 0 && n < 256) {
+          const h = args[1].readUtf8String(n);
+          if (h) emit('SNI', h, null);
+        }
+      } catch (e) {}
+    }
+  });
+
+  eachExport('SSL_set_tlsext_host_name').forEach(function (ex) {
+    probe('net', ex.addr, 120, 'TLS SNI (BoringSSL in ' + ex.mod + ')', {
+      onEnter: function (args) {
+        try {
+          if (args[1].isNull()) return;
+          const h = cstr(args[1]);
+          if (h) emit('SNI', h, null);
+        } catch (e) {}
+      }
+    });
   });
 
   // The modern way to ask "is there a VPN" is to ask whether the path uses
@@ -717,6 +1029,611 @@ if (!ObjC.available) {
       }
     });
   } catch (e) {}
+
+  // --- The routing table, which is the only way to learn the router ---
+  // getifaddrs says which addresses the phone holds. It never says which box
+  // those packets are handed to. iOS exposes no API for the gateway, so the
+  // one way to it from inside a sandbox is a PF_ROUTE dump through sysctl,
+  // and nothing about that read is permission-gated or prompted.
+  //
+  // The default route is the entry that is up, has a gateway, and whose
+  // destination is the wildcard. Its gateway is the router on this network,
+  // and a router address is a fixed point that every device behind it shares.
+  const CTL_NET = 4, PF_ROUTE = 17;
+  const NET_RT_DUMP = 1, NET_RT_FLAGS = 2, NET_RT_IFLIST = 3, NET_RT_IFLIST2 = 6;
+  const RTF_UP = 0x1, RTF_GATEWAY = 0x2;
+  const RT_WHICH = {};
+  RT_WHICH[NET_RT_DUMP] = 'routing table';
+  RT_WHICH[NET_RT_FLAGS] = 'neighbour cache';
+  RT_WHICH[NET_RT_IFLIST] = 'interface list';
+  RT_WHICH[NET_RT_IFLIST2] = 'interface list';
+
+  function roundup(n) { return n ? ((n + 3) & ~3) : 4; }
+
+  function isWildcard(a) {
+    return a === '0.0.0.0' || a === '::' || a === '' || /^0(:0)*$/.test(a);
+  }
+
+  try {
+    const sysctlp = Module.findGlobalExportByName('sysctl');
+    if (sysctlp) {
+      const routeBudget = budget(24, 'routing table dumps');
+      Interceptor.attach(sysctlp, {
+        onEnter: function (args) {
+          // Cheap gate: two words, on every sysctl. Anything heavier than this
+          // does not belong on a call this common.
+          this.route = false;
+          if (_selfRead) return;      // the capability sweep calls this itself
+          try {
+            if (args[1].toInt32() < 6) return;
+            const mib = args[0];
+            if (mib.readU32() !== CTL_NET || mib.add(4).readU32() !== PF_ROUTE) return;
+            this.route = true;
+            this.which = mib.add(16).readU32();
+            this.oldp = args[2];
+            this.oldlenp = args[3];
+          } catch (e) { this.route = false; }
+        },
+        onLeave: function (retval) {
+          try {
+            if (!this.route) return;
+            emit('ROUTE', 'read the ' + (RT_WHICH[this.which] || 'route table'), null);
+            if (retval.toInt32() !== 0 || this.oldp.isNull() || this.oldlenp.isNull()) return;
+            if (!routeBudget()) return;
+
+            const total = this.oldlenp.readULong();
+            let off = 0, guard = 0;
+            while (off + 92 <= total && guard++ < 512) {
+              const rec = this.oldp.add(off);
+              const msglen = rec.readU16();
+              if (msglen < 92 || off + msglen > total) break;
+              const flags = rec.add(8).readS32();
+              const addrs = rec.add(12).readS32();
+
+              // The sockaddrs follow the header, present-only, in bit order.
+              let p = rec.add(92), dst = null, gw = null, gwSa = null;
+              for (let bit = 0; bit < 8; bit++) {
+                if (!(addrs & (1 << bit))) continue;
+                const salen = p.readU8();
+                if (bit === 0) dst = readSockaddr(p);
+                if (bit === 1) { gw = readSockaddr(p); gwSa = p; }
+                p = p.add(roundup(salen));
+              }
+
+              if ((flags & RTF_UP) && (flags & RTF_GATEWAY) && dst !== null &&
+                  isWildcard(dst) && gw) {
+                emit('ROUTE', 'default gateway', gw);
+              } else if (this.which === NET_RT_FLAGS && dst && gwSa) {
+                // A neighbour-cache dump pairs an address on this LAN with the
+                // hardware address behind it. That is every other device on the
+                // network, named twice.
+                const mac = readLinkAddr(gwSa);
+                if (mac) emit('NEIGHBOUR', dst, mac);
+              }
+              off += msglen;
+            }
+          } catch (e) {}
+        }
+      });
+    }
+  } catch (e) {}
+
+  /* ---------------------------------------------------------------------
+   * CAPABILITY SWEEP
+   *
+   * Everything above answers "what did TikTok read in this window". That is a
+   * lower bound and nothing more: a 45-second sample cannot tell an app that
+   * never asks from one that asks on the days you are not watching.
+   *
+   * This answers the other half. Each call below is one TikTok could make --
+   * no entitlement the app lacks, no private API -- and it is made from inside
+   * TikTok's own process, so the sandbox and entitlements deciding the answer
+   * are the app's, not the rig's. A refusal here is therefore a real finding:
+   * it means the protection holds FOR THIS APP, not merely that iOS has one.
+   *
+   * Three outcomes, and the report keeps them apart:
+   *   REACH      the call returned a value    -> this is what it would get
+   *   REACH_NO   iOS refused it               -> the protection holds
+   *   (observed) already in the stream above  -> it actually asked
+   *
+   * _selfRead is held for the whole sweep, so the hooks above ignore these
+   * calls and no count in the report is inflated by the rig's own curiosity.
+   * Runs on the flush timer, never on an app thread, and only when the driver
+   * asks -- after the launch watchdog has passed.
+   * ------------------------------------------------------------------------ */
+
+  function reachEmit(name, value) {
+    emit('REACH', name, value == null ? 'available' : String(value).slice(0, 160));
+  }
+  function reachDenied(name, why) { emit('REACH_NO', name, why); }
+
+  // sysctl(name, namelen, oldp, oldlenp, newp, newlen)
+  let _sysctlFn = null;
+  try {
+    const sp = Module.findGlobalExportByName('sysctl');
+    if (sp) {
+      _sysctlFn = new NativeFunction(sp, 'int',
+        ['pointer', 'uint', 'pointer', 'pointer', 'pointer', 'ulong']);
+    }
+  } catch (e) {}
+
+  // Ask for the size first, then the data. The table changes between the two
+  // calls, so the buffer is padded rather than sized exactly.
+  function routeDump(family, which, flags) {
+    if (!_sysctlFn) return null;
+    const mib = Memory.alloc(24);
+    mib.writeU32(CTL_NET);
+    mib.add(4).writeU32(PF_ROUTE);
+    mib.add(8).writeU32(0);
+    mib.add(12).writeU32(family);
+    mib.add(16).writeU32(which);
+    mib.add(20).writeU32(flags || 0);
+    const lenp = Memory.alloc(8);
+    lenp.writeULong(0);
+    if (_sysctlFn(mib, 6, NULL, lenp, NULL, 0) !== 0) return null;
+    let need = Number(lenp.readULong());
+    if (need <= 0 || need > 4194304) return null;
+    need = need + (need >> 2) + 4096;
+    const buf = Memory.alloc(need);
+    lenp.writeULong(need);
+    if (_sysctlFn(mib, 6, buf, lenp, NULL, 0) !== 0) return null;
+    return { buf: buf, len: Number(lenp.readULong()) };
+  }
+
+  // Same record walk the passive hook uses: header, then present-only
+  // sockaddrs in bit order, each padded to a 4-byte boundary.
+  function walkRoutes(d, onEntry) {
+    let off = 0, guard = 0, seen = 0;
+    while (off + 92 <= d.len && guard++ < 4096) {
+      const rec = d.buf.add(off);
+      const msglen = rec.readU16();
+      if (msglen < 92 || off + msglen > d.len) break;
+      const flags = rec.add(8).readS32();
+      const addrs = rec.add(12).readS32();
+      let p = rec.add(92), dst = null, gw = null, gwSa = null;
+      for (let bit = 0; bit < 8; bit++) {
+        if (!(addrs & (1 << bit))) continue;
+        const salen = p.readU8();
+        if (bit === 0) dst = readSockaddr(p);
+        if (bit === 1) { gw = readSockaddr(p); gwSa = p; }
+        p = p.add(roundup(salen));
+      }
+      onEntry(flags, dst, gw, gwSa);
+      seen++;
+      off += msglen;
+    }
+    return seen;
+  }
+
+  function sweepGateway() {
+    try {
+      const d = routeDump(0, NET_RT_DUMP, 0);
+      if (!d) { reachDenied('default gateway', 'the route dump was refused'); return; }
+      let found = 0, rows = 0;
+      rows = walkRoutes(d, function (flags, dst, gw) {
+        if ((flags & RTF_UP) && (flags & RTF_GATEWAY) && dst !== null &&
+            isWildcard(dst) && gw) {
+          reachEmit('default gateway', gw);
+          found++;
+        }
+      });
+      reachEmit('routing table size', rows + ' routes readable');
+      if (!found) reachEmit('default gateway', 'no default route present');
+    } catch (e) { reachDenied('default gateway', 'read failed'); }
+  }
+
+  function sweepNeighbours() {
+    try {
+      let total = 0;
+      [[AF_INET, 'IPv4'], [AF_INET6, 'IPv6']].forEach(function (fam) {
+        const d = routeDump(fam[0], NET_RT_FLAGS, 0x400);   // RTF_LLINFO
+        if (!d) return;
+        walkRoutes(d, function (flags, dst, gw, gwSa) {
+          if (!dst) return;
+          const mac = readLinkAddr(gwSa);
+          // Measured on this phone: iOS hands back 02:00:00:00:00:00 for the
+          // hardware address of every neighbour, exactly as it does for the
+          // device's own interfaces. The address is real, the MAC is not.
+          emit('REACH_NEIGHBOUR', dst,
+               (mac && !/^0[02]:00:00:00:00:00$/.test(mac))
+                 ? mac : 'IP readable, MAC masked by iOS');
+          total++;
+        });
+      });
+      if (total) reachEmit('neighbour cache', total + ' other devices on this network, by IP');
+      else reachDenied('neighbour cache', 'iOS returned no neighbours to this app');
+    } catch (e) { reachDenied('neighbour cache', 'read failed'); }
+  }
+
+  // NET_RT_IFLIST is the third enumeration route, and the one TikTok actually
+  // hammers -- 128 to 172 calls a run -- while getifaddrs gets 48. Until now
+  // the rig counted those calls and never decoded what came back.
+  //
+  // Two record types, two header sizes, which is why the plain 92-byte route
+  // header cannot read them: RTM_IFINFO carries the interface itself (name and
+  // hardware address, in a sockaddr_dl after a variable-length if_data), and
+  // RTM_NEWADDR carries one address of it after a 20-byte header.
+  const RTM_IFINFO = 0x0e, RTM_IFINFO2 = 0x12, RTM_NEWADDR = 0x0c;
+
+  function findLinkAddr(rec, msglen) {
+    // if_data's size is not fixed across releases, so rather than hardcode an
+    // offset, scan for the sockaddr_dl and validate it before trusting it.
+    for (let o = 16; o + 8 <= msglen; o += 4) {
+      try {
+        const salen = rec.add(o).readU8(), fam = rec.add(o + 1).readU8();
+        if (fam !== AF_LINK || salen < 8 || salen > 64 || o + salen > msglen) continue;
+        const nlen = rec.add(o + 5).readU8(), alen = rec.add(o + 6).readU8();
+        if (8 + nlen + alen > salen) continue;
+        let name = '';
+        if (nlen > 0 && nlen < 24) {
+          const nb = new Uint8Array(rec.add(o + 8).readByteArray(nlen));
+          for (let i = 0; i < nb.length; i++) name += String.fromCharCode(nb[i]);
+        }
+        return { name: name, mac: alen ? readLinkAddr(rec.add(o)) : null,
+                 index: rec.add(o + 2).readU16() };
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  function sweepInterfaceList() {
+    try {
+      const d = routeDump(0, NET_RT_IFLIST, 0);
+      if (!d) { reachDenied('interface list via sysctl', 'the dump was refused'); return; }
+      let off = 0, guard = 0, ifaces = 0;
+      const byIndex = {};
+      while (off + 4 <= d.len && guard++ < 4096) {
+        const rec = d.buf.add(off);
+        const msglen = rec.readU16();
+        if (msglen < 4 || off + msglen > d.len) break;
+        const type = rec.add(3).readU8();
+        if (type === RTM_IFINFO || type === RTM_IFINFO2) {
+          const li = findLinkAddr(rec, msglen);
+          if (li && li.name) {
+            byIndex[li.index] = li.name;
+            ifaces++;
+            const masked = !li.mac || /^0[02]:00:00:00:00:00$/.test(li.mac);
+            emit('REACH_IFACE', li.name,
+                 li.mac ? (masked ? 'hardware address masked by iOS' : li.mac)
+                        : 'no hardware address');
+          }
+        } else if (type === RTM_NEWADDR) {
+          const addrs = rec.add(4).readS32();
+          const idx = rec.add(12).readU16();
+          let p = rec.add(20), mask = null, addr = null;
+          for (let bit = 0; bit < 8; bit++) {
+            if (!(addrs & (1 << bit))) continue;
+            const salen = p.readU8();
+            if (bit === 2) mask = readSockaddr(p);       // RTA_NETMASK
+            if (bit === 5) addr = readSockaddr(p);       // RTA_IFA
+            p = p.add(roundup(salen));
+          }
+          if (addr) {
+            emit('REACH_IFADDR', (byIndex[idx] || ('if' + idx)) + '  ' + addr,
+                 mask ? ('netmask ' + mask) : 'no netmask');
+          }
+        }
+        off += msglen;
+      }
+      reachEmit('interface list via sysctl',
+                ifaces + ' interfaces, with names and hardware addresses');
+    } catch (e) { reachDenied('interface list via sysctl', 'read failed'); }
+  }
+
+  function cfStr(js) {
+    try { return ObjC.classes.NSString.stringWithUTF8String_(Memory.allocUtf8String(js)); }
+    catch (e) { return null; }
+  }
+
+  function sweepWifiIdentity() {
+    // The SSID and the router's MAC. Gated since iOS 13 behind an entitlement
+    // AND live location authorisation, so a refusal is the expected answer and
+    // is worth recording as one.
+    try {
+      const p = Module.findGlobalExportByName('CNCopyCurrentNetworkInfo');
+      if (!p) { reachDenied('Wi-Fi SSID and BSSID', 'the API is not present'); return; }
+      const fn = new NativeFunction(p, 'pointer', ['pointer']);
+      const nameStr = cfStr('en0');
+      const ret = fn(nameStr ? nameStr.handle : NULL);
+      if (ret.isNull()) {
+        reachDenied('Wi-Fi SSID and BSSID',
+                    'iOS refused it: this app is not entitled to Wi-Fi info');
+        return;
+      }
+      const d = new ObjC.Object(ret);
+      const ssid = d.objectForKey_('SSID'), bssid = d.objectForKey_('BSSID');
+      if (ssid && !ssid.handle.isNull()) reachEmit('Wi-Fi network name', String(ssid));
+      if (bssid && !bssid.handle.isNull()) reachEmit('Wi-Fi router address', String(bssid));
+    } catch (e) { reachDenied('Wi-Fi SSID and BSSID', 'read failed'); }
+
+    try {
+      const p2 = Module.findGlobalExportByName('CNCopySupportedInterfaces');
+      if (!p2) return;
+      const fn2 = new NativeFunction(p2, 'pointer', []);
+      const ret2 = fn2();
+      if (ret2.isNull()) { reachDenied('Wi-Fi interface list', 'iOS returned nothing'); return; }
+      const arr = new ObjC.Object(ret2);
+      const names = [];
+      for (let i = 0; i < Math.min(arr.count(), 8); i++) names.push(String(arr.objectAtIndex_(i)));
+      reachEmit('Wi-Fi interface list', names.join(', '));
+    } catch (e) {}
+  }
+
+  function sweepResolvers() {
+    try {
+      const p = Module.findGlobalExportByName('res_9_getservers');
+      const init = Module.findGlobalExportByName('res_9_ninit');
+      if (!p) { reachDenied('DNS servers', 'the resolver API is not present'); return; }
+      // res_state is opaque and large; 4 KB is comfortably past its real size.
+      const st = Memory.alloc(4096);
+      if (init) {
+        try { new NativeFunction(init, 'int', ['pointer'])(st); } catch (e) {}
+      }
+      const set = Memory.alloc(128 * 8);
+      const fn = new NativeFunction(p, 'int', ['pointer', 'pointer', 'int']);
+      const n = fn(st, set, 8);
+      if (n <= 0) { reachDenied('DNS servers', 'the resolver returned none'); return; }
+      const out = [];
+      for (let i = 0; i < Math.min(n, 8); i++) {
+        const a = readSockaddr(set.add(i * 128));
+        if (a) out.push(a);
+      }
+      if (out.length) reachEmit('DNS servers', out.join(', '));
+      else reachDenied('DNS servers', 'the resolver returned none');
+    } catch (e) { reachDenied('DNS servers', 'read failed'); }
+  }
+
+  function sweepProxy() {
+    try {
+      const p = Module.findGlobalExportByName('CFNetworkCopySystemProxySettings');
+      if (!p) return;
+      const ret = new NativeFunction(p, 'pointer', [])();
+      if (ret.isNull()) { reachDenied('proxy settings', 'iOS returned nothing'); return; }
+      const d = new ObjC.Object(ret);
+      const out = [];
+      for (let i = 0; i < PROXY_KEYS.length; i++) {
+        const v = d.objectForKey_(PROXY_KEYS[i]);
+        if (v === null || v.handle.isNull()) continue;
+        const sv = String(v);
+        if (sv === '0') continue;
+        out.push(PROXY_KEYS[i] + '=' + sv);
+      }
+      reachEmit('proxy settings', out.length ? out.join(' ') : 'no proxy configured');
+    } catch (e) {}
+  }
+
+  // The keys TikTok already asks for every launch. The passive hook records the
+  // key and never the answer, deliberately. Here the answer is the point.
+  const GESTALT_WANTED = ['RegionCode', 'RegionInfo', 'DeviceName', 'ProductType',
+                          'ReleaseType', 'InternationalMobileEquipmentIdentity',
+                          'SerialNumber', 'UniqueDeviceID', 'WifiAddress',
+                          'BluetoothAddress'];
+  function sweepGestalt() {
+    try {
+      const mg = Module.findGlobalExportByName('MGCopyAnswer');
+      if (!mg) return;
+      const fn = new NativeFunction(mg, 'pointer', ['pointer']);
+      GESTALT_WANTED.forEach(function (k) {
+        try {
+          const ks = cfStr(k);
+          if (!ks) return;
+          const ret = fn(ks.handle);
+          if (ret.isNull()) { reachDenied('gestalt ' + k, 'iOS refused it'); return; }
+          reachEmit('gestalt ' + k, String(new ObjC.Object(ret)));
+        } catch (e) { reachDenied('gestalt ' + k, 'read failed'); }
+      });
+    } catch (e) {}
+  }
+
+  // The only probe that puts a packet on the wire. TikTok can do this -- any
+  // app can ask a server for its own address -- but running it means one
+  // request attributable to the app that the user did not make, so it is a
+  // separate opt-in and never fires by default.
+  const _wanBlocks = [];
+
+  // Path 1 and 2: NSURLSession. This is the app's own networking, so whatever
+  // proxy or tunnel iOS has configured applies -- which is exactly what makes
+  // it the right answer for "what would TikTok see", and exactly what makes it
+  // fail silently when an on-device proxy is in the way. The error is captured
+  // now rather than discarded, because "returned nothing" is not a diagnosis.
+  function wanQuery(urlStr, label, ephemeral) {
+    try {
+      const NSURL = ObjC.classes.NSURL, NSURLSession = ObjC.classes.NSURLSession;
+      if (!NSURL || !NSURLSession) return;
+      const url = NSURL.URLWithString_(urlStr);
+      if (!url) return;
+
+      let session;
+      if (ephemeral && ObjC.classes.NSURLSessionConfiguration) {
+        // A fresh ephemeral configuration, in case the shared session's is the
+        // thing that is broken. Longer timeout: a proxy adds a hop.
+        const cfg = ObjC.classes.NSURLSessionConfiguration.ephemeralSessionConfiguration();
+        try { cfg.setTimeoutIntervalForRequest_(12.0); } catch (e) {}
+        try { cfg.setTimeoutIntervalForResource_(18.0); } catch (e) {}
+        session = NSURLSession.sessionWithConfiguration_(cfg);
+      } else {
+        session = NSURLSession.sharedSession();
+      }
+
+      const blk = new ObjC.Block({
+        retType: 'void', argTypes: ['object', 'object', 'object'],
+        implementation: function (data, resp, err) {
+          try {
+            if (err && !err.handle.isNull()) {
+              let why = '';
+              try {
+                why = String(err.localizedDescription()) + ' (code ' + err.code() + ')';
+              } catch (e) { why = 'error with no description'; }
+              reachDenied(label, 'the request failed: ' + why);
+              return;
+            }
+            if (!data || data.handle.isNull() || data.length() === 0) {
+              let code = '';
+              try { code = ' (HTTP ' + resp.statusCode() + ')'; } catch (e) {}
+              reachDenied(label, 'the request returned an empty body' + code);
+              return;
+            }
+            const v = String(ObjC.classes.NSString.alloc()
+                        .initWithData_encoding_(data, 4)).trim();
+            if (v && v.length < 46) emit('REACH_WAN', v, label);
+            else reachDenied(label, 'the reply was not an address');
+          } catch (e) { reachDenied(label, 'the reply could not be read'); }
+        }
+      });
+      _wanBlocks.push(blk);
+      session.dataTaskWithURL_completionHandler_(url, blk).resume();
+    } catch (e) { reachDenied(label, 'the request could not be made'); }
+  }
+
+  // Path 3: a raw socket to a numeric address, with a hand-written request.
+  // No DNS, no NSURLSession, no proxy configuration consulted -- so this is the
+  // address seen by traffic that ignores the app's proxy settings entirely.
+  // When it disagrees with path 1, that disagreement IS the finding: some of
+  // the phone's traffic is not going where the proxy thinks it is.
+  //
+  // 1.1.1.1 is used because it is a stable anycast address that needs no
+  // lookup, and /cdn-cgi/trace answers with a line reading ip=<address>.
+  function wanRawSocket(ipStr, hostHdr, path, label) {
+    let fd = -1;
+    try {
+      const g = Module.findGlobalExportByName.bind(Module);
+      const _socket = new NativeFunction(g('socket'), 'int', ['int', 'int', 'int']);
+      const _connect = new NativeFunction(g('connect'), 'int', ['int', 'pointer', 'uint']);
+      const _send = new NativeFunction(g('send'), 'long', ['int', 'pointer', 'ulong', 'int']);
+      const _recv = new NativeFunction(g('recv'), 'long', ['int', 'pointer', 'ulong', 'int']);
+      const _close = new NativeFunction(g('close'), 'int', ['int']);
+      const _setsockopt = new NativeFunction(g('setsockopt'), 'int',
+        ['int', 'int', 'int', 'pointer', 'uint']);
+
+      fd = _socket(2, 1, 0);                       // AF_INET, SOCK_STREAM
+      if (fd < 0) { reachDenied(label, 'no socket'); return; }
+
+      // Short timeouts on purpose: this runs on the script thread, and the
+      // driver treats five seconds of silence as a wedged script.
+      const tv = Memory.alloc(16);
+      tv.writeU64(3); tv.add(8).writeU64(0);       // 3s: long enough that
+                                                   // impatience is not mistaken
+                                                   // for a blocked path
+      _setsockopt(fd, 0xffff, 0x1005, tv, 16);     // SO_RCVTIMEO
+      _setsockopt(fd, 0xffff, 0x1006, tv, 16);     // SO_SNDTIMEO
+
+      const sa = Memory.alloc(16);
+      sa.writeU8(16); sa.add(1).writeU8(2);
+      sa.add(2).writeU8(0); sa.add(3).writeU8(80); // port 80, network order
+      const parts = ipStr.split('.');
+      for (let i = 0; i < 4; i++) sa.add(4 + i).writeU8(parseInt(parts[i], 10));
+
+      if (_connect(fd, sa, 16) !== 0) {
+        reachDenied(label, 'could not connect to ' + ipStr + ' directly');
+        _close(fd); return;
+      }
+      const req = 'GET ' + path + ' HTTP/1.1\r\nHost: ' + hostHdr +
+                  '\r\nUser-Agent: curl/8\r\nConnection: close\r\n\r\n';
+      const buf = Memory.allocUtf8String(req);
+      if (_send(fd, buf, req.length, 0) < 0) {
+        reachDenied(label, 'the direct request could not be sent');
+        _close(fd); return;
+      }
+      const rbuf = Memory.alloc(4096);
+      const n = _recv(fd, rbuf, 4095, 0);
+      _close(fd); fd = -1;
+      if (n <= 0) { reachDenied(label, 'no reply from ' + ipStr); return; }
+      const body = rbuf.readUtf8String(Number(n)) || '';
+      const m = /(?:^|\n)ip=([0-9a-fA-F:.]{3,45})/.exec(body) ||
+                /\b(\d{1,3}(?:\.\d{1,3}){3})\b\s*$/.exec(body.trim());
+      if (m) emit('REACH_WAN', m[1], label);
+      else reachDenied(label, 'the reply carried no address');
+    } catch (e) {
+      reachDenied(label, 'the direct request failed');
+      try { if (fd >= 0) new NativeFunction(
+        Module.findGlobalExportByName('close'), 'int', ['int'])(fd); } catch (e2) {}
+    }
+  }
+
+  // Control. Not an address probe: it only reports whether a request made this
+  // way completes at all, to a host the app itself talks to. If the controls
+  // succeed while the echo endpoints fail, the destinations are being rejected
+  // by something on the phone rather than the probe being broken.
+  function wanControl(urlStr, label) {
+    try {
+      const NSURL = ObjC.classes.NSURL, NSURLSession = ObjC.classes.NSURLSession;
+      const url = NSURL.URLWithString_(urlStr);
+      if (!url) return;
+      const cfg = ObjC.classes.NSURLSessionConfiguration.ephemeralSessionConfiguration();
+      try { cfg.setTimeoutIntervalForRequest_(12.0); } catch (e) {}
+      const blk = new ObjC.Block({
+        retType: 'void', argTypes: ['object', 'object', 'object'],
+        implementation: function (data, resp, err) {
+          try {
+            if (err && !err.handle.isNull()) {
+              emit('REACH_PATH', label, 'failed: ' + String(err.localizedDescription()));
+            } else {
+              let code = '?';
+              try { code = String(resp.statusCode()); } catch (e) {}
+              emit('REACH_PATH', label, 'the request completed, HTTP ' + code);
+            }
+          } catch (e) {}
+        }
+      });
+      _wanBlocks.push(blk);
+      NSURLSession.sessionWithConfiguration_(cfg)
+        .dataTaskWithURL_completionHandler_(url, blk).resume();
+    } catch (e) {}
+  }
+
+  function sweepWanDual() {
+    // A battery, not a single endpoint. Through an on-device proxy the obvious
+    // call fails with -1005 and tells you nothing about why, so several
+    // providers and several transports are tried and each reports its own
+    // outcome. Whichever answers, answers; the pattern of failures is itself
+    // information about what the tunnel is doing.
+    wanQuery('https://api.ipify.org', 'over IPv4, what a server sees', false);
+    wanQuery('https://api64.ipify.org', 'over whichever family it prefers', false);
+    wanQuery('https://api.ipify.org', 'over IPv4, on a fresh session', true);
+    wanQuery('https://icanhazip.com', 'a second provider, over TLS', true);
+    wanQuery('https://1.1.1.1/cdn-cgi/trace', 'to a numeric address, no lookup', true);
+    wanControl('https://www.tiktok.com/robots.txt', 'a TikTok host, same method');
+    wanControl('https://www.apple.com/library/test/success.html',
+               'an unrelated host, same method');
+  }
+
+  // Direct sockets, no resolver and no NSURLSession. Two targets so a single
+  // blocked destination cannot be mistaken for a blocked path: 1.1.1.1 is also
+  // a resolver and a proxy may treat it specially, an ordinary CDN edge is not.
+  function sweepWanDirect() {
+    // One, not three. Each blocks the script thread for its timeout, and the
+    // driver treats five seconds of silence as a wedged script.
+    wanRawSocket('1.1.1.1', '1.1.1.1', '/cdn-cgi/trace',
+                 'a direct socket, no proxy settings consulted');
+  }
+
+  rpc.exports.reachwan = function () {
+    const was = _selfRead;
+    _selfRead = true;
+    try { sweepWanDirect(); } finally { _selfRead = was; }
+    return true;
+  };
+
+  function reachSweep(doWan) {
+    const was = _selfRead;
+    _selfRead = true;
+    try {
+      sweepGateway();
+      sweepNeighbours();
+      sweepResolvers();
+      sweepProxy();
+      sweepInterfaceList();
+      sweepWifiIdentity();
+      sweepGestalt();
+      if (doWan) sweepWanDual();
+    } catch (e) {
+      emit('REACH_NO', 'capability sweep', 'aborted: ' + e);
+    } finally {
+      _selfRead = was;
+    }
+    return true;
+  }
+  rpc.exports.reach = function (doWan) { return reachSweep(!!doWan); };
 
   // --- Locale, language, timezone and keyboards (read-only) ---
   // Every one of these is permission-free and each carries real entropy. The
@@ -1200,19 +2117,61 @@ if (!ObjC.available) {
 
   // which DNS servers the phone is using. These identify your ISP even when a
   // VPN is carrying the traffic, if resolution goes outside the tunnel.
+  // res_getservers(res_state, union res_sockaddr_union *set, int cnt) fills the
+  // caller's array and RETURNS the number it wrote, so an onEnter hook could
+  // never have seen a server address: at that point the array is still empty.
+  // That is why this used to record the question and not the answer. The union
+  // is a flat 128 bytes per slot whichever family it holds.
   try {
-    probe('net', dangerousExport('res_9_getservers'), 40, 'resolver list reads', {
-      onEnter: function () { emit('DISPLAY', 'DNS servers', 'read the resolver list'); }
-    });
+    const rgs = Module.findGlobalExportByName('res_9_getservers');
+    if (rgs) {
+      const rgsBudget = budget(64, 'resolver list reads');
+      Interceptor.attach(rgs, {
+        onEnter: function (args) { this.set = args[1]; this.cnt = args[2].toInt32(); },
+        onLeave: function (retval) {
+          try {
+            if (_selfRead || !rgsBudget()) return;
+            emit('RESOLVER', 'resolver list', null);
+            let n = retval.toInt32();
+            if (n < 0 || this.set.isNull()) return;
+            if (n > this.cnt) n = this.cnt;
+            if (n > 8) n = 8;                       // more than 8 is a bad read
+            for (let i = 0; i < n; i++) {
+              const a = readSockaddr(this.set.add(i * 128));
+              if (a) emit('RESOLVER', 'DNS server', a);
+            }
+          } catch (e) {}
+        }
+      });
+    }
   } catch (e) {}
 
   try {
-    // reachability gets polled during network activity, so sample-then-detach.
-    probe('net', dangerousExport('SCNetworkReachabilityGetFlags'), 120, 'reachability checks', {
-      onEnter: function () {
-        emit('DISPLAY', 'connection reachability', 'via SystemConfiguration');
-      }
-    });
+    // Reachability is polled during network activity, so the work is budgeted
+    // rather than the trap being detached. args[1] is an out-param the call
+    // writes on the way back: the kWWAN bit alone says cellular versus Wi-Fi.
+    const scr = Module.findGlobalExportByName('SCNetworkReachabilityGetFlags');
+    if (scr) {
+      const scrBudget = budget(200, 'reachability checks');
+      const REACH = [[0x1, 'transient'], [0x2, 'reachable'], [0x4, 'connection required'],
+                     [0x8, 'connects automatically'], [0x10, 'connects on demand'],
+                     [0x20, 'is local address'], [0x40, 'is direct'],
+                     [0x40000, 'over cellular']];
+      Interceptor.attach(scr, {
+        onEnter: function (args) { this.flags = args[1]; },
+        onLeave: function (retval) {
+          try {
+            if (!scrBudget()) return;
+            emit('DISPLAY', 'connection reachability', 'via SystemConfiguration');
+            if (!retval.toInt32() || this.flags.isNull()) return;
+            const f = this.flags.readU32();
+            for (let i = 0; i < REACH.length; i++) {
+              if (f & REACH[i][0]) emit('NWPATH', REACH[i][1], 'yes');
+            }
+          } catch (e) {}
+        }
+      });
+    }
   } catch (e) {}
 
   // --- Motion sensors (read-only) ---
@@ -1298,8 +2257,56 @@ if (!ObjC.available) {
     const p = Module.findGlobalExportByName('CNCopyCurrentNetworkInfo');
     if (p) {
       Interceptor.attach(p, {
-        onEnter: function () {
-          emit('INTERFACE_ID', 'Wi-Fi network identity', 'asked for SSID and BSSID');
+        onEnter: function (args) {
+          if (!_selfRead) {
+            emit('INTERFACE_ID', 'Wi-Fi network identity', 'asked for SSID and BSSID');
+          }
+          this.iface = args[0].isNull() ? null : String(new ObjC.Object(args[0]));
+        },
+        onLeave: function (retval) {
+          try {
+            if (_selfRead) return;
+            // Since iOS 13 this needs the Access WiFi Information entitlement
+            // AND live location authorisation, so a null return is the normal
+            // answer and is worth recording: it is iOS refusing, not the app
+            // declining to ask.
+            if (retval.isNull()) {
+              emit('INTERFACE_ID', 'Wi-Fi network identity answer',
+                   'iOS returned nothing, the app is not entitled to it');
+              return;
+            }
+            const d = new ObjC.Object(retval);
+            if (this.iface) emit('INTERFACE_ID', 'asked about interface', this.iface);
+            const ssid = d.objectForKey_('SSID');
+            const bssid = d.objectForKey_('BSSID');
+            if (ssid && !ssid.handle.isNull()) {
+              emit('INTERFACE_ID', 'Wi-Fi network name', String(ssid));
+            }
+            if (bssid && !bssid.handle.isNull()) {
+              emit('INTERFACE_ID', 'Wi-Fi router address', String(bssid));
+            }
+          } catch (e) {}
+        }
+      });
+    }
+  } catch (e) {}
+
+  // The companion call. It enumerates the Wi-Fi interfaces before the one above
+  // asks about them, and unlike that one it is not entitlement-gated.
+  try {
+    const csi = Module.findGlobalExportByName('CNCopySupportedInterfaces');
+    if (csi) {
+      const csiBudget = budget(32, 'Wi-Fi interface list reads');
+      Interceptor.attach(csi, {
+        onLeave: function (retval) {
+          try {
+            if (_selfRead || !csiBudget() || retval.isNull()) return;
+            const arr = new ObjC.Object(retval);
+            const n = Math.min(arr.count(), 8);
+            for (let i = 0; i < n; i++) {
+              emit('INTERFACE_ID', 'Wi-Fi interface', String(arr.objectAtIndex_(i)));
+            }
+          } catch (e) {}
         }
       });
     }
@@ -1418,8 +2425,10 @@ if (!ObjC.available) {
   // sample is spent almost instantly either way; the only thing a larger limit
   // bought was a longer stretch of trapping.
   ['SSLWrite', 'SSL_write'].forEach(function (nm) {
-    probe('tls', dangerousExport(nm), 60, 'TLS write (' + nm + ')',
-          { onEnter: tlsWriteHandler });
+    eachExport(nm).forEach(function (e) {
+      probe('tls', e.addr, 60, 'TLS write (' + nm + ' in ' + e.mod + ')',
+            { onEnter: tlsWriteHandler });
+    });
   });
 
   // --- Publish-only TLS write (OFF unless the driver arms 'publish') ---
@@ -1535,17 +2544,136 @@ if (!ObjC.available) {
     };
   }
 
-  probe('tls', dangerousExport('SSLRead'), 60, 'TLS read (SSLRead)',
-        makeReadHandlers(true));
-  probe('tls', dangerousExport('SSL_read'), 60, 'TLS read (SSL_read)',
-        makeReadHandlers(false));
+  eachExport('SSLRead').forEach(function (e) {
+    probe('tls', e.addr, 60, 'TLS read (SSLRead in ' + e.mod + ')',
+          makeReadHandlers(true));
+  });
+  eachExport('SSL_read').forEach(function (e) {
+    probe('tls', e.addr, 60, 'TLS read (SSL_read in ' + e.mod + ')',
+          makeReadHandlers(false));
+  });
+
+  // --- The resolver's answer, which carries this phone's public address ---
+  // ByteDance runs its own resolver over HTTPS. Its reply names the addresses
+  // for each host it was asked about, and echoes back the client IP it saw the
+  // question arrive from. That last field is the one thing on this phone that
+  // can state the public address: the OS offers no API for it, and with no
+  // global IPv6 there is nothing routable on any interface to read.
+  //
+  // Registered in the net group rather than tls, because the net group is the
+  // one that stays armed for a whole window, and an answer that arrives once
+  // is not something a 600ms sample will catch.
+  const seenResolverAnswer = new Set();
+
+  function resolverScan(buf, len) {
+    try {
+      if (len < 12) return;
+      const head = buf.readU8();
+      const isJson = (head === 0x7b || head === 0x5b);
+      if (!isJson && len > 64) return;      // neither JSON nor a bare address
+      const n = len < 3072 ? len : 3072;
+      const bytes = new Uint8Array(buf.readByteArray(n));
+      let s = '';
+      for (let i = 0; i < n; i++) {
+        const ch = bytes[i];
+        s += (ch >= 0x20 && ch <= 0x7e) ? String.fromCharCode(ch) : ' ';
+      }
+      // An echo endpoint answers with the address and nothing else. Catch it
+      // here too, so a reply still counts even when the call that asked for it
+      // reported failure.
+      const bare = /^\s*(\d{1,3}(?:\.\d{1,3}){3}|[0-9a-fA-F:]{6,45})\s*$/.exec(s.slice(0, 64));
+      if (bare && !seenResolverAnswer.has('wan' + bare[1])) {
+        seenResolverAnswer.add('wan' + bare[1]);
+        emit('REACH_WAN', bare[1], 'seen in a reply, whatever asked for it');
+      }
+      if (s.indexOf('"cip"') < 0 && s.indexOf('"ips"') < 0) return;
+
+      const cip = /"cip"\s*:\s*"([0-9a-fA-F:.]{3,45})"/.exec(s);
+      if (cip && !seenResolverAnswer.has('cip' + cip[1])) {
+        seenResolverAnswer.add('cip' + cip[1]);
+        emit('PUBLIC_IP', cip[1], 'echoed back by the resolver it asked');
+      }
+      // records look like {"host":"x","ttl":n,"ips":["a","b"],...}
+      const rec = /"host"\s*:\s*"([^"]{1,120})"[^}]*?"ips"\s*:\s*\[([^\]]{0,400})\]/g;
+      let m, guard = 0;
+      while ((m = rec.exec(s)) !== null && guard++ < 24) {
+        const host = m[1];
+        const ips = m[2].replace(/"/g, '').split(',');
+        for (let i = 0; i < ips.length && i < 16; i++) {
+          const a = ips[i].trim();
+          if (!a) continue;
+          const tag = host + '|' + a;
+          if (seenResolverAnswer.has(tag)) continue;
+          seenResolverAnswer.add(tag);
+          emit('HTTPDNS', host, a);
+        }
+      }
+    } catch (e) {}
+  }
+
+  function makeResolverHandlers(secureTransport) {
+    return {
+      onEnter: function (args) {
+        this.buf = args[1];
+        this.got = secureTransport ? args[3] : null;
+        this.st = secureTransport;
+      },
+      onLeave: function (retval) {
+        try {
+          if (this.buf.isNull()) return;
+          let len;
+          if (this.st) {
+            if (retval.toInt32() !== 0 || this.got.isNull()) return;
+            len = Number(this.got.readU64());
+          } else {
+            len = retval.toInt32();
+          }
+          if (len > 0) resolverScan(this.buf, len);
+        } catch (e) {}
+      }
+    };
+  }
+
+  eachExport('SSL_read').forEach(function (e) {
+    probe('net', e.addr, 1500, 'resolver answers (SSL_read in ' + e.mod + ')',
+          makeResolverHandlers(false));
+  });
+  eachExport('SSLRead').forEach(function (e) {
+    probe('net', e.addr, 1500, 'resolver answers (SSLRead in ' + e.mod + ')',
+          makeResolverHandlers(true));
+  });
 
   // --- Explicit VPN and proxy checks (read-only) ---
+  // The question was already recorded. The answer is the interesting half: a
+  // proxy host and port here is the difference between "the app wondered" and
+  // "something on this phone is standing between it and the network".
+  const PROXY_KEYS = ['HTTPEnable', 'HTTPProxy', 'HTTPPort', 'HTTPSEnable',
+                      'HTTPSProxy', 'HTTPSPort', 'SOCKSEnable', 'SOCKSProxy',
+                      'SOCKSPort', 'ProxyAutoConfigEnable',
+                      'ProxyAutoConfigURLString'];
   try {
     const proxy = Module.findGlobalExportByName('CFNetworkCopySystemProxySettings');
     if (proxy) {
+      const proxyBudget = budget(64, 'proxy config reads');
       Interceptor.attach(proxy, {
-        onEnter: function () { emit('PROXY', 'proxy config', null); }
+        onEnter: function () { if (!_selfRead) emit('PROXY', 'proxy config', null); },
+        onLeave: function (retval) {
+          try {
+            if (_selfRead || !proxyBudget() || retval.isNull()) return;
+            const d = new ObjC.Object(retval);
+            let set = 0;
+            for (let i = 0; i < PROXY_KEYS.length; i++) {
+              const k = PROXY_KEYS[i];
+              const v = d.objectForKey_(k);
+              if (v === null || v.handle.isNull()) continue;
+              const s = String(v);
+              if (s === '0') continue;            // the disabled default
+              set++;
+              emit('PROXY', 'proxy ' + k, s);
+            }
+            if (!set) emit('PROXY', 'proxy answer', 'no proxy configured');
+          } catch (e) {}
+        }
       });
     }
   } catch (e) {}
@@ -1553,8 +2681,20 @@ if (!ObjC.available) {
   try {
     const NEVPNManager = ObjC.classes.NEVPNManager;
     if (NEVPNManager && NEVPNManager['- connection']) {
+      // NEVPNStatus: 0 invalid, 1 disconnected, 2 connecting, 3 connected,
+      // 4 reasserting, 5 disconnecting. Only this app's own tunnel is visible
+      // here, so 'invalid' is the normal answer and means "none configured".
+      const VPN_STATUS = ['no VPN configured for this app', 'disconnected',
+                          'connecting', 'connected', 'reasserting', 'disconnecting'];
       Interceptor.attach(NEVPNManager['- connection'].implementation, {
-        onEnter: function () { emit('PROXY', 'VPN status', null); }
+        onEnter: function () { emit('PROXY', 'VPN status', null); },
+        onLeave: function (retval) {
+          try {
+            if (retval.isNull()) return;
+            const st = new ObjC.Object(retval).status();
+            emit('PROXY', 'VPN status answer', VPN_STATUS[st] || ('status ' + st));
+          } catch (e) {}
+        }
       });
     }
   } catch (e) {}
@@ -2599,7 +3739,7 @@ if (!ObjC.available) {
       const b = budget(4000, 'MobileGestalt reads');
       Interceptor.attach(mg, {
         onEnter: function (args) {
-          if (!b()) return;
+          if (_selfRead || !b()) return;
           try {
             const key = new ObjC.Object(args[0]).toString();
             if (key && key.length < 64) emit('GESTALT', key, null);
